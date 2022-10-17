@@ -44,7 +44,7 @@ class RetrievalMixin:
 
     @abstractclassmethod
     def find_vectors(
-        cls: Type[T],
+        cls,
         batch_size: int | None = None,
         filters: dict | None = None,
         projection: dict | None = None,
