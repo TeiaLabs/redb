@@ -1,6 +1,9 @@
-from abc import abstractclassmethod, abstractstaticmethod, abstractmethod
-
+from abc import abstractclassmethod, abstractmethod
 from typing import Any, TypeVar, Type
+
+import pydantic
+
+from . import init_db
 
 T = TypeVar("T")
 
@@ -23,8 +26,9 @@ class InsertionMixin:
         """
         ...
 
+    @abstractmethod
     def insert(self):
-        ...
+        return init_db.REDB.get_doc_class().insert(self)
 
 
 class RetrievalMixin:
@@ -55,3 +59,10 @@ class RetrievalMixin:
     @abstractclassmethod
     def find_by_id(cls: Type[T], id: str) -> T:
         ...
+
+
+class Document(pydantic.BaseModel, InsertionMixin, RetrievalMixin):
+
+    @property
+    def collection_name(self) -> str:
+        return self.__class__.__name__.lower()

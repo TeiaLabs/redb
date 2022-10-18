@@ -1,23 +1,25 @@
 from pathlib import Path
+from typing import Any, Type
 
 
-class Client():
+class Client:
 
-    @classmethod
-    def from_prefix(cls, prefix: str, **kwargs):
-        client_class: Client
-        for subclass in cls.__subclasses__:
-            if subclass.__name__.startswith(prefix):
-                client_class = subclass
-                break
-        else:
-            raise ValueError(f"Client with prefix {prefix} not found.")
-        return client_class(**kwargs)
+    attrs: dict[str, Any]
+
+    def __init__(self, **kwargs) -> None:
+        print("Initialized DB client.")
 
 
-class JSONClient():
+class JSONClient(Client):
+    def __init__(self, **kwargs):
+        self.attrs = kwargs
+        file_path: Path = kwargs["file_path"]
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.touch(exist_ok=True)
+        super().__init__()
 
-    def __init__(self, file_path: Path):
-        self.file_path = file_path
-        self.file_path.parent.mkdir(parents=True, exist_ok=True)
-        self.file_path.touch(exist_ok=True)
+
+class MongoClient(Client):
+    def __init__(self, auth: str):
+        self.auth = auth
+        super().__init__()

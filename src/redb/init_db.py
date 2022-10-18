@@ -1,23 +1,42 @@
-from typing import Literal, TypeVar
+from typing import Literal, Type
 
-from .client import Client
-
-T = TypeVar("T")
-
-
-class CRUDOperationResult:
-    matched_count: int
+from .client import Client, JSONClient, MongoClient
+from .document import Document
+from .json_system.document import JSONDocument
 
 
 class REDB:
-    client: Client | None
+    """Client singleton."""
+
+    client: Client | None = None
+    _doc_class: Type[Document] | None = None
+
+    def __init__(self, backend: Literal["json", "mongo"], kwargs):
+        client_class, REDB._doc_class = self.choose_engine(backend)
+        REDB.client = client_class(**kwargs)
 
     @classmethod
-    def get(cls):
+    def get_client(cls):
         if cls.client is None:
-            raise RuntimeError("DB not initialized.")
+            raise RuntimeError
         return cls.client
 
     @classmethod
-    def init_db(cls, backend: Literal["json", "mongo"], kwargs):
-        cls.client = Client.from_prefix(backend, **kwargs)
+    def get_doc_class(cls):
+        if cls._doc_class is None:
+            raise RuntimeError
+        return cls._doc_class
+
+    @classmethod
+    def choose_engine(cls, backend: str) -> tuple[Type[Client], Type[Document]]:
+        client_class: Type[Client]
+        document_class: Type[Document]
+        if backend == "json":
+            client_class = JSONClient
+            document_class = JSONDocument
+        elif backend == "mongo":
+            client_class = MongoClient
+            document_class = JSONDocument  # TODO
+        else:
+            raise ValueError(f"Backend {backend!r} not found.")
+        return client_class, document_class
