@@ -1,15 +1,18 @@
-from typing import Literal, Type
+from typing import Literal, Type, TypeVar
 
 from .client import Client, JSONClient, MongoClient
 from .document import Document
 from .json_system.document import JSONDocument
 
+C = TypeVar("C", bound=Client)
+D = TypeVar("D", bound=Type[Document])
+
 
 class REDB:
     """Client singleton."""
 
-    client: Client | None = None
-    _doc_class: Type[Document] | None = None
+    client: C | None = None
+    _doc_class: D | None = None
 
     def __init__(self, backend: Literal["json", "mongo"], kwargs):
         client_class, REDB._doc_class = self.choose_engine(backend)

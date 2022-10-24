@@ -10,10 +10,12 @@ class Dog(Document):
 
 
 def main():
-    json_path = Path("./db.json")
-    REDB("json", dict(file_path=json_path))
+    db_dir = Path("./jsondb/")
+    REDB("json", dict(dir_path=db_dir))
     d = Dog(name="Mutley", color="Green")
+    print(repr(d))
     d.insert()
+    print(Dog.find_many())
 
 
 if __name__ == "__main__":

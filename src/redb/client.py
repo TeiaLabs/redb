@@ -13,9 +13,8 @@ class Client:
 class JSONClient(Client):
     def __init__(self, **kwargs):
         self.attrs = kwargs
-        file_path: Path = kwargs["file_path"]
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path.touch(exist_ok=True)
+        dir_path: Path = kwargs["dir_path"]
+        dir_path.mkdir(parents=True, exist_ok=True)
         super().__init__()
 
 
