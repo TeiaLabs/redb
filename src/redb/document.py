@@ -44,7 +44,7 @@ class RetrievalMixin:
         projection: dict | None = None,
         sorting: dict | None = None,
     ) -> list[T]:
-        return init_db.REDB.get_doc_class().find_many()
+        return init_db.REDB.get_doc_class().find_many(cls)
 
     @abstractclassmethod
     def find_vectors(
@@ -65,7 +65,7 @@ class Document(pydantic.BaseModel, InsertionMixin, RetrievalMixin):
 
     @classmethod
     def collection_name(cls) -> str:
-        return cls.__class__.__name__.lower()
+        return cls.__name__.lower()
 
     def __repr__(self) -> str:
         r = self.__class__.__name__

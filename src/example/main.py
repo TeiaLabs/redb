@@ -14,8 +14,13 @@ def main():
     REDB("json", dict(dir_path=db_dir))
     d = Dog(name="Mutley", color="Green")
     print(repr(d))
+    # Dog(name=Mutley, color=Green)
     d.insert()
     print(Dog.find_many())
+    # []
+    # find_many is returning an empty list
+    # because it's looking for the JSONDocument class name
+    # instead of the Dog class name.
 
 
 if __name__ == "__main__":

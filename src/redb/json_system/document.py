@@ -4,12 +4,12 @@ from typing import TypeVar, Type
 from ..document import Document
 from .. import init_db
 
-T = TypeVar("T")
+T = TypeVar("T", bound=Document)
 
 
 class JSONDocument(Document):
 
-    @classmethod
+    @staticmethod
     def find_many(
         cls: Type[T],
         filters: dict | None = None,
