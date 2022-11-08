@@ -37,14 +37,8 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/teialabs/redb",
-    packages=setuptools.find_packages(where="src"),
-    package_dir={"": "src"},
+    packages=setuptools.find_packages(),
     keywords="",
-    entry_points={
-        "console_scripts": [
-            "",
-        ],
-    },
     python_requires=">=3.10",
     install_requires=requirements,
     extras_require=opt_requirements,

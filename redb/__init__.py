@@ -1,8 +1,7 @@
 from typing import Literal, Type, TypeVar
 
-from .client import Client, JSONClient, MongoClient
-from .document import Document
-from .json_system.document import JSONDocument
+from .clients import Client, JSONClient, MongoClient
+from .mixins.document import Document
 
 C = TypeVar("C", bound=Client)
 D = TypeVar("D", bound=Type[Document])
@@ -36,7 +35,7 @@ class REDB:
         document_class: Type[Document]
         if backend == "json":
             client_class = JSONClient
-            document_class = JSONDocument
+            document_class = JSONDocument  # TODO
         elif backend == "mongo":
             client_class = MongoClient
             document_class = JSONDocument  # TODO

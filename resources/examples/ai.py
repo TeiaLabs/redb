@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from redb.init_db import REDB
-from redb.document import Document
+from redb import REDB
+from redb.mixins.document import Document
 
 
 class Embedding(Document):

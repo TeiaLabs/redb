@@ -5,7 +5,7 @@ import pickle
 
 import pydantic
 
-from . import init_db
+from .. import init_db
 
 T = TypeVar("T")
 
