@@ -1,5 +1,7 @@
 from abc import abstractclassmethod, abstractmethod
-from typing import Any, TypeVar, Type
+from typing import Any, TypeVar, Type, Optional
+import hashlib
+import pickle
 
 import pydantic
 
@@ -74,3 +76,18 @@ class Document(pydantic.BaseModel, InsertionMixin, RetrievalMixin):
         r += ", ".join(f"{f}={getattr(self, f)}" for f in self.__fields__)
         r += ")"
         return r
+
+    def get_hash(self) -> str:
+        hashses = []
+        for field in self.__fields__:
+            value = self.__getattribute__(field)
+            key_field_hash = self.hash_function(field.encode('utf8'))
+            val_field_hash = self.hash_function(pickle.dumps(value))
+            hashses += [key_field_hash, val_field_hash]
+
+        hex_digest = hashlib.sha256("".join(hashses).encode("utf-8")).hexdigest()
+        return hex_digest
+
+    @staticmethod
+    def hash_function(buf):
+        return hashlib.md5(buf).hexdigest()

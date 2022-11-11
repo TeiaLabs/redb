@@ -3,6 +3,7 @@ from typing import TypeVar, Type
 
 from ..document import Document
 from .. import init_db
+from pathlib import Path
 
 T = TypeVar("T", bound=Document)
 
@@ -19,22 +20,27 @@ class JSONDocument(Document):
     ) -> list[T]:
         """Ignore params and return all items."""
         c = init_db.REDB.get_client()
-        json_path = c.attrs["dir_path"] / f"{cls.collection_name()}.json"
-        if json_path.is_file():
-            with open(json_path) as f:
-                data = json.load(f)
-            return [cls(**obj) for obj in data]
-        return []
+        collection_path = c.attrs["dir_path"] / cls.collection_name()
+        json_files = collection_path.rglob("*json")
+
+        return [
+            cls(**json.load(open(json_file)))
+            for json_file in json_files
+            if json_file.is_file()
+        ]
 
     def insert(self):
         c = init_db.REDB.get_client()
-        json_path = c.attrs["dir_path"] / f"{self.collection_name()}.json"
+        collection_path = c.attrs["dir_path"] / self.collection_name()
+        collection_path.mkdir(parents=True, exist_ok=True)
+        json_path = collection_path / Path(f"{self.get_hash()}.json")
         obj = self.dict()
+
         if json_path.is_file():
             with open(json_path) as f:
                 data = json.load(f)
-            data.append(obj)
+            data.update(obj)
         else:
-            data = [obj]
+            data = obj
         with open(json_path, "w") as f:
             json.dump(data, f, indent=4)
