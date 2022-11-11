@@ -24,9 +24,9 @@ class JSONDocument(Document):
         json_files = collection_path.rglob("*json")
 
         return [
-            cls(**json.load(open(_file)))
-            for _file in json_files
-            if _file.is_file()
+            cls(**json.load(open(json_file)))
+            for json_file in json_files
+            if json_file.is_file()
         ]
 
     def insert(self):
