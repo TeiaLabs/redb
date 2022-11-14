@@ -17,7 +17,7 @@ class InsertionMixin:
 
     @abstractclassmethod
     def insert_many(cls: Type[T], data: list[dict[str, Any]]) -> list[T]:
-        ...
+        init_db.REDB.get_doc_class().insert_many(cls, data)
 
     @abstractclassmethod
     def insert_vectors(cls: Type[T], data: dict[str, list[Any]]) -> list[T]:
@@ -26,7 +26,7 @@ class InsertionMixin:
 
         :param data: dict of field name and columnar lists of values.
         """
-        ...
+        init_db.REDB.get_doc_class().insert_vectors(cls, data)
 
     @abstractmethod
     def insert(self):
@@ -56,11 +56,11 @@ class RetrievalMixin:
         projection: dict | None = None,
         sorting: dict | None = None,
     ) -> dict[str, list[Any]]:
-        ...
+        return init_db.REDB.get_doc_class().find_vectors(cls)
 
     @abstractclassmethod
     def find_by_id(cls: Type[T], id: str) -> T:
-        ...
+        return init_db.REDB.get_doc_class().find_by_id(cls, id)
 
 
 class Document(pydantic.BaseModel, InsertionMixin, RetrievalMixin):
@@ -77,9 +77,9 @@ class Document(pydantic.BaseModel, InsertionMixin, RetrievalMixin):
         r += ")"
         return r
 
-    def get_hash(self) -> str:
+    def get_hash(self, fields) -> str:
         hashses = []
-        for field in self.__fields__:
+        for field in fields:
             value = self.__getattribute__(field)
             key_field_hash = self.hash_function(field.encode('utf8'))
             val_field_hash = self.hash_function(pickle.dumps(value))
