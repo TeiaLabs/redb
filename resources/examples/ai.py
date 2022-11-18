@@ -27,8 +27,8 @@ def main():
         source_url="www",
     )
 
-    d.find_vectors()
-    print(Embedding.insert_one(d))
+    d.insert_one()
+    print(Embedding.find_one())
 
 
 if __name__ == "__main__":
