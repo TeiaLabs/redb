@@ -1,62 +1,25 @@
-from __future__ import annotations
+from typing import Any
 
-from abc import ABC, abstractmethod
-from enum import Enum
-from typing import TypeVar, Union, Mapping, Any
-
-import pymongo
-from pydantic import BaseModel
-from pymongo.operations import (
-    InsertOne,
-    DeleteOne,
-    DeleteMany,
-    ReplaceOne,
-    UpdateOne,
-    UpdateMany,
-)
-from pymongo.results import (
-    InsertOneResult,
-    InsertManyResult,
+from ..redb.interfaces import (
     BulkWriteResult,
+    Client,
+    Collection,
+    Database,
     DeleteResult,
+    IncludeField,
+    InsertManyResult,
+    InsertOneResult,
+    JSONDocument,
+    PyMongoOperations,
+    SortField,
     UpdateResult,
 )
 
 
-class Direction(Enum):
-    ASCENDING = pymongo.ASCENDING
-    DESCENGIND = pymongo.DESCENDING
+class MongoCollection(Collection):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__()
 
-
-class Field(BaseModel):
-    name: str
-
-
-class IncludeField(Field):
-    include: bool
-
-
-class SortField(Field):
-    direction: Direction
-
-
-PyMongoOperations = TypeVar(
-    "PyMongoOperations",
-    bound=Union[
-        InsertOne,
-        DeleteOne,
-        DeleteMany,
-        ReplaceOne,
-        UpdateOne,
-        UpdateMany,
-    ],
-)
-
-JSONDocument = TypeVar("JSONDocument", bound=Mapping[str, Any])
-
-
-class Collection(ABC):
-    @abstractmethod
     def find(
         self,
         filter: JSONDocument | None,
@@ -67,8 +30,7 @@ class Collection(ABC):
     ) -> list[JSONDocument]:
         pass
 
-    @abstractmethod
-    def find_colunary(
+    def find_vectors(
         self,
         column: str,
         filter: JSONDocument | None,
@@ -78,43 +40,37 @@ class Collection(ABC):
     ) -> list[JSONDocument]:
         pass
 
-    @abstractmethod
     def find_one(self, filter: JSONDocument | None, skip: int | None) -> JSONDocument:
         pass
 
-    @abstractmethod
     def distinct(self, key: str, filter: JSONDocument | None) -> list[Any]:
         pass
 
-    @abstractmethod
     def count_documents(self, filter: JSONDocument | None) -> int:
         pass
 
-    @abstractmethod
     def bulk_write(self, operations: list[PyMongoOperations]) -> BulkWriteResult:
         pass
 
-    @abstractmethod
     def insert_one(self, data: JSONDocument) -> InsertOneResult:
         pass
 
-    @abstractmethod
+    def insert_vectors(self, data: dict[str, list[Any]]) -> InsertManyResult:
+        pass
+
     def insert_many(self, data: list[JSONDocument]) -> InsertManyResult:
         pass
 
-    @abstractmethod
     def replace_one(
         self, filter: JSONDocument, replacement: JSONDocument, upsert: bool
     ) -> UpdateResult:
         pass
 
-    @abstractmethod
     def update_one(
         self, filter: JSONDocument, update: JSONDocument, upsert: bool
     ) -> UpdateResult:
         pass
 
-    @abstractmethod
     def update_many(
         self,
         filter: JSONDocument,
@@ -123,46 +79,51 @@ class Collection(ABC):
     ) -> UpdateResult:
         pass
 
-    @abstractmethod
     def delete_one(self, filter: JSONDocument) -> DeleteResult:
         pass
 
-    @abstractmethod
     def delete_many(self, filter: JSONDocument) -> DeleteResult:
         pass
 
 
-class Database(ABC):
-    @abstractmethod
+class MongoDatabase(Database):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__()
+
     def get_collections(self) -> list[Collection]:
-        pass
+        return [MongoCollection()]
 
-    @abstractmethod
     def get_collection(self, name: str) -> Collection:
-        pass
+        return MongoCollection()
 
-    @abstractmethod
     def create_collection(self, name: str) -> None:
-        pass
+        return None
 
-    @abstractmethod
     def delete_collection(self, name: str) -> None:
-        pass
+        return None
+
+    def __getitem__(self, name) -> Database:
+        return MongoCollection()
 
 
-class Client(ABC):
-    @abstractmethod
+class MongoClient(Client):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__()
+
     def get_databases(self) -> list[Database]:
-        pass
+        return [MongoDatabase()]
 
-    @abstractmethod
     def get_database(self, name: str) -> Database:
-        pass
+        return MongoDatabase()
 
-    @abstractmethod
+    def get_default_database(self) -> Database:
+        return MongoDatabase()
+
     def drop_database(self, name: str) -> None:
-        pass
+        return None
 
-    @abstractmethod
     def close() -> None:
         pass
+
+    def __getitem__(self, name) -> Database:
+        return MongoDatabase()
