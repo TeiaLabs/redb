@@ -22,6 +22,9 @@ class InsertionMixin:
     def insert_one(cls: Type[T], data: Type[T]) -> InsertOneResult:
         return execute_collection_function(cls, "insert_one", data=data)
 
+    def insert_one(self) -> InsertOneResult:
+        return execute_collection_function(self.__class__, "insert_one", data=self)
+
     @classmethod
     def insert_many(cls: Type[T], data: list[Type[T]]) -> InsertManyResult:
         return execute_collection_function(cls, "insert_many", data=data)
