@@ -1,7 +1,7 @@
 from typing import Type, TypeVar
 
-from ..instance import execute_collection_function
 from ..interfaces import IncludeField, SortField
+from .base import get_collection
 
 T = TypeVar("T")
 
@@ -16,9 +16,8 @@ class RetrievalMixin:
         skip: int = 0,
         limit: int = 1000,
     ) -> list[T]:
-        return execute_collection_function(
-            cls,
-            "find",
+        collection = get_collection(cls)
+        return collection.find(
             filter=filter,
             fields=fields,
             sort=sort,
@@ -35,9 +34,8 @@ class RetrievalMixin:
         skip: int = 0,
         limit: int = 1000,
     ) -> list[T]:
-        return execute_collection_function(
-            cls,
-            "find_vectors",
+        collection = get_collection(cls)
+        return collection.find_vectors(
             column=column,
             filter=filter,
             sort=sort,
@@ -47,4 +45,5 @@ class RetrievalMixin:
 
     @classmethod
     def find_one(cls: Type[T], filter: Type[T] | None = None, skip: int = 0) -> T:
-        return execute_collection_function(cls, "find_one", filter=filter, skip=skip)
+        collection = get_collection(cls)
+        return collection.find_one(filter=filter, skip=skip)

@@ -7,6 +7,7 @@ from ..interfaces import (
     InsertOneResult,
     PyMongoOperations,
 )
+from .base import get_collection
 
 T = TypeVar("T")
 
@@ -16,19 +17,24 @@ class InsertionMixin:
     def bulk_write(
         cls: Type[T], operations: list[PyMongoOperations]
     ) -> BulkWriteResult:
-        return execute_collection_function(cls, "bulk_write", operations=operations)
+        collection = get_collection(cls)
+        return collection.bulk_write(operations)
 
     @classmethod
     def insert_one(cls: Type[T], data: Type[T]) -> InsertOneResult:
-        return execute_collection_function(cls, "insert_one", data=data)
+        collection = get_collection(cls)
+        return collection.insert_one(data)
 
     def insert_one(self) -> InsertOneResult:
-        return execute_collection_function(self.__class__, "insert_one", data=self)
+        collection = get_collection(self.__class__)
+        return collection.insert_one(self)
 
     @classmethod
     def insert_many(cls: Type[T], data: list[Type[T]]) -> InsertManyResult:
-        return execute_collection_function(cls, "insert_many", data=data)
+        collection = get_collection(cls)
+        return collection.insert_many(data)
 
     @classmethod
     def insert_vectors(cls: Type[T], data: dict[str, list[Any]]) -> list[T]:
-        return execute_collection_function(cls, "insert_vectors", data=data)
+        collection = get_collection(cls)
+        return collection.insert_vectors(data)

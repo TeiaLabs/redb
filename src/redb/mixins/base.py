@@ -1,4 +1,9 @@
+from typing import Type
+
 from pydantic import BaseModel
+
+from ..instance import RedB
+from ..interfaces import Collection
 
 
 class Base(BaseModel):
@@ -17,3 +22,11 @@ class Base(BaseModel):
         )
 
         return f"{class_name}({attributes})"
+
+
+def get_collection(cls: Type[Base]) -> Collection:
+    client = RedB.get_client()
+    database = cls.__database__ or client.get_default_database()
+    collection_name = cls.__name__
+
+    return client[database][collection_name]

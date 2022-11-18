@@ -1,19 +1,10 @@
-from typing import Any, Literal, TypeVar
+from typing import Literal, TypeVar
 
 from ..json_system import JSONClient
 from ..mongo_system import MongoClient
 from .interfaces import Client
 
 C = TypeVar("C", bound=Client)
-
-
-def execute_collection_function(cls, func_name: str, **kwargs) -> Any:
-    client = RedB.get_client()
-    database = cls.__database__ or client.get_default_database()
-    collection_name = cls.__name__
-
-    collection = client[database][collection_name]
-    return getattr(collection, func_name)(**kwargs)
 
 
 class RedB:
