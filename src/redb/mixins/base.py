@@ -1,17 +1,27 @@
-from typing import Type
+import hashlib
+import pickle
 
 from pydantic import BaseModel
 
-from ..instance import RedB
-from ..interfaces import Collection
-
 
 class Base(BaseModel):
-    __database__ = None
+    __database_name__ = None
+    __client_name__ = None
 
     @classmethod
     def collection_name(cls) -> str:
         return cls.__name__.lower()
+
+    def get_hash(self) -> str:
+        hashses = []
+        for field in self.__fields__:
+            value = self.__getattribute__(field)
+            key_field_hash = hashlib.md5(field.encode("utf8")).hexdigest()
+            val_field_hash = hashlib.md5(pickle.dumps(value)).hexdigest()
+            hashses += [key_field_hash, val_field_hash]
+
+        hex_digest = hashlib.sha256("".join(hashses).encode("utf-8")).hexdigest()
+        return hex_digest
 
     def __repr__(self) -> str:
         class_name = self.__class__.__name__
@@ -22,11 +32,3 @@ class Base(BaseModel):
         )
 
         return f"{class_name}({attributes})"
-
-
-def get_collection(cls: Type[Base]) -> Collection:
-    client = RedB.get_client()
-    database = cls.__database__ or client.get_default_database()
-    collection_name = cls.__name__
-
-    return client[database][collection_name]

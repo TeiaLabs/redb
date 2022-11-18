@@ -13,9 +13,17 @@ class RedB:
     client: C | None = None
 
     @classmethod
-    def get_client(cls) -> Client:
+    def get_client(cls, client_name) -> Client:
         if cls.client is None:
             raise RuntimeError
+
+        incompatible_error_message = (
+            f"Current client does not match required client: {client_name}"
+        )
+        if isinstance(cls.client, MongoClient) and client_name != "mongo":
+            raise ValueError(incompatible_error_message)
+        elif isinstance(cls.client, JSONClient) and client_name != "json":
+            raise ValueError(incompatible_error_message)
         return cls.client
 
     @classmethod

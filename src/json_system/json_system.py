@@ -1,60 +1,70 @@
-from abc import ABC, abstractclassmethod, abstractmethod
-from enum import Enum
-from typing import Any, Mapping, Type, TypeVar, Union
+from typing import Any, Type, TypeVar
 
-import pymongo
-from pydantic import BaseModel
-from pymongo.operations import (
-    DeleteMany,
-    DeleteOne,
-    InsertOne,
-    ReplaceOne,
-    UpdateMany,
-    UpdateOne,
-)
-from pymongo.results import (
+from ..redb.interfaces import (
     BulkWriteResult,
+    Client,
+    Collection,
+    Database,
     DeleteResult,
+    IncludeField,
     InsertManyResult,
     InsertOneResult,
+    PyMongoOperations,
+    SortField,
     UpdateResult,
 )
+from ..redb.mixins import Document
+
+T = TypeVar("T", bound=Document)
 
 
-class Direction(Enum):
-    ASCENDING = pymongo.ASCENDING
-    DESCENGIND = pymongo.DESCENDING
+class JSONClient(Client):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__()
+
+    def get_databases(self) -> list[Database]:
+        return [JSONDatabase()]
+
+    def get_database(self, name: str) -> Database:
+        return JSONDatabase()
+
+    def get_default_database(self) -> Database:
+        return JSONDatabase()
+
+    def drop_database(self, name: str) -> None:
+        return None
+
+    def close() -> None:
+        pass
 
 
-class Field(BaseModel):
-    name: str
+class JSONDatabase(Database):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__()
+
+    def get_collections(self) -> list[Collection]:
+        return [JSONCollection()]
+
+    def get_collection(self, name: str) -> Collection:
+        return JSONCollection()
+
+    def create_collection(self, name: str) -> None:
+        return None
+
+    def delete_collection(self, name: str) -> None:
+        return None
+
+    def __getitem__(self, name) -> Database:
+        return JSONCollection()
+
+    def get_client(self) -> Client:
+        return self.client
 
 
-class IncludeField(Field):
-    include: bool
+class JSONCollection(Document, Collection):
+    __client_name__ = "json"
 
-
-class SortField(Field):
-    direction: Direction
-
-
-PyMongoOperations = TypeVar(
-    "PyMongoOperations",
-    bound=Union[
-        InsertOne,
-        DeleteOne,
-        DeleteMany,
-        ReplaceOne,
-        UpdateOne,
-        UpdateMany,
-    ],
-)
-
-T = TypeVar("T")
-
-
-class Collection(ABC):
-    @abstractclassmethod
+    @classmethod
     def find(
         cls: Type[T],
         filter: T | None = None,
@@ -65,7 +75,7 @@ class Collection(ABC):
     ) -> list[T]:
         pass
 
-    @abstractclassmethod
+    @classmethod
     def find_vectors(
         cls: Type[T],
         column: str | None = None,
@@ -76,7 +86,7 @@ class Collection(ABC):
     ) -> list[T]:
         collection = get_collection(cls)
 
-    @abstractclassmethod
+    @classmethod
     def find_one(
         cls: Type[T],
         filter: T | None = None,
@@ -84,7 +94,7 @@ class Collection(ABC):
     ) -> T:
         pass
 
-    @abstractclassmethod
+    @classmethod
     def distinct(
         cls: Type[T],
         key: str,
@@ -92,21 +102,21 @@ class Collection(ABC):
     ) -> list[T]:
         pass
 
-    @abstractclassmethod
+    @classmethod
     def count_documents(
         cls: Type[T],
         filter: T | None = None,
     ) -> int:
         pass
 
-    @abstractclassmethod
+    @classmethod
     def bulk_write(
         cls: Type[T],
         operations: list[PyMongoOperations],
     ) -> BulkWriteResult:
         pass
 
-    @abstractclassmethod
+    @classmethod
     def insert_one(
         cls: Type[T],
         data: T,
@@ -116,21 +126,21 @@ class Collection(ABC):
     def insert_one(self) -> InsertOneResult:
         pass
 
-    @abstractclassmethod
+    @classmethod
     def insert_vectors(
         cls: Type[T],
         data: dict[str, list[Any]],
     ) -> InsertManyResult:
         pass
 
-    @abstractclassmethod
+    @classmethod
     def insert_many(
         cls: Type[T],
         data: list[T],
     ) -> InsertManyResult:
         pass
 
-    @abstractclassmethod
+    @classmethod
     def replace_one(
         cls: Type[T],
         filter: T,
@@ -146,7 +156,7 @@ class Collection(ABC):
     ) -> UpdateResult:
         pass
 
-    @abstractclassmethod
+    @classmethod
     def update_one(
         cls: Type[T],
         filter: T,
@@ -162,7 +172,7 @@ class Collection(ABC):
     ) -> UpdateResult:
         pass
 
-    @abstractclassmethod
+    @classmethod
     def update_many(
         cls: Type[T],
         filter: T,
@@ -171,7 +181,7 @@ class Collection(ABC):
     ) -> UpdateResult:
         pass
 
-    @abstractclassmethod
+    @classmethod
     def delete_one(
         cls: Type[T],
         filter: T,
@@ -181,7 +191,7 @@ class Collection(ABC):
     def delete_one(self) -> DeleteResult:
         pass
 
-    @abstractclassmethod
+    @classmethod
     def delete_many(
         cls: Type[T],
         filter: T,
@@ -189,41 +199,13 @@ class Collection(ABC):
         pass
 
 
-class Database(ABC):
-    @abstractmethod
-    def get_collections(self) -> list[Collection]:
-        pass
+def get_collection(cls: Type[JSONCollection]) -> Collection:
+    from ..redb.instance import RedB
 
-    @abstractmethod
-    def get_collection(cls, name: str) -> Collection:
-        pass
-
-    @abstractmethod
-    def create_collection(cls, name: str) -> None:
-        pass
-
-    @abstractmethod
-    def delete_collection(cls, name: str) -> None:
-        pass
-
-
-class Client(ABC):
-    @abstractmethod
-    def get_default_database(self) -> Database:
-        pass
-
-    @abstractmethod
-    def get_databases(self) -> list[Database]:
-        pass
-
-    @abstractmethod
-    def get_database(self, name: str) -> Database:
-        pass
-
-    @abstractmethod
-    def drop_database(self, name: str) -> None:
-        pass
-
-    @abstractmethod
-    def close(self) -> None:
-        pass
+    client = RedB.get_client(cls.__client_name__)
+    database = (
+        client.get_database(cls.__database_name__)
+        if cls.__database_name__
+        else client.get_default_database()
+    )
+    return database.get_collection(cls.__class__.__name__)

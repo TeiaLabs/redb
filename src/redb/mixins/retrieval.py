@@ -1,13 +1,13 @@
+from abc import abstractclassmethod
 from typing import Type, TypeVar
 
 from ..interfaces import IncludeField, SortField
-from .base import get_collection
 
 T = TypeVar("T")
 
 
 class RetrievalMixin:
-    @classmethod
+    @abstractclassmethod
     def find(
         cls: Type[T],
         filter: Type[T] | None = None,
@@ -16,16 +16,9 @@ class RetrievalMixin:
         skip: int = 0,
         limit: int = 1000,
     ) -> list[T]:
-        collection = get_collection(cls)
-        return collection.find(
-            filter=filter,
-            fields=fields,
-            sort=sort,
-            skip=skip,
-            limit=limit,
-        )
+        ...
 
-    @classmethod
+    @abstractclassmethod
     def find_vectors(
         cls: Type[T],
         column: str | None = None,
@@ -34,16 +27,8 @@ class RetrievalMixin:
         skip: int = 0,
         limit: int = 1000,
     ) -> list[T]:
-        collection = get_collection(cls)
-        return collection.find_vectors(
-            column=column,
-            filter=filter,
-            sort=sort,
-            skip=skip,
-            limit=limit,
-        )
+        ...
 
-    @classmethod
+    @abstractclassmethod
     def find_one(cls: Type[T], filter: Type[T] | None = None, skip: int = 0) -> T:
-        collection = get_collection(cls)
-        return collection.find_one(filter=filter, skip=skip)
+        ...

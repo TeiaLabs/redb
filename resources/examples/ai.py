@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.redb import Document, RedB
+from src.redb import JSONCollection, RedB
 
 
-class Embedding(Document):
-    __database__ = "batata"
+class Embedding(JSONCollection):
+    __database_name__ = "batata"
 
     kb_name: str
     model: str
