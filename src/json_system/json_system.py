@@ -19,9 +19,8 @@ from ..redb.interfaces import (
     UpdateManyResult,
     UpdateOneResult,
 )
-from ..redb.mixins import Document
 
-T = TypeVar("T", bound=Document)
+T = TypeVar("T", bound=Collection)
 
 
 class JSONClient(Client):
@@ -87,7 +86,7 @@ class JSONDatabase(Database):
         return self.client
 
 
-class JSONCollection(Document, Collection):
+class JSONCollection(Collection):
     __client_name__ = "json"
 
     @classmethod
@@ -221,7 +220,7 @@ class JSONCollection(Document, Collection):
         replacement: T,
         upsert: bool = False,
     ) -> ReplaceOneResult:
-        return filter.replace_one(filter, replacement, upsert)
+        return filter.replace_one(replacement, upsert)
 
     def replace_one(
         self,
