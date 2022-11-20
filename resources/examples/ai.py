@@ -6,8 +6,6 @@ from src.redb import JSONCollection, RedB
 
 
 class Embedding(JSONCollection):
-    __database_name__ = "batata"
-
     kb_name: str
     model: str
     text: str
@@ -16,8 +14,9 @@ class Embedding(JSONCollection):
 
 
 def main():
-    db_dir = Path("./jsondb/")
-    RedB.setup("json", dict(dir_path=db_dir))
+    client_dir = Path(".")
+    db_dir = client_dir / "resources"
+    RedB.setup("json", client_path=client_dir, database_path=db_dir)
 
     d = Embedding(
         kb_name="KB",
@@ -26,9 +25,19 @@ def main():
         vector=[1, 2],
         source_url="www",
     )
-
-    d.insert_one()
-    print(Embedding.find_one())
+    print(Embedding.delete_many(d))
+    print(Embedding.replace_one(d, replacement=d, upsert=True))
+    print(
+        Embedding.insert_vectors(
+            dict(
+                kb_name=["a", "b"],
+                model=["one", "two"],
+                text=["some data", "another data"],
+                vector=[[1, 2], [3, 4]],
+                source_url=["www", "com"],
+            )
+        )
+    )
 
 
 if __name__ == "__main__":
