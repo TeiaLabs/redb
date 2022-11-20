@@ -1,6 +1,7 @@
 from abc import ABC, abstractclassmethod, abstractmethod
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Mapping, Type, TypeVar, Union
+from typing import Any, Type, TypeVar, Union
 
 import pymongo
 from pydantic import BaseModel
@@ -11,13 +12,6 @@ from pymongo.operations import (
     ReplaceOne,
     UpdateMany,
     UpdateOne,
-)
-from pymongo.results import (
-    BulkWriteResult,
-    DeleteResult,
-    InsertManyResult,
-    InsertOneResult,
-    UpdateResult,
 )
 
 
@@ -36,6 +30,53 @@ class IncludeField(Field):
 
 class SortField(Field):
     direction: Direction
+
+
+@dataclass
+class BulkWriteResult:
+    deleted_count: int
+    inserted_count: int
+    matched_count: int
+    modified_count: int
+    upserted_count: int
+    upserted_ids: int
+
+
+@dataclass
+class UpdateOneResult:
+    matched_count: int
+    modified_count: int
+    result: dict[str, Any]
+    upserted_id: Any
+
+
+@dataclass
+class UpdateManyResult(UpdateOneResult):
+    pass
+
+
+@dataclass
+class ReplaceOneResult(UpdateOneResult):
+    pass
+
+
+class DeleteOneResult:
+    pass
+
+
+@dataclass
+class DeleteManyResult:
+    deleted_count: int
+
+
+@dataclass
+class InsertManyResult:
+    inserted_ids: list[Any]
+
+
+@dataclass
+class InsertOneResult:
+    inserted_id: Any
 
 
 PyMongoOperations = TypeVar(
@@ -74,7 +115,7 @@ class Collection(ABC):
         skip: int = 0,
         limit: int = 1000,
     ) -> list[T]:
-        collection = get_collection(cls)
+        pass
 
     @abstractclassmethod
     def find_one(
@@ -136,14 +177,14 @@ class Collection(ABC):
         filter: T,
         replacement: T,
         upsert: bool = False,
-    ) -> UpdateResult:
+    ) -> ReplaceOneResult:
         pass
 
     def replace_one(
         self,
         replacement: T,
         upsert: bool = False,
-    ) -> UpdateResult:
+    ) -> ReplaceOneResult:
         pass
 
     @abstractclassmethod
@@ -152,14 +193,14 @@ class Collection(ABC):
         filter: T,
         update: T,
         upsert: bool = False,
-    ) -> UpdateResult:
+    ) -> UpdateOneResult:
         pass
 
     def update_one(
         self,
         update: T,
         upsert: bool = False,
-    ) -> UpdateResult:
+    ) -> UpdateOneResult:
         pass
 
     @abstractclassmethod
@@ -168,24 +209,24 @@ class Collection(ABC):
         filter: T,
         update: list[T] | T,
         upsert: bool = False,
-    ) -> UpdateResult:
+    ) -> UpdateManyResult:
         pass
 
     @abstractclassmethod
     def delete_one(
         cls: Type[T],
         filter: T,
-    ) -> DeleteResult:
+    ) -> DeleteOneResult:
         pass
 
-    def delete_one(self) -> DeleteResult:
+    def delete_one(self) -> DeleteOneResult:
         pass
 
     @abstractclassmethod
     def delete_many(
         cls: Type[T],
         filter: T,
-    ) -> DeleteResult:
+    ) -> DeleteManyResult:
         pass
 
 

@@ -5,13 +5,15 @@ from ..redb.interfaces import (
     Client,
     Collection,
     Database,
-    DeleteResult,
+    DeleteManyResult,
+    DeleteOneResult,
     IncludeField,
     InsertManyResult,
     InsertOneResult,
     PyMongoOperations,
     SortField,
-    UpdateResult,
+    UpdateManyResult,
+    UpdateOneResult,
 )
 
 
