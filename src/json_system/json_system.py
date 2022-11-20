@@ -160,23 +160,16 @@ class JSONCollection(Collection):
     ) -> BulkWriteResult:
         pass
 
-    @classmethod
-    def insert_one(
-        cls: Type[T],
-        data: T,
-    ) -> InsertOneResult:
-        return data.insert_one()
-
-    def insert_one(self) -> InsertOneResult:
-        collection_path = get_collection_path(self.__class__)
+    def insert_one(data: T) -> InsertOneResult:
+        collection_path = get_collection_path(data.__class__)
         collection_path.mkdir(parents=True, exist_ok=True)
 
-        id = self.get_hash()
+        id = data.get_hash()
         json_path = collection_path / Path(f"{id}.json")
         if json_path.is_file():
             raise ValueError(f"Document with {id} already exists!")
 
-        data = self.dict()
+        data = data.dict()
         with open(json_path, "w") as f:
             json.dump(data, f, indent=4)
 
@@ -213,21 +206,12 @@ class JSONCollection(Collection):
 
         return InsertManyResult(inserted_ids=ids)
 
-    @classmethod
     def replace_one(
-        cls: Type[T],
         filter: T,
         replacement: T,
         upsert: bool = False,
     ) -> ReplaceOneResult:
-        return filter.replace_one(replacement, upsert)
-
-    def replace_one(
-        self,
-        replacement: T,
-        upsert: bool = False,
-    ) -> ReplaceOneResult:
-        collection_path = get_collection_path(self.__class__)
+        collection_path = get_collection_path(filter.__class__)
         collection_path.mkdir(parents=True, exist_ok=True)
 
         upserted = False
@@ -251,25 +235,16 @@ class JSONCollection(Collection):
             upserted_id=id if upserted else None,
         )
 
-    @classmethod
     def update_one(
-        cls: Type[T],
         filter: T,
         update: T,
         upsert: bool = False,
     ) -> UpdateOneResult:
-        return filter.update_one(update, upsert)
-
-    def update_one(
-        self,
-        update: T,
-        upsert: bool = False,
-    ) -> UpdateOneResult:
-        collection_path = get_collection_path(self.__class__)
+        collection_path = get_collection_path(filter.__class__)
         collection_path.mkdir(parents=True, exist_ok=True)
 
         upserted = False
-        id = update.get_hash()
+        id = filter.get_hash()
         json_path = collection_path / Path(f"{id}.json")
         obj = update.dict()
         if json_path.is_file():
@@ -317,16 +292,9 @@ class JSONCollection(Collection):
             upserted_id=upserted_ids,
         )
 
-    @classmethod
-    def delete_one(
-        cls: Type[T],
-        filter: T,
-    ) -> DeleteOneResult:
-        return filter.delete_one()
-
-    def delete_one(self) -> DeleteOneResult:
-        collection_path = get_collection_path(self.__class__)
-        id = self.get_hash()
+    def delete_one(filter: T) -> DeleteOneResult:
+        collection_path = get_collection_path(filter.__class__)
+        id = filter.get_hash()
         file = collection_path / f"{id}.json"
         if not file.exists():
             raise ValueError(f"Document with {id} does not exists!")

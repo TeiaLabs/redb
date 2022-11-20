@@ -152,15 +152,8 @@ class Collection(ABC, BaseModel):
     ) -> BulkWriteResult:
         pass
 
-    @abstractclassmethod
-    def insert_one(
-        cls: Type[T],
-        data: T,
-    ) -> InsertOneResult:
-        pass
-
     @abstractmethod
-    def insert_one(self) -> InsertOneResult:
+    def insert_one(data: T) -> InsertOneResult:
         pass
 
     @abstractclassmethod
@@ -177,9 +170,8 @@ class Collection(ABC, BaseModel):
     ) -> InsertManyResult:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def replace_one(
-        cls: Type[T],
         filter: T,
         replacement: T,
         upsert: bool = False,
@@ -187,25 +179,8 @@ class Collection(ABC, BaseModel):
         pass
 
     @abstractmethod
-    def replace_one(
-        self,
-        replacement: T,
-        upsert: bool = False,
-    ) -> ReplaceOneResult:
-        pass
-
-    @abstractclassmethod
     def update_one(
-        cls: Type[T],
         filter: T,
-        update: T,
-        upsert: bool = False,
-    ) -> UpdateOneResult:
-        pass
-
-    @abstractmethod
-    def update_one(
-        self,
         update: T,
         upsert: bool = False,
     ) -> UpdateOneResult:
@@ -220,15 +195,8 @@ class Collection(ABC, BaseModel):
     ) -> UpdateManyResult:
         pass
 
-    @abstractclassmethod
-    def delete_one(
-        cls: Type[T],
-        filter: T,
-    ) -> DeleteOneResult:
-        pass
-
     @abstractmethod
-    def delete_one(self) -> DeleteOneResult:
+    def delete_one(filter: T) -> DeleteOneResult:
         pass
 
     @abstractclassmethod
