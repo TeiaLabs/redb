@@ -93,7 +93,7 @@ PyMongoOperations = TypeVar(
     ],
 )
 
-T = TypeVar("T")
+T = TypeVar("T", bound="Collection")
 
 
 class Collection(ABC, BaseModel):
@@ -270,3 +270,6 @@ class Client(ABC):
     @abstractmethod
     def close(self) -> None:
         pass
+
+
+Collection.update_forward_refs()
