@@ -26,7 +26,8 @@ def main():
         source_url="www",
     )
     print(Embedding.delete_many(d))
-    print(Embedding.replace_one(d, replacement=d, upsert=True))
+    print(d.insert_one())
+    print(Embedding.replace_one(filter=d, replacement=d, upsert=True))
     print(
         Embedding.insert_vectors(
             dict(
