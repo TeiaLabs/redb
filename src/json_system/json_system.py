@@ -215,7 +215,7 @@ class JSONCollection(Collection):
         collection_path.mkdir(parents=True, exist_ok=True)
 
         upserted = False
-        id = replacement.get_hash()
+        id = filter.get_hash()
         json_path = collection_path / Path(f"{id}.json")
         data = replacement.dict()
         if json_path.is_file():
