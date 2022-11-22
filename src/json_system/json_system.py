@@ -246,7 +246,7 @@ class JSONCollection(Collection):
         upserted = False
         id = filter.get_hash()
         json_path = collection_path / Path(f"{id}.json")
-        obj = update.dict()
+        obj = update.dict(exclude_unset=True)
         if json_path.is_file():
             with open(json_path) as f:
                 data = json.load(f)
