@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 from typing import Any, Type, TypeVar
 
-from ..redb.interfaces import (
+from ..interfaces import (
     BulkWriteResult,
     Client,
     Collection,
@@ -315,7 +315,7 @@ class JSONCollection(Collection):
 
 
 def get_collection_path(cls: Type[JSONCollection]) -> Path:
-    from ..redb.instance import RedB
+    from ..instance import RedB
 
     client = RedB.get_client(cls.__client_name__)
     database = (

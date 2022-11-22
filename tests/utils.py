@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from src.redb import JSONCollection
+from redb.json_system import JSONCollection
 
 
 class Embedding(JSONCollection):

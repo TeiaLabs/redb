@@ -1,6 +1,6 @@
 from typing import Any
 
-from ..redb.interfaces import (
+from ..interfaces import (
     BulkWriteResult,
     Client,
     Collection,

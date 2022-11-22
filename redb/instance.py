@@ -1,8 +1,8 @@
 from typing import Literal, TypeVar
 
-from ..json_system import JSONClient
-from ..mongo_system import MongoClient
 from .interfaces import Client
+from .json_system import JSONClient
+from .mongo_system import MongoClient
 
 C = TypeVar("C", bound=Client)
 

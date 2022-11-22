@@ -29,7 +29,7 @@ with open("README.md", "r") as readme_file:
     long_description = readme_file.read()
 
 setuptools.setup(
-    name="REDB",
+    name="redb",
     version="0.1.0",
     author="Nei Cardoso de Oliveira Neto",
     author_email="nei.neto@hotmail.com",

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from src.redb import RedB
+from redb import RedB
 
 
 @pytest.fixture(scope="session")

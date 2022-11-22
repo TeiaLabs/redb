@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.redb import JSONCollection, RedB
+from redb import RedB
+from redb.json_system import JSONCollection
 
 
 class Embedding(JSONCollection):
