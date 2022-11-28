@@ -238,15 +238,19 @@ class Database(ABC):
         pass
 
     @abstractmethod
-    def get_collection(cls, name: str) -> Collection:
+    def get_collection(self, name: str) -> Collection:
         pass
 
     @abstractmethod
-    def create_collection(cls, name: str) -> None:
+    def create_collection(self, name: str) -> None:
         pass
 
     @abstractmethod
-    def delete_collection(cls, name: str) -> None:
+    def delete_collection(self, name: str) -> None:
+        pass
+
+    @abstractmethod
+    def __getitem__(self, name) -> Collection:
         pass
 
 
