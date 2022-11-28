@@ -16,6 +16,20 @@ from pymongo.operations import (
     UpdateOne,
 )
 
+PyMongoOperations = TypeVar(
+    "PyMongoOperations",
+    bound=Union[
+        InsertOne,
+        DeleteOne,
+        DeleteMany,
+        ReplaceOne,
+        UpdateOne,
+        UpdateMany,
+    ],
+)
+
+T = TypeVar("T", bound="Collection")
+
 
 class Direction(Enum):
     ASCENDING = pymongo.ASCENDING
@@ -48,7 +62,7 @@ class BulkWriteResult:
 class UpdateOneResult:
     matched_count: int
     modified_count: int
-    result: dict[str, Any]
+    result: T
     upserted_id: Any
 
 
@@ -62,9 +76,9 @@ class ReplaceOneResult(UpdateOneResult):
     pass
 
 
+@dataclass
 class DeleteOneResult:
-    pass
-
+    deleted_count: int = 1
 
 @dataclass
 class DeleteManyResult:
@@ -79,21 +93,6 @@ class InsertManyResult:
 @dataclass
 class InsertOneResult:
     inserted_id: Any
-
-
-PyMongoOperations = TypeVar(
-    "PyMongoOperations",
-    bound=Union[
-        InsertOne,
-        DeleteOne,
-        DeleteMany,
-        ReplaceOne,
-        UpdateOne,
-        UpdateMany,
-    ],
-)
-
-T = TypeVar("T", bound="Collection")
 
 
 class Collection(ABC, BaseModel):
