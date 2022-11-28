@@ -189,7 +189,7 @@ class Collection(ABC, BaseModel):
     def update_many(
         cls: Type[T],
         filter: T,
-        update: list[T] | T,
+        update: T,
         upsert: bool = False,
     ) -> UpdateManyResult:
         pass
