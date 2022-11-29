@@ -237,7 +237,6 @@ class MongoCollection(Collection):
         return ReplaceOneResult(
             matched_count=result.matched_count,
             modified_count=result.modified_count,
-            result=filter.__class__(**result.raw_result),
             upserted_id=result.upserted_id,
         )
 
@@ -256,7 +255,6 @@ class MongoCollection(Collection):
         return UpdateOneResult(
             matched_count=result.matched_count,
             modified_count=result.modified_count,
-            result=filter.__class__(**result.raw_result),
             upserted_id=result.upserted_id,
         )
 
@@ -277,7 +275,6 @@ class MongoCollection(Collection):
         return UpdateManyResult(
             matched_count=result.matched_count,
             modified_count=result.modified_count,
-            result=cls(**result.result),
             upserted_id=result.upserted_id,
         )
 
