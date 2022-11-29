@@ -174,7 +174,7 @@ class MongoCollection(Collection):
     ) -> int:
         collection = get_pymongo_collection(cls)
 
-        formatted_filter = filter
+        formatted_filter = {}
         if filter is not None:
             formatted_filter = filter.dict()
 
