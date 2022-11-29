@@ -29,7 +29,7 @@ class MongoClient(Client):
     def __init__(
         self, db_uri: str, default_database: str | None = None, **kwargs
     ) -> None:
-        self.client: PymongoClient = PymongoClient(db_uri, **kwargs)
+        self.client = PymongoClient(db_uri, **kwargs)
         if default_database is None:
             self.default_database = MongoDatabase(self.client.get_default_database())
         else:
