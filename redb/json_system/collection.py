@@ -167,7 +167,6 @@ class JSONCollection(Collection):
         return ReplaceOneResult(
             matched_count=1,
             modified_count=1,
-            result=filter.__class__(**data),
             upserted_id=id if upserted else None,
         )
 
@@ -201,7 +200,6 @@ class JSONCollection(Collection):
         return UpdateOneResult(
             matched_count=1,
             modified_count=1,
-            result=filter.__class__(**data),
             upserted_id=id if upserted else None,
         )
 
@@ -212,19 +210,16 @@ class JSONCollection(Collection):
         update: T,
         upsert: bool = False,
     ) -> UpdateManyResult:
-        results = []
         upserted_ids = []
 
         documents = filter.find()
         for document in documents:
             result = document.update_one(document, update, upsert)
-            results.append(cls(**result.result))
             upserted_ids.append(result.upserted_id)
 
         return UpdateManyResult(
             matched_count=len(filter),
-            modified_count=len(results),
-            result=results,
+            modified_count=len(upserted_ids),
             upserted_id=upserted_ids,
         )
 

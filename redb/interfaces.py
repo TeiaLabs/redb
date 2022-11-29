@@ -62,7 +62,6 @@ class BulkWriteResult:
 class UpdateOneResult:
     matched_count: int
     modified_count: int
-    result: T
     upserted_id: Any
 
 
