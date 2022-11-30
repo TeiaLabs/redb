@@ -1,4 +1,4 @@
-from typing import TypeVar
+from typing import Sequence, TypeVar
 
 from pymongo import MongoClient as PymongoClient
 
@@ -23,10 +23,10 @@ class MongoClient(Client):
         else:
             self.default_database = self.get_database(default_database)
 
-    def get_databases(self) -> list[Database]:
+    def get_databases(self) -> Sequence[Database]:
         return [MongoDatabase(database) for database in self.client.list_databases()]
 
-    def get_database(self, name: str) -> Database:
+    def get_database(self, name: str) -> MongoDatabase:
         return MongoDatabase(self.client.get_database(name))
 
     def get_default_database(self) -> Database:

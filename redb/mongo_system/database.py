@@ -17,7 +17,7 @@ class MongoDatabase(Database):
         self.database = database
 
     def get_collections(self) -> list[Collection]:
-        return [collection for collection in self.database.list_collections()]
+        return list(self.database.list_collections())
 
     def get_collection(self, name: str) -> Collection:
         return MongoCollection(self.database[name])
@@ -29,4 +29,5 @@ class MongoDatabase(Database):
         self.database.drop_collection(name)
 
     def __getitem__(self, name) -> Collection:
+        # TODO: fix pymongo.Collection being returned instead of redb's MongoCollection
         return self.database[name]

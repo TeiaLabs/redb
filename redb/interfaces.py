@@ -1,9 +1,9 @@
 import hashlib
 import pickle
-from abc import ABC, abstractclassmethod, abstractmethod
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Type, TypeVar, Union
+from typing import Any, Sequence, Type, TypeVar, Union
 
 import pymongo
 from pydantic import BaseModel
@@ -98,7 +98,8 @@ class Collection(ABC, BaseModel):
     __database_name__: str | None = None
     __client_name__: str | None = None
 
-    @abstractclassmethod
+    @classmethod
+    @abstractmethod
     def find(
         cls: Type[T],
         filter: T | None = None,
@@ -109,7 +110,8 @@ class Collection(ABC, BaseModel):
     ) -> list[T]:
         pass
 
-    @abstractclassmethod
+    @classmethod
+    @abstractmethod
     def find_vectors(
         cls: Type[T],
         column: str | None = None,
@@ -120,7 +122,8 @@ class Collection(ABC, BaseModel):
     ) -> list[T]:
         pass
 
-    @abstractclassmethod
+    @classmethod
+    @abstractmethod
     def find_one(
         cls: Type[T],
         filter: T | None = None,
@@ -128,7 +131,8 @@ class Collection(ABC, BaseModel):
     ) -> T:
         pass
 
-    @abstractclassmethod
+    @classmethod
+    @abstractmethod
     def distinct(
         cls: Type[T],
         key: str,
@@ -136,14 +140,16 @@ class Collection(ABC, BaseModel):
     ) -> list[T]:
         pass
 
-    @abstractclassmethod
+    @classmethod
+    @abstractmethod
     def count_documents(
         cls: Type[T],
         filter: T | None = None,
     ) -> int:
         pass
 
-    @abstractclassmethod
+    @classmethod
+    @abstractmethod
     def bulk_write(
         cls: Type[T],
         operations: list[PyMongoOperations],
@@ -154,14 +160,16 @@ class Collection(ABC, BaseModel):
     def insert_one(data: T) -> InsertOneResult:
         pass
 
-    @abstractclassmethod
+    @classmethod
+    @abstractmethod
     def insert_vectors(
         cls: Type[T],
         data: dict[str, list[Any]],
     ) -> InsertManyResult:
         pass
 
-    @abstractclassmethod
+    @classmethod
+    @abstractmethod
     def insert_many(
         cls: Type[T],
         data: list[T],
@@ -184,7 +192,8 @@ class Collection(ABC, BaseModel):
     ) -> UpdateOneResult:
         pass
 
-    @abstractclassmethod
+    @classmethod
+    @abstractmethod
     def update_many(
         cls: Type[T],
         filter: T,
@@ -194,10 +203,11 @@ class Collection(ABC, BaseModel):
         pass
 
     @abstractmethod
-    def delete_one(filter: T) -> DeleteOneResult:
+    def delete_one(self, filter: T) -> DeleteOneResult:
         pass
 
-    @abstractclassmethod
+    @classmethod
+    @abstractmethod
     def delete_many(
         cls: Type[T],
         filter: T,
@@ -205,6 +215,7 @@ class Collection(ABC, BaseModel):
         pass
 
     @classmethod
+    @abstractmethod
     def collection_name(cls) -> str:
         return cls.__name__.lower()
 
@@ -258,7 +269,7 @@ class Client(ABC):
         pass
 
     @abstractmethod
-    def get_databases(self) -> list[Database]:
+    def get_databases(self) -> Sequence[Database]:
         pass
 
     @abstractmethod
