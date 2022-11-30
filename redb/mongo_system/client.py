@@ -20,6 +20,10 @@ class MongoClient(Client):
             self.default_database = self.get_database(mongo_config.default_database)
 
     def get_databases(self) -> Sequence[MongoDatabase]:
+        return [
+            MongoDatabase(self.client.get_database(database["name"]))
+            for database in self.client.list_databases()
+        ]
 
     def get_database(self, name: str) -> MongoDatabase:
         return MongoDatabase(self.client.get_database(name))
