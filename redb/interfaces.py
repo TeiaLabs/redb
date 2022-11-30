@@ -225,7 +225,7 @@ class Collection(ABC, BaseModel):
         pass
 
     @classmethod
-    def collection_name(cls) -> str:
+    def collection_name(cls: Type[T]) -> str:
         return cls.__name__.lower()
 
     def get_hash(self) -> str:
