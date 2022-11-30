@@ -2,7 +2,7 @@ from typing import Literal, TypeVar
 
 from .interfaces import Client
 from .json_system import JSONClient
-from .mongo_system import MongoClient
+from .mongo_system import MongoClient, MongoConfig
 
 C = TypeVar("C", bound=Client)
 
@@ -27,10 +27,11 @@ class RedB:
         return cls.client
 
     @classmethod
-    def setup(cls, backend: Literal["json", "mongo"], *args, **kwargs) -> None:
-        if backend == "json":
-            cls.client = JSONClient(*args, **kwargs)
-        elif backend == "mongo":
-            cls.client = MongoClient(*args, **kwargs)
+    def setup(cls, config: MongoConfig | dict) -> None:
+        # TODO: implement JSONConfig
+        if isinstance(config, dict):
+            cls.client = JSONClient(**config)
+        elif isinstance(config, MongoConfig):
+            cls.client = MongoClient(config)
         else:
-            raise ValueError(f"Backend {backend!r} not supported.")
+            raise ValueError(f"Backend not found for config type: {type(config)!r}.")
