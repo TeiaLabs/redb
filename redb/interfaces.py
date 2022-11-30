@@ -97,6 +97,12 @@ class InsertOneResult:
 class Collection(ABC, BaseModel):
     __database_name__: str | None = None
     __client_name__: str | None = None
+    __collection_name__: str | None = None
+
+    @classmethod
+    @abstractmethod
+    def _get_driver_collection(cls: Type[T]) -> "Collection":
+        pass
 
     @classmethod
     @abstractmethod
@@ -242,6 +248,10 @@ class Collection(ABC, BaseModel):
 
 class Database(ABC):
     @abstractmethod
+    def _get_driver_database(self) -> "Database":
+        pass
+
+    @abstractmethod
     def get_collections(self) -> list[Collection]:
         pass
 
@@ -263,6 +273,10 @@ class Database(ABC):
 
 
 class Client(ABC):
+    @abstractmethod
+    def _get_driver_client(self) -> "Client":
+        pass
+
     @abstractmethod
     def get_default_database(self) -> Database:
         pass
