@@ -9,30 +9,30 @@ from .database import MongoDatabase
 
 class MongoClient(Client):
     def __init__(self, mongo_config: MongoConfig) -> None:
-        self.client = PymongoClient(
+        self.__client = PymongoClient(
             mongo_config.database_uri, **mongo_config.driver_kwargs
         )
         if mongo_config.default_database is None:
-            self.default_database = MongoDatabase(
-                self.client.get_default_database()
+            self.__default_database = MongoDatabase(
+                self.__client.get_default_database()
             )
         else:
-            self.default_database = self.get_database(mongo_config.default_database)
+            self.__default_database = self.get_database(mongo_config.default_database)
 
     def get_databases(self) -> Sequence[MongoDatabase]:
         return [
-            MongoDatabase(self.client.get_database(database["name"]))
-            for database in self.client.list_databases()
+            MongoDatabase(self.__client.get_database(database["name"]))
+            for database in self.__client.list_databases()
         ]
 
     def get_database(self, name: str) -> MongoDatabase:
-        return MongoDatabase(self.client.get_database(name))
+        return MongoDatabase(self.__client.get_database(name))
 
     def get_default_database(self) -> MongoDatabase:
-        return self.default_database
+        return self.__default_database
 
     def drop_database(self, name: str) -> None:
-        self.client.drop_database(name)
+        self.__client.drop_database(name)
 
     def close(self) -> None:
-        self.client.close()
+        self.__client.close()
