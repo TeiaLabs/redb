@@ -16,6 +16,9 @@ class MongoDatabase(Database):
     def __init__(self, database: PymongoDatabase) -> None:
         self.database = database
 
+    def _get_driver_database(self) -> "Database":
+        return self.database
+
     def get_collections(self) -> list[Collection]:
         return list(self.database.list_collections())
 
