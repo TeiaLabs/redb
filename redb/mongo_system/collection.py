@@ -48,7 +48,7 @@ class MongoCollection(Collection):
         skip: int = 0,
         limit: int = 1000,
     ) -> list[T]:
-        collection = get_pymongo_collection(cls)
+        collection = cls._get_driver_collection()
 
         formatted_filter = filter
         if filter is not None:
@@ -96,7 +96,7 @@ class MongoCollection(Collection):
         filter: T | None = None,
         skip: int = 0,
     ) -> T:
-        collection = get_pymongo_collection(cls)
+        collection = cls._get_driver_collection()
 
         formatted_filter = filter
         if filter is not None:
@@ -115,7 +115,7 @@ class MongoCollection(Collection):
         key: str,
         filter: T | None = None,
     ) -> list[T]:
-        collection = get_pymongo_collection(cls)
+        collection = cls._get_driver_collection()
 
         formatted_filter = filter
         if filter is not None:
@@ -134,7 +134,7 @@ class MongoCollection(Collection):
         cls: Type[T],
         filter: T | None = None,
     ) -> int:
-        collection = get_pymongo_collection(cls)
+        collection = cls._get_driver_collection()
 
         formatted_filter = {}
         if filter is not None:
@@ -147,7 +147,7 @@ class MongoCollection(Collection):
         cls: Type[T],
         operations: list[PyMongoOperations],
     ) -> BulkWriteResult:
-        collection = get_pymongo_collection(cls)
+        collection = cls._get_driver_collection()
 
         result = collection.bulk_write(requests=operations)
         return BulkWriteResult(
@@ -160,7 +160,7 @@ class MongoCollection(Collection):
         )
 
     def insert_one(data: T) -> InsertOneResult:
-        collection = get_pymongo_collection(data.__class__)
+        collection = data._get_driver_collection()
 
         result = collection.insert_one(document=data.dict())
         return InsertOneResult(inserted_id=result.inserted_id)
@@ -177,7 +177,7 @@ class MongoCollection(Collection):
         cls: Type[T],
         data: list[T],
     ) -> InsertManyResult:
-        collection = get_pymongo_collection(cls)
+        collection = cls._get_driver_collection()
 
         result = collection.insert_many(
             documents=[document.dict() for document in data]
@@ -189,7 +189,7 @@ class MongoCollection(Collection):
         replacement: T,
         upsert: bool = False,
     ) -> ReplaceOneResult:
-        collection = get_pymongo_collection(filter.__class__)
+        collection = filter._get_driver_collection()
 
         result = collection.replace_one(
             filter=filter.dict(),
@@ -207,7 +207,7 @@ class MongoCollection(Collection):
         update: T,
         upsert: bool = False,
     ) -> UpdateOneResult:
-        collection = get_pymongo_collection(filter.__class__)
+        collection = filter._get_driver_collection()
 
         result = collection.update_one(
             filter=filter.dict(),
@@ -227,7 +227,7 @@ class MongoCollection(Collection):
         update: T,
         upsert: bool = False,
     ) -> UpdateManyResult:
-        collection = get_pymongo_collection(cls)
+        collection = cls._get_driver_collection()
 
         result = collection.update_many(
             filter=filter.dict(),
@@ -241,7 +241,7 @@ class MongoCollection(Collection):
         )
 
     def delete_one(filter: T) -> DeleteOneResult:
-        collection = get_pymongo_collection(filter.__class__)
+        collection = filter._get_driver_collection()
 
         collection.delete_one(filter=filter.dict())
         return DeleteOneResult()
@@ -251,20 +251,7 @@ class MongoCollection(Collection):
         cls: Type[T],
         filter: T,
     ) -> DeleteManyResult:
-        collection = get_pymongo_collection(cls)
+        collection = cls._get_driver_collection()
 
         result = collection.delete_many(filter=filter.dict())
         return DeleteManyResult(deleted_count=result.deleted_count)
-
-
-def get_pymongo_collection(cls: Type[MongoCollection]) -> PymongoCollection:
-    from ..instance import RedB
-
-    client = RedB.get_client(cls.__client_name__)
-    database = (
-        client.get_database(cls.__database_name__)
-        if cls.__database_name__
-        else client.get_default_database()
-    )
-
-    return database[cls.__name__]
