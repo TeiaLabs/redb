@@ -15,7 +15,7 @@ class RedB:
     @classmethod
     def get_client(cls, client_name) -> Client:
         if cls.client is None:
-            raise RuntimeError
+            raise RuntimeError("Client not setup. Call setup() first.")
 
         incompatible_error_message = (
             f"Current client does not match required client: {client_name}"

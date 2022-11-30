@@ -1,1 +1,3 @@
-from .json_system import JSONClient, JSONCollection, JSONDatabase
+from .client import JSONClient
+from .collection import JSONCollection
+from .database import JSONDatabase

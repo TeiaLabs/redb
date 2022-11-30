@@ -16,14 +16,14 @@ class Embedding(JSONCollection):
 
 def main():
     client_dir = Path(".")
-    db_dir = client_dir / "resources"
+    db_dir = client_dir / "resources" / "db"
     RedB.setup("json", client_path=client_dir, database_path=db_dir)
 
     d = Embedding(
         kb_name="KB",
-        model="ai",
+        model="big-and-strong",
         text="Some data.",
-        vector=[1, 2],
+        vector=[1, 2, 0.1],
         source_url="www",
     )
     print(Embedding.delete_many(d))
@@ -33,7 +33,7 @@ def main():
         Embedding.insert_vectors(
             dict(
                 kb_name=["a", "b"],
-                model=["one", "two"],
+                model=["alpha", "beta"],
                 text=["some data", "another data"],
                 vector=[[1, 2], [3, 4]],
                 source_url=["www", "com"],

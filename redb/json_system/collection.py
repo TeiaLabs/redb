@@ -1,5 +1,4 @@
 import json
-import shutil
 from pathlib import Path
 from typing import Any, Type, TypeVar
 
@@ -21,69 +20,6 @@ from ..interfaces import (
 )
 
 T = TypeVar("T", bound=Collection)
-
-
-class JSONClient(Client):
-    def __init__(self, client_path: Path, database_path: Path | None = None) -> None:
-        self.client_path = client_path
-        if database_path is None:
-            self.default_database = JSONDatabase(next(self.client_path.glob("*")))
-        else:
-            self.default_database = JSONDatabase(database_path)
-
-    def get_databases(self) -> list[Database]:
-        return [
-            JSONDatabase(folder)
-            for folder in self.client_path.glob("*")
-            if folder.is_dir()
-        ]
-
-    def get_database(self, name: str) -> Database:
-        for folder in self.client_path.glob("*"):
-            if folder.is_dir() and folder.name == name:
-                return JSONDatabase(folder)
-
-        raise ValueError(f"Database {name} not found")
-
-    def get_default_database(self) -> Database:
-        return self.default_database
-
-    def drop_database(self, name: str) -> None:
-        shutil.rmtree(self.get_database(name).database_path)
-
-    def close() -> None:
-        return
-
-
-class JSONDatabase(Database):
-    def __init__(self, database_path: Path) -> None:
-        self.database_path = database_path
-
-    def get_collections(self) -> list[Collection]:
-        return [
-            JSONCollection(folder)
-            for folder in self.database_path.glob("*")
-            if folder.is_dir()
-        ]
-
-    def get_collection(self, name: str) -> Collection:
-        for folder in self.database_path.glob("*"):
-            if folder.is_dir() and folder.name == name:
-                return JSONCollection()
-
-        raise ValueError(f"Database {name} not found")
-
-    def create_collection(self, name: str) -> None:
-        (self.database_path / name).mkdir(exist_ok=True)
-
-    def delete_collection(self, name: str) -> None:
-        shutil.rmtree(self.get_collection(name).__class__.__name__)
-
-    def __getitem__(self, name) -> Database:
-        return JSONCollection()
-
-    def get_client(self) -> Client:
-        return self.client
 
 
 class JSONCollection(Collection):

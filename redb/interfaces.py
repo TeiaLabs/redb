@@ -97,8 +97,8 @@ T = TypeVar("T", bound="Collection")
 
 
 class Collection(ABC, BaseModel):
-    __database_name__ = None
-    __client_name__ = None
+    __database_name__: str | None = None
+    __client_name__: str | None = None
 
     @abstractclassmethod
     def find(
