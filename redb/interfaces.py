@@ -215,7 +215,6 @@ class Collection(ABC, BaseModel):
         pass
 
     @classmethod
-    @abstractmethod
     def collection_name(cls) -> str:
         return cls.__name__.lower()
 
