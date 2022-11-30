@@ -22,6 +22,8 @@ T = TypeVar("T", bound=Collection)
 
 
 class MongoCollection(Collection):
+    __client_name__: str = "mongo"
+
     def __new__(cls, collection_name: Collection | None = None, *_, **__):
         cls.__collection_name__ = collection_name or cls.__name__
         return super().__new__(cls)

@@ -79,6 +79,7 @@ class ReplaceOneResult(UpdateOneResult):
 class DeleteOneResult:
     deleted_count: int = 1
 
+
 @dataclass
 class DeleteManyResult:
     deleted_count: int
@@ -296,6 +297,3 @@ class Client(ABC):
     @abstractmethod
     def close(self) -> None:
         pass
-
-
-Collection.update_forward_refs()
