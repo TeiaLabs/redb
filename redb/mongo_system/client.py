@@ -19,6 +19,9 @@ class MongoClient(Client):
         else:
             self.__default_database = self.get_database(mongo_config.default_database)
 
+    def _get_driver_client(self) -> "Client":
+        return self.__client
+
     def get_databases(self) -> Sequence[MongoDatabase]:
         return [
             MongoDatabase(self.__client.get_database(database["name"]))
