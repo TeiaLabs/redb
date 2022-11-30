@@ -12,12 +12,13 @@ class MongoDatabase(Database):
         return self.__database
 
     def get_collections(self) -> list[MongoCollection]:
-        # TODO figure out how to set the returned class name
-        pass
+        return [
+            MongoCollection(collection_name=collection["name"])
+            for collection in self.__database.list_collections()
+        ]
 
     def get_collection(self, name: str) -> MongoCollection:
-        # TODO figure out how to set the returned class name
-        pass
+        return MongoCollection(name)
 
     def create_collection(self, name: str) -> None:
         self.__database.create_collection(name)

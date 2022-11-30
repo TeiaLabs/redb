@@ -104,6 +104,10 @@ class Collection(ABC, BaseModel):
     def _get_driver_collection(cls: Type[T]) -> "Collection":
         pass
 
+    @abstractmethod
+    def _get_driver_collection(self) -> "Collection":
+        pass
+
     @classmethod
     @abstractmethod
     def find(

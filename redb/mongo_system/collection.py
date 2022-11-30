@@ -24,18 +24,27 @@ T = TypeVar("T", bound=Collection)
 class MongoCollection(Collection):
     __client_name__: str = "mongo"
 
+    def __init__(self, collection_name: str | None = None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        object.__setattr__(
+            self, "__collection_name__", collection_name or self.__class__.__name__
+        )
+
     @classmethod
     def _get_driver_collection(cls: Type[T]) -> PymongoCollection:
-        from ..instance import RedB
-
-        client = RedB.get_client(cls.__client_name__)
-        database = (
-            client.get_database(cls.__database_name__)
-            if cls.__database_name__
-            else client.get_default_database()
+        return get_pymongo_collection(
+            cls.__client_name__,
+            cls.__database_name__,
+            cls.__name__,
         )
-        collection_name = cls.__name__
-        return database._get_driver_database()[collection_name]
+
+    def _get_driver_collection(self) -> PymongoCollection:
+        return get_pymongo_collection(
+            self.__class__.__client_name__,
+            self.__class__.__database_name__,
+            object.__getattribute__(self, "__collection_name__"),
+        )
 
     @classmethod
     def find(
@@ -253,3 +262,17 @@ class MongoCollection(Collection):
 
         result = collection.delete_many(filter=filter.dict())
         return DeleteManyResult(deleted_count=result.deleted_count)
+
+
+def get_pymongo_collection(
+    client_name: str, collection_name: str, database_name: str | None = None
+) -> PymongoCollection:
+    from ..instance import RedB
+
+    client = RedB.get_client(client_name)
+    database = (
+        client.get_database(database_name)
+        if database_name
+        else client.get_default_database()
+    )
+    return database._get_driver_database()[collection_name]
