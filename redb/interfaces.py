@@ -98,7 +98,6 @@ class InsertOneResult:
 class Collection(ABC, BaseModel):
     __database_name__: str | None = None
     __client_name__: str | None = None
-    __collection_name__: str | None = None
 
     @classmethod
     @abstractmethod

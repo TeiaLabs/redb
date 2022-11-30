@@ -24,12 +24,8 @@ T = TypeVar("T", bound=Collection)
 class MongoCollection(Collection):
     __client_name__: str = "mongo"
 
-    def __new__(cls, collection_name: Collection | None = None, *_, **__):
-        cls.__collection_name__ = collection_name or cls.__name__
-        return super().__new__(cls)
-
     @classmethod
-    def _get_driver_collection(cls: Type[T]):
+    def _get_driver_collection(cls: Type[T]) -> PymongoCollection:
         from ..instance import RedB
 
         client = RedB.get_client(cls.__client_name__)
@@ -38,7 +34,7 @@ class MongoCollection(Collection):
             if cls.__database_name__
             else client.get_default_database()
         )
-        collection_name = cls.__collection_name__ or cls.__name__
+        collection_name = cls.__name__
         return database._get_driver_database()[collection_name]
 
     @classmethod
