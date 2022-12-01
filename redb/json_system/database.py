@@ -10,7 +10,7 @@ class JSONDatabase(Database):
         self.__database_folder_path = database_path
 
     def _get_driver_database(self) -> Database:
-        return self.__database_folder_path
+        return self
 
     def get_collections(self) -> list[Collection]:
         return [
@@ -35,5 +35,5 @@ class JSONDatabase(Database):
     def __getitem__(self, name) -> "JSONDatabase":
         return JSONCollection(collection_name=name)
 
-    def get_client(self) -> Client:
-        return self.client
+    def __truediv__(self, other):
+        return self.__database_folder_path / other
