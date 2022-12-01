@@ -1,11 +1,8 @@
 import hashlib
 import pickle
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from enum import Enum
-from typing import Any, Sequence, Type, TypeVar, Union
+from typing import Any, Type, TypeVar, Union
 
-import pymongo
 from pydantic import BaseModel
 from pymongo.operations import (
     DeleteMany,
@@ -14,6 +11,18 @@ from pymongo.operations import (
     ReplaceOne,
     UpdateMany,
     UpdateOne,
+)
+
+from .fields import IncludeField, SortField
+from .results import (
+    BulkWriteResult,
+    DeleteManyResult,
+    DeleteOneResult,
+    InsertManyResult,
+    InsertOneResult,
+    ReplaceOneResult,
+    UpdateManyResult,
+    UpdateOneResult,
 )
 
 PyMongoOperations = TypeVar(
@@ -31,81 +40,7 @@ PyMongoOperations = TypeVar(
 T = TypeVar("T", bound="Collection")
 
 
-class Direction(Enum):
-    ASCENDING = pymongo.ASCENDING
-    DESCENGIND = pymongo.DESCENDING
-
-
-class Field(BaseModel):
-    name: str
-
-
-class IncludeField(Field):
-    include: bool
-
-
-class SortField(Field):
-    direction: Direction
-
-
-@dataclass
-class BulkWriteResult:
-    deleted_count: int
-    inserted_count: int
-    matched_count: int
-    modified_count: int
-    upserted_count: int
-    upserted_ids: int
-
-
-@dataclass
-class UpdateOneResult:
-    matched_count: int
-    modified_count: int
-    upserted_id: Any
-
-
-@dataclass
-class UpdateManyResult(UpdateOneResult):
-    pass
-
-
-@dataclass
-class ReplaceOneResult(UpdateOneResult):
-    pass
-
-
-@dataclass
-class DeleteOneResult:
-    deleted_count: int = 1
-
-
-@dataclass
-class DeleteManyResult:
-    deleted_count: int
-
-
-@dataclass
-class InsertManyResult:
-    inserted_ids: list[Any]
-
-
-@dataclass
-class InsertOneResult:
-    inserted_id: Any
-
-
 class Collection(ABC, BaseModel):
-    __database_name__: str | None = None
-    __client_name__: str | None = None
-
-    def __init__(self, collection_name: str | None = None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        object.__setattr__(
-            self, "__collection_name__", collection_name or self.__class__.__name__
-        )
-
     @staticmethod
     @abstractmethod
     def _get_driver_collection(instance_or_class: Type[T] | T) -> "Collection":
@@ -227,6 +162,18 @@ class Collection(ABC, BaseModel):
     ) -> DeleteManyResult:
         pass
 
+
+class BaseCollection(Collection, BaseModel):
+    __database_name__: str | None = None
+    __client_name__: str | None = None
+
+    def __init__(self, collection_name: str | None = None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        object.__setattr__(
+            self, "__collection_name__", collection_name or self.__class__.__name__
+        )
+
     @classmethod
     def collection_name(cls: Type[T]) -> str:
         return cls.__name__.lower()
@@ -251,55 +198,3 @@ class Collection(ABC, BaseModel):
         )
 
         return f"{class_name}({attributes})"
-
-
-class Database(ABC):
-    @abstractmethod
-    def _get_driver_database(self) -> "Database":
-        pass
-
-    @abstractmethod
-    def get_collections(self) -> list[Collection]:
-        pass
-
-    @abstractmethod
-    def get_collection(self, name: str) -> Collection:
-        pass
-
-    @abstractmethod
-    def create_collection(self, name: str) -> None:
-        pass
-
-    @abstractmethod
-    def delete_collection(self, name: str) -> None:
-        pass
-
-    @abstractmethod
-    def __getitem__(self, name) -> Collection:
-        pass
-
-
-class Client(ABC):
-    @abstractmethod
-    def _get_driver_client(self) -> "Client":
-        pass
-
-    @abstractmethod
-    def get_default_database(self) -> Database:
-        pass
-
-    @abstractmethod
-    def get_databases(self) -> Sequence[Database]:
-        pass
-
-    @abstractmethod
-    def get_database(self, name: str) -> Database:
-        pass
-
-    @abstractmethod
-    def drop_database(self, name: str) -> None:
-        pass
-
-    @abstractmethod
-    def close(self) -> None:
-        pass
