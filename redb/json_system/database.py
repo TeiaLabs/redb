@@ -1,7 +1,7 @@
 import shutil
 from pathlib import Path
 
-from ..interfaces import Client, Collection, Database
+from ..interfaces import Database
 from .collection import JSONCollection
 
 
@@ -9,17 +9,17 @@ class JSONDatabase(Database):
     def __init__(self, database_path: Path) -> None:
         self.__database_folder_path = database_path
 
-    def _get_driver_database(self) -> Database:
+    def _get_driver_database(self) -> "JSONDatabase":
         return self
 
-    def get_collections(self) -> list[Collection]:
+    def get_collections(self) -> list[JSONCollection]:
         return [
             JSONCollection(folder)
             for folder in self.__database_folder_path.glob("*")
             if folder.is_dir()
         ]
 
-    def get_collection(self, name: str) -> Collection:
+    def get_collection(self, name: str) -> JSONCollection:
         for folder in self.__database_folder_path.glob("*"):
             if folder.is_dir() and folder.name == name:
                 return JSONCollection(collection_name=name)

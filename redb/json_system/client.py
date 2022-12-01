@@ -1,7 +1,7 @@
 import shutil
 from pathlib import Path
 
-from ..interfaces import Client, Database
+from ..interfaces import Client
 from .config import JSONConfig
 from .database import JSONDatabase
 
@@ -23,21 +23,21 @@ class JSONClient(Client):
     def _get_driver_client(self) -> "JSONClient":
         return self
 
-    def get_databases(self) -> list[Database]:
+    def get_databases(self) -> list[JSONDatabase]:
         return [
             JSONDatabase(folder)
             for folder in self.__client_folder_path.glob("*")
             if folder.is_dir()
         ]
 
-    def get_database(self, name: str) -> Database:
+    def get_database(self, name: str) -> JSONDatabase:
         for folder in self.__client_folder_path.glob("*"):
             if folder.is_dir() and folder.name == name:
                 return JSONDatabase(folder)
 
         raise ValueError(f"Database {name} not found")
 
-    def get_default_database(self) -> Database:
+    def get_default_database(self) -> JSONDatabase:
         return self.__default_database
 
     def drop_database(self, name: str) -> None:
