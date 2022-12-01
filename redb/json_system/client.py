@@ -20,8 +20,8 @@ class JSONClient(Client):
                 self.__client_folder_path / database_default_path
             )
 
-    def _get_driver_client(self) -> Client:
-        return self.__client_folder_path
+    def _get_driver_client(self) -> "JSONClient":
+        return self
 
     def get_databases(self) -> list[Database]:
         return [
@@ -45,3 +45,6 @@ class JSONClient(Client):
 
     def close(self) -> None:
         return
+
+    def __truediv__(self, other):
+        return self.__client_folder_path / other
