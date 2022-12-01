@@ -4,9 +4,7 @@ from typing import Any, Type, TypeVar
 
 from ..interfaces import (
     BulkWriteResult,
-    Client,
     Collection,
-    Database,
     DeleteManyResult,
     DeleteOneResult,
     IncludeField,
@@ -25,12 +23,21 @@ T = TypeVar("T", bound=Collection)
 class JSONCollection(Collection):
     __client_name__ = "json"
 
-    @classmethod
-    def _get_driver_collection(cls: Type[T]) -> "Collection":
-        pass
+    @staticmethod
+    def _get_driver_collection(instance_or_class: Type[T] | T) -> "Collection":
+        if isinstance(instance_or_class, type):
+            collection_name = instance_or_class.__name__
+        else:
+            collection_name = (
+                object.__getattribute__(instance_or_class, "__collection_name__")
+                or instance_or_class.__class__.__name__
+            )
 
-    def _get_driver_collection(self) -> "Collection":
-        pass
+        return get_collection_path(
+            instance_or_class.__client_name__,
+            collection_name,
+            instance_or_class.__database_name__,
+        )
 
     @classmethod
     def find(
@@ -41,7 +48,7 @@ class JSONCollection(Collection):
         skip: int = 0,
         limit: int = 1000,
     ) -> list[T]:
-        collection_path = get_collection_path(cls)
+        collection_path = JSONCollection._get_driver_collection(cls)
         json_files = collection_path.glob("*.json")
 
         return [
@@ -71,7 +78,7 @@ class JSONCollection(Collection):
 
     @classmethod
     def find_by_id(cls: Type[T], id: str) -> T | None:
-        collection_path = get_collection_path(cls)
+        collection_path = JSONCollection._get_driver_collection(cls)
         json_path = collection_path / Path(f"{id}.json")
         if json_path.is_file():
             with open(json_path) as f:
@@ -92,7 +99,7 @@ class JSONCollection(Collection):
         cls: Type[T],
         filter: T | None = None,
     ) -> int:
-        collection_path = get_collection_path(cls)
+        collection_path = JSONCollection._get_driver_collection(cls)
         json_files = collection_path.glob("*.json")
         return len(list(json_files))
 
@@ -104,7 +111,7 @@ class JSONCollection(Collection):
         pass
 
     def insert_one(data: T) -> InsertOneResult:
-        collection_path = get_collection_path(data.__class__)
+        collection_path = JSONCollection._get_driver_collection(data)
         collection_path.mkdir(parents=True, exist_ok=True)
 
         id = data.get_hash()
@@ -154,7 +161,7 @@ class JSONCollection(Collection):
         replacement: T,
         upsert: bool = False,
     ) -> ReplaceOneResult:
-        collection_path = get_collection_path(filter.__class__)
+        collection_path = JSONCollection._get_driver_collection(filter)
         collection_path.mkdir(parents=True, exist_ok=True)
 
         upserted = False
@@ -182,7 +189,7 @@ class JSONCollection(Collection):
         update: T,
         upsert: bool = False,
     ) -> UpdateOneResult:
-        collection_path = get_collection_path(filter.__class__)
+        collection_path = JSONCollection._get_driver_collection(filter)
         collection_path.mkdir(parents=True, exist_ok=True)
 
         upserted = False
@@ -231,7 +238,7 @@ class JSONCollection(Collection):
         )
 
     def delete_one(filter: T) -> DeleteOneResult:
-        collection_path = get_collection_path(filter.__class__)
+        collection_path = JSONCollection._get_driver_collection(filter)
         id = filter.get_hash()
         file = collection_path / f"{id}.json"
         if not file.exists():
@@ -252,13 +259,18 @@ class JSONCollection(Collection):
         return DeleteManyResult(deleted_count=len(documents))
 
 
-def get_collection_path(cls: Type[JSONCollection]) -> Path:
+def get_collection_path(
+    client_name: str,
+    collection_name: str,
+    database_name: str | None = None,
+) -> Path:
     from ..instance import RedB
 
-    client = RedB.get_client(cls.__client_name__)
+    client = RedB.get_client(client_name)
     database = (
-        client.get_database(cls.__database_name__)
-        if cls.__database_name__
+        client.get_database(database_name)
+        if database_name
         else client.get_default_database()
     )
-    return client._get_driver_client() / database._get_driver_database() / cls.__name__
+
+    return database._get_driver_database() / collection_name

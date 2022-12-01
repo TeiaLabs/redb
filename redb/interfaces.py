@@ -99,13 +99,16 @@ class Collection(ABC, BaseModel):
     __database_name__: str | None = None
     __client_name__: str | None = None
 
-    @classmethod
-    @abstractmethod
-    def _get_driver_collection(cls: Type[T]) -> "Collection":
-        pass
+    def __init__(self, collection_name: str | None = None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
+        object.__setattr__(
+            self, "__collection_name__", collection_name or self.__class__.__name__
+        )
+
+    @staticmethod
     @abstractmethod
-    def _get_driver_collection(self) -> "Collection":
+    def _get_driver_collection(instance_or_class: Type[T] | T) -> "Collection":
         pass
 
     @classmethod

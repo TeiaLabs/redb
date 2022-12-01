@@ -22,7 +22,7 @@ class JSONDatabase(Database):
     def get_collection(self, name: str) -> Collection:
         for folder in self.__database_folder_path.glob("*"):
             if folder.is_dir() and folder.name == name:
-                return JSONCollection()
+                return JSONCollection(collection_name=name)
 
         raise ValueError(f"Database {name} not found")
 
@@ -32,8 +32,8 @@ class JSONDatabase(Database):
     def delete_collection(self, name: str) -> None:
         shutil.rmtree(self.get_collection(name).__class__.__name__)
 
-    def __getitem__(self, name) -> Database:
-        return JSONCollection()
+    def __getitem__(self, name) -> "JSONDatabase":
+        return JSONCollection(collection_name=name)
 
     def get_client(self) -> Client:
         return self.client

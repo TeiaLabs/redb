@@ -24,28 +24,22 @@ T = TypeVar("T", bound=Collection)
 class MongoCollection(Collection):
     __client_name__: str = "mongo"
 
-    def __init__(self, collection_name: str | None = None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    @staticmethod
+    def _get_driver_collection(instance_or_class: Type[T] | T) -> "Collection":
+        if isinstance(instance_or_class, type):
+            collection_name = instance_or_class.__name__
+        else:
+            collection_name = (
+                object.__getattribute__(instance_or_class, "__collection_name__")
+                or instance_or_class.__class__.__name__
+            )
 
-        object.__setattr__(
-            self, "__collection_name__", collection_name or self.__class__.__name__
-        )
-
-    @classmethod
-    def _get_driver_collection(cls: Type[T]) -> PymongoCollection:
         return get_pymongo_collection(
-            cls.__client_name__,
-            cls.__database_name__,
-            cls.__name__,
+            instance_or_class.__client_name__,
+            collection_name,
+            instance_or_class.__database_name__,
         )
-
-    def _get_driver_collection(self) -> PymongoCollection:
-        return get_pymongo_collection(
-            self.__class__.__client_name__,
-            self.__class__.__database_name__,
-            object.__getattribute__(self, "__collection_name__"),
-        )
-
+        
     @classmethod
     def find(
         cls: Type[T],
@@ -265,7 +259,9 @@ class MongoCollection(Collection):
 
 
 def get_pymongo_collection(
-    client_name: str, collection_name: str, database_name: str | None = None
+    client_name: str,
+    collection_name: str,
+    database_name: str | None = None,
 ) -> PymongoCollection:
     from ..instance import RedB
 
