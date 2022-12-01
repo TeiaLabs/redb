@@ -1,10 +1,11 @@
-from typing import Literal, TypeVar
+from typing import TypeVar
 
 from .interfaces import Client
-from .json_system import JSONClient
+from .json_system import JSONClient, JSONConfig
 from .mongo_system import MongoClient, MongoConfig
 
 C = TypeVar("C", bound=Client)
+CONFIGS = TypeVar("CONFIGS", MongoConfig, JSONConfig)
 
 
 class RedB:
@@ -27,10 +28,9 @@ class RedB:
         return cls.client
 
     @classmethod
-    def setup(cls, config: MongoConfig | dict) -> None:
-        # TODO: implement JSONConfig
-        if isinstance(config, dict):
-            cls.client = JSONClient(**config)
+    def setup(cls, config: CONFIGS) -> None:
+        if isinstance(config, JSONConfig):
+            cls.client = JSONClient(config)
         elif isinstance(config, MongoConfig):
             cls.client = MongoClient(config)
         else:

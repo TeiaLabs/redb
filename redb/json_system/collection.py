@@ -26,6 +26,13 @@ class JSONCollection(Collection):
     __client_name__ = "json"
 
     @classmethod
+    def _get_driver_collection(cls: Type[T]) -> "Collection":
+        pass
+
+    def _get_driver_collection(self) -> "Collection":
+        pass
+
+    @classmethod
     def find(
         cls: Type[T],
         filter: T | None = None,
@@ -254,4 +261,4 @@ def get_collection_path(cls: Type[JSONCollection]) -> Path:
         if cls.__database_name__
         else client.get_default_database()
     )
-    return client.client_path / database.database_path / cls.__name__
+    return client._get_driver_client() / database._get_driver_database() / cls.__name__
