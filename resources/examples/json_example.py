@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from redb import RedB
 from redb.json_system import JSONCollection, JSONConfig
 
@@ -16,8 +14,8 @@ class Embedding(JSONCollection):
 
 def main():
     config = JSONConfig(
-        client_folder_path=".",
-        default_database_folder_path="resources/db",
+        client_folder_path="resources",
+        default_database_folder_path="db",
     )
     RedB.setup(config)
 
