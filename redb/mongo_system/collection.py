@@ -49,7 +49,7 @@ class MongoCollection(Collection):
         skip: int = 0,
         limit: int = 1000,
     ) -> list[T]:
-        collection = cls._get_driver_collection()
+        collection = MongoCollection._get_driver_collection(cls)
 
         formatted_filter = filter
         if filter is not None:
@@ -97,7 +97,7 @@ class MongoCollection(Collection):
         filter: T | None = None,
         skip: int = 0,
     ) -> T:
-        collection = cls._get_driver_collection()
+        collection = MongoCollection._get_driver_collection(cls)
 
         formatted_filter = filter
         if filter is not None:
@@ -116,7 +116,7 @@ class MongoCollection(Collection):
         key: str,
         filter: T | None = None,
     ) -> list[T]:
-        collection = cls._get_driver_collection()
+        collection = MongoCollection._get_driver_collection(cls)
 
         formatted_filter = filter
         if filter is not None:
@@ -135,7 +135,7 @@ class MongoCollection(Collection):
         cls: Type[T],
         filter: T | None = None,
     ) -> int:
-        collection = cls._get_driver_collection()
+        collection = MongoCollection._get_driver_collection(cls)
 
         formatted_filter = {}
         if filter is not None:
@@ -148,7 +148,7 @@ class MongoCollection(Collection):
         cls: Type[T],
         operations: list[PyMongoOperations],
     ) -> BulkWriteResult:
-        collection = cls._get_driver_collection()
+        collection = MongoCollection._get_driver_collection(cls)
 
         result = collection.bulk_write(requests=operations)
         return BulkWriteResult(
@@ -161,7 +161,7 @@ class MongoCollection(Collection):
         )
 
     def insert_one(data: T) -> InsertOneResult:
-        collection = data._get_driver_collection()
+        collection = MongoCollection._get_driver_collection(data)
 
         result = collection.insert_one(document=data.dict())
         return InsertOneResult(inserted_id=result.inserted_id)
@@ -178,7 +178,7 @@ class MongoCollection(Collection):
         cls: Type[T],
         data: list[T],
     ) -> InsertManyResult:
-        collection = cls._get_driver_collection()
+        collection = MongoCollection._get_driver_collection(cls)
 
         result = collection.insert_many(
             documents=[document.dict() for document in data]
@@ -190,7 +190,7 @@ class MongoCollection(Collection):
         replacement: T,
         upsert: bool = False,
     ) -> ReplaceOneResult:
-        collection = filter._get_driver_collection()
+        collection = MongoCollection._get_driver_collection(filter)
 
         result = collection.replace_one(
             filter=filter.dict(),
@@ -208,7 +208,7 @@ class MongoCollection(Collection):
         update: T,
         upsert: bool = False,
     ) -> UpdateOneResult:
-        collection = filter._get_driver_collection()
+        collection = MongoCollection._get_driver_collection(filter)
 
         result = collection.update_one(
             filter=filter.dict(),
@@ -228,7 +228,7 @@ class MongoCollection(Collection):
         update: T,
         upsert: bool = False,
     ) -> UpdateManyResult:
-        collection = cls._get_driver_collection()
+        collection = MongoCollection._get_driver_collection(cls)
 
         result = collection.update_many(
             filter=filter.dict(),
@@ -242,7 +242,7 @@ class MongoCollection(Collection):
         )
 
     def delete_one(filter: T) -> DeleteOneResult:
-        collection = filter._get_driver_collection()
+        collection = MongoCollection._get_driver_collection(filter)
 
         collection.delete_one(filter=filter.dict())
         return DeleteOneResult()
@@ -252,7 +252,7 @@ class MongoCollection(Collection):
         cls: Type[T],
         filter: T,
     ) -> DeleteManyResult:
-        collection = cls._get_driver_collection()
+        collection = MongoCollection._get_driver_collection(cls)
 
         result = collection.delete_many(filter=filter.dict())
         return DeleteManyResult(deleted_count=result.deleted_count)
