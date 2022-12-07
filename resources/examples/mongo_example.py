@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from pathlib import Path
-
-from redb import RedB
-from redb.mongo_system import MongoCollection, MongoConfig
+from redb import Document, RedB
+from redb.mongo_system import MongoConfig
 
 
-class Embedding(MongoCollection):
+class Embedding(Document):
     kb_name: str
     model: str
     text: str
@@ -16,7 +14,7 @@ class Embedding(MongoCollection):
 
 def main():
     config = MongoConfig(database_uri="mongodb://localhost:27017/teia")
-    RedB.setup(config)
+    RedB.setup("mongo", config, globals())
     client = RedB.get_client("mongo")
     db = client.get_default_database()
     [print(col.__collection_name__) for col in db.get_collections()]
