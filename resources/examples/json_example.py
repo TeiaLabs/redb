@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from redb import RedB
-from redb.json_system import JSONCollection, JSONConfig
+from redb.json_system import JSONCollection
 
 
 class Embedding(JSONCollection):
@@ -13,11 +13,11 @@ class Embedding(JSONCollection):
 
 
 def main():
-    config = JSONConfig(
+    config = dict(
         client_folder_path="resources",
         default_database_folder_path="db",
     )
-    RedB.setup(config)
+    RedB.setup("json", config, globals())
 
     d = Embedding(
         kb_name="KB",
@@ -26,7 +26,7 @@ def main():
         vector=[1, 2, 0.1],
         source_url="www",
     )
-    print(Embedding.delete_many(d))
+    print(Embedding.delete_many(filter=d))
     print(d.insert_one())
     print(Embedding.replace_one(filter=d, replacement=d, upsert=True))
     print(
