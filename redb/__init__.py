@@ -1,1 +1,1 @@
-from .instance import RedB
+from .instance import RedB, Document
