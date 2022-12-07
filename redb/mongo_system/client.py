@@ -8,7 +8,9 @@ from .database import MongoDatabase
 
 
 class MongoClient(Client):
-    def __init__(self, mongo_config: MongoConfig) -> None:
+    def __init__(self, mongo_config: MongoConfig | dict) -> None:
+        if isinstance(mongo_config, dict):
+            mongo_config = MongoConfig(**mongo_config)
         self.__client = PymongoClient(
             mongo_config.database_uri, **mongo_config.driver_kwargs
         )

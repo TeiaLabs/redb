@@ -7,7 +7,9 @@ from .database import JSONDatabase
 
 
 class JSONClient(Client):
-    def __init__(self, json_config: JSONConfig) -> None:
+    def __init__(self, json_config: JSONConfig | dict) -> None:
+        if isinstance(json_config, dict):
+            json_config = JSONConfig(**json_config)
         self.__client_folder_path = Path(json_config.client_folder_path)
 
         database_default_path = json_config.default_database_folder_path
