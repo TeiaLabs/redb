@@ -52,7 +52,7 @@ class MongoCollection(Collection):
         collection = MongoCollection._get_driver_collection(cls)
 
         formatted_filter = filter
-        if filter is not None:
+        if filter is not None and not isinstance(filter, dict):
             formatted_filter = filter.dict()
 
         formatted_fields = fields
@@ -100,7 +100,7 @@ class MongoCollection(Collection):
         collection = MongoCollection._get_driver_collection(cls)
 
         formatted_filter = filter
-        if filter is not None:
+        if filter is not None and not isinstance(filter, dict):
             formatted_filter = filter.dict()
 
         return cls(
@@ -119,7 +119,7 @@ class MongoCollection(Collection):
         collection = MongoCollection._get_driver_collection(cls)
 
         formatted_filter = filter
-        if filter is not None:
+        if filter is not None and not isinstance(filter, dict):
             formatted_filter = filter.dict()
 
         return [
@@ -138,7 +138,7 @@ class MongoCollection(Collection):
         collection = MongoCollection._get_driver_collection(cls)
 
         formatted_filter = {}
-        if filter is not None:
+        if filter is not None and not isinstance(filter, dict):
             formatted_filter = filter.dict()
 
         return collection.count_documents(filter=formatted_filter)
