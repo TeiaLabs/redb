@@ -7,7 +7,6 @@ from ..interfaces import (
     Collection,
     DeleteManyResult,
     DeleteOneResult,
-    Direction,
     IncludeField,
     InsertManyResult,
     InsertOneResult,
@@ -39,7 +38,7 @@ class MongoCollection(Collection):
             collection_name,
             instance_or_class.__database_name__,
         )
-        
+
     @classmethod
     def find(
         cls: Type[T],
@@ -64,10 +63,10 @@ class MongoCollection(Collection):
 
         formatted_sort = sort
         if sort is not None:
-            if isinstance(sort[0], str):
-                formatted_sort = [(field, Direction.ASCENDING) for field in sort]
+            if isinstance(sort, list):
+                formatted_sort = [(field.name, field.direction) for field in sort]
             else:
-                formatted_sort = [(field.name, field.direction) for field in fields]
+                formatted_sort = [(sort.name, sort.direction)]
 
         return [
             cls(**result)
