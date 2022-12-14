@@ -17,7 +17,7 @@ def main():
         client_folder_path="resources",
         default_database_folder_path="db",
     )
-    RedB.setup("json", config, globals())
+    RedB.setup(backend="json", config=config)
 
     d = Embedding(
         kb_name="KB",
