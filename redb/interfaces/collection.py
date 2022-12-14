@@ -167,6 +167,8 @@ class BaseCollection(Collection, BaseModel):
     __database_name__: str | None = None
     __client_name__: str | None = None
 
+    hash: str | None = None
+
     def __init__(self, collection_name: str | None = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -181,6 +183,8 @@ class BaseCollection(Collection, BaseModel):
     def get_hash(self) -> str:
         hashses = []
         for field in self.__fields__:
+            if field == "hash":
+                continue
             value = self.__getattribute__(field)
             key_field_hash = hashlib.md5(field.encode("utf8")).hexdigest()
             val_field_hash = hashlib.md5(pickle.dumps(value)).hexdigest()
@@ -188,6 +192,16 @@ class BaseCollection(Collection, BaseModel):
 
         hex_digest = hashlib.sha256("".join(hashses).encode("utf-8")).hexdigest()
         return hex_digest
+
+    def dict(self, *args, **kwargs) -> dict:
+        exclude_unset = kwargs.pop("exclude_unset", True)
+        data = super().dict(*args, exclude_unset=exclude_unset, **kwargs)
+        
+        data_hash = self.get_hash()
+        if data_hash is not None:
+            data["hash"] = data_hash
+
+        return data
 
     def __repr__(self) -> str:
         class_name = self.__class__.__name__
