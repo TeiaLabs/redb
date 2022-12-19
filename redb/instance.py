@@ -44,14 +44,17 @@ class RedB:
     @classmethod
     def setup(
         cls,
-        backend: Literal["json", "mongo"],
         config: ConfigsType,
-        namespace: dict[str, Any],
+        backend: Literal["json", "mongo"] | None = None,
     ) -> None:
-        if backend == "json" and check_config(config, JSONConfig):
+        namespace = inspect.currentframe().f_back.f_globals
+
+        if backend is None and isinstance(config, dict):
+            raise ValueError("Cannot determine client type from backend and config")
+        elif backend == "json" or check_config(config, JSONConfig):
             cls._client = JSONClient(config)
             base_class = JSONCollection
-        elif backend == "mongo" and check_config(config, MongoConfig):
+        elif backend == "mongo" or check_config(config, MongoConfig):
             cls._client = MongoClient(config)
             base_class = MongoCollection
         else:

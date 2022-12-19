@@ -14,7 +14,7 @@ class Embedding(Document):
 
 def main():
     config = MongoConfig(database_uri="mongodb://localhost:27017/teia")
-    RedB.setup("mongo", config, globals())
+    RedB.setup(config=config)
     client = RedB.get_client("mongo")
     db = client.get_default_database()
     [print(col.__collection_name__) for col in db.get_collections()]
