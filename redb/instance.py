@@ -3,13 +3,13 @@ from datetime import datetime
 from typing import Any, Literal, Type, TypeVar
 
 from bson import ObjectId
-from pydantic import Field  # TODO: create REDB.Fields
 from pydantic.main import ModelMetaclass
 
-from .interfaces import Client, Collection
+from .interfaces import Client, Collection, Direction, Field, FieldIndice
+from .interfaces.fields import Index
 from .json_system import JSONClient, JSONCollection, JSONConfig
-from .mongo_system import MongoClient, MongoCollection, MongoConfig
 from .milvus_system import MilvusClient, MilvusCollection, MilvusConfig
+from .mongo_system import MongoClient, MongoCollection, MongoConfig
 
 processed_classes = {"Document"}
 NON_IHERITABLE_METHODS = {"__dict__", "__abstractmethods__", "__client_name__"}
@@ -18,20 +18,45 @@ ConfigsType = TypeVar("ConfigsType", MongoConfig, JSONConfig, dict[str, Any])
 
 
 def check_config(
-    config: ConfigsType,
-    base_class: Type[MongoConfig | JSONConfig],
+    config,
+    base_class,
 ) -> bool:
     return isinstance(config, base_class) or isinstance(config, dict)
+
+
+def process_indices(clsname: str, attrs: dict[str, Any]) -> None:
+    if clsname not in RedB._indices:
+        RedB._indices[clsname] = {}
+
+    for attr, field in attrs.items():
+        if not attr.startswith("__") and hasattr(field, "index"):
+            index = field.index
+            index.group_name = attr if index.group_name is None else index.group_name
+            if index.group_name not in RedB._indices[clsname]:
+                RedB._indices[clsname][index.group_name] = []
+
+            index.name = attr if index.name is None else index.name
+            RedB._indices[clsname][index.group_name].append(index)
 
 
 class RedB:
     """Client singleton."""
 
+    _indices: dict[str, dict[str, list[FieldIndice]]] = {}
+    _processed_classes: set[str] = {
+        "Document",
+        "BaseCollection",
+        "JSONCollection",
+        "MongoCollection",
+    }
     _client: Client | None = None
     _sub_classes: list[Type[Collection]] | None = None
 
     @classmethod
     def get_client(cls, client_name: str) -> Client:
+        from .json_system import JSONClient
+        from .mongo_system import MongoClient
+
         if cls._client is None:
             raise RuntimeError("Client not setup. Call setup() first.")
 
@@ -47,7 +72,7 @@ class RedB:
     @classmethod
     def setup(
         cls,
-        config: ConfigsType,
+        config,
         backend: Literal["json", "mongo"] | None = None,
     ) -> None:
         namespace = inspect.currentframe().f_back.f_globals
@@ -66,12 +91,13 @@ class RedB:
         else:
             raise ValueError(f"Backend not found for config type: {type(config)!r}.")
 
-        RedB.__process_subclasses(base_class, namespace)
+        RedB.process_subclasses(base_class, namespace)
+        RedB.process_indices(namespace)
 
     @staticmethod
-    def __process_subclasses(
+    def process_subclasses(
         base_class: Type[Collection],
-        namespace: dict[str, any],
+        namespace: dict[str, Any],
     ) -> None:
         for sub_class in RedB._sub_classes:
             new_parents = []
@@ -89,7 +115,7 @@ class RedB:
 
             attrs = dict(sub_class.__dict__)
             attrs.update(dict(base_class.__dict__))
-            processed_classes.add(sub_class.__name__)
+            RedB._processed_classes.add(sub_class.__name__)
 
             new_type = type(sub_class.__name__, tuple(new_parents), attrs)
 
@@ -102,6 +128,34 @@ class RedB:
                     setattr(new_type, key, value)
 
             namespace[sub_class.__name__] = new_type
+
+    @staticmethod
+    def process_indices(
+        namespace: dict[str, Any],
+    ) -> None:
+        for clsname, grouped_indices in RedB._indices.items():
+            current_class: Collection = namespace[clsname]
+
+            for group_name in grouped_indices:
+                indices = grouped_indices[group_name]
+
+                full_name = [0] * (len(indices) + 1)
+                full_name[0] = indices[0].group_name
+
+                unique = False
+                directions = []
+                for idx, indice in enumerate(indices, start=1):
+                    full_name[indice.order or idx] = indice.name
+                    unique = unique or indice.unique
+                    directions.append(indice.direction or Direction.ASCENDING)
+
+                current_class.create_indice(
+                    Index(
+                        names=full_name,
+                        unique=unique,
+                        directions=directions,
+                    )
+                )
 
 
 class DocumentMetaclass(ModelMetaclass):
@@ -124,4 +178,6 @@ class DocumentMetaclass(ModelMetaclass):
 class Document(Collection, metaclass=DocumentMetaclass):
     id: str = Field(default_factory=lambda: str(ObjectId()))
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)  # TODO: autoupdate this field on updates
+    updated_at: datetime = Field(
+        default_factory=datetime.utcnow
+    )  # TODO: autoupdate this field on updates

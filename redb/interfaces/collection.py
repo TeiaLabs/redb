@@ -1,5 +1,3 @@
-import hashlib
-import pickle
 from abc import ABC, abstractmethod
 from typing import Any, Type, TypeVar, Union
 
@@ -13,7 +11,7 @@ from pymongo.operations import (
     UpdateOne,
 )
 
-from .fields import IncludeField, SortField
+from .fields import IncludeDBColumn, Index, SortDBColumn
 from .results import (
     BulkWriteResult,
     DeleteManyResult,
@@ -48,11 +46,16 @@ class Collection(ABC, BaseModel):
 
     @classmethod
     @abstractmethod
+    def create_indice(cls: Type[T], indice: Index) -> None:
+        pass
+
+    @classmethod
+    @abstractmethod
     def find(
         cls: Type[T],
         filter: T | None = None,
-        fields: list[IncludeField] | list[str] | None = None,
-        sort: list[SortField] | SortField | None = None,
+        fields: list[IncludeDBColumn] | list[str] | None = None,
+        sort: list[SortDBColumn] | SortDBColumn | None = None,
         skip: int = 0,
         limit: int = 1000,
     ) -> list[T]:
@@ -64,7 +67,7 @@ class Collection(ABC, BaseModel):
         cls: Type[T],
         column: str | None = None,
         filter: T | None = None,
-        sort: list[SortField] | SortField | None = None,
+        sort: list[SortDBColumn] | SortDBColumn | None = None,
         skip: int = 0,
         limit: int = 1000,
     ) -> list[T]:
@@ -161,46 +164,3 @@ class Collection(ABC, BaseModel):
         filter: T,
     ) -> DeleteManyResult:
         pass
-
-
-class BaseCollection(Collection, BaseModel):
-    __database_name__: str | None = None
-    __client_name__: str | None = None
-
-    def __init__(self, collection_name: str | None = None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # object.__setattr__(
-        #     self, "__collection_name__", collection_name or self.__class__.__name__
-        # )
-
-    @classmethod
-    def collection_name(cls: Type[T]) -> str:
-        return cls.__name__.lower()
-
-    def get_hash(self) -> str:
-        hashses = []
-        for field in self.__fields__:
-            value = self.__getattribute__(field)
-            key_field_hash = hashlib.md5(field.encode("utf8")).hexdigest()
-            val_field_hash = hashlib.md5(pickle.dumps(value)).hexdigest()
-            hashses += [key_field_hash, val_field_hash]
-
-        hex_digest = hashlib.sha256("".join(hashses).encode("utf-8")).hexdigest()
-        return hex_digest
-
-    def __repr__(self) -> str:
-        class_name = self.__class__.__name__
-        # add all pydantic attributes like attr=val, attr2=val2
-        attributes = ", ".join(
-            f"{field}={getattr(self, field)}" for field in self.__fields__
-        )
-        return f"{class_name}({attributes})"
-
-    def __str__(self) -> str:
-        class_name = self.__class__.__name__
-        # add all pydantic attributes like attr=val, attr2=val2
-        attributes = ", ".join(
-            f"{field}={getattr(self, field)}" for field in self.__fields__
-        )
-        return f"{class_name}<{attributes}>"

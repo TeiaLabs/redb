@@ -2,20 +2,21 @@ import json
 from pathlib import Path
 from typing import Any, Type, TypeVar
 
+from ..base import BaseCollection as Collection
 from ..interfaces import (
     BulkWriteResult,
-    Collection,
     DeleteManyResult,
     DeleteOneResult,
-    IncludeField,
+    IncludeDBColumn,
     InsertManyResult,
     InsertOneResult,
     PyMongoOperations,
     ReplaceOneResult,
-    SortField,
+    SortDBColumn,
     UpdateManyResult,
     UpdateOneResult,
 )
+from ..interfaces.fields import Index
 
 T = TypeVar("T", bound=Collection)
 
@@ -40,11 +41,15 @@ class JSONCollection(Collection):
         )
 
     @classmethod
+    def create_indice(cls: Type[T], _: Index) -> None:
+        pass
+
+    @classmethod
     def find(
         cls: Type[T],
         filter: T | None = None,
-        fields: list[IncludeField] | list[str] | None = None,
-        sort: list[SortField] | SortField | None = None,
+        fields: list[IncludeDBColumn] | list[str] | None = None,
+        sort: list[SortDBColumn] | SortDBColumn | None = None,
         skip: int = 0,
         limit: int = 1000,
     ) -> list[T]:
@@ -62,7 +67,7 @@ class JSONCollection(Collection):
         cls: Type[T],
         column: str | None = None,
         filter: T | None = None,
-        sort: list[SortField] | SortField | None = None,
+        sort: list[SortDBColumn] | SortDBColumn | None = None,
         skip: int = 0,
         limit: int = 1000,
     ) -> list[T]:
