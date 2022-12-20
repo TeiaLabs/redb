@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from redb import RedB
+from redb import Field, FieldIndice, RedB
 from redb.json_system import JSONCollection
 
 
 class Embedding(JSONCollection):
     kb_name: str
-    model: str
-    text: str
+    model: str = Field(index=FieldIndice(group_name="nop"))
+    text: str = Field(index=FieldIndice(group_name="hu3"))
     vector: list[float]
-    source_url: str
+    source_url: str = Field(index=FieldIndice(group_name="hu3", name="sourceUrl"))
 
 
 def main():
