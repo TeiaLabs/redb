@@ -30,7 +30,8 @@ def main():
     RedB.setup(config=config)
     client = RedB.get_client("mongo")
     db = client.get_default_database()
-    print([col for col in db.get_collections()])
+    for col in db.get_collections():
+        [print(obj) for obj in col.find()]
     
     d = Dog(
         name="Spike",

@@ -54,9 +54,6 @@ class RedB:
 
     @classmethod
     def get_client(cls, client_name: str) -> Client:
-        from .json_system import JSONClient
-        from .mongo_system import MongoClient
-
         if cls._client is None:
             raise RuntimeError("Client not setup. Call setup() first.")
 
@@ -164,13 +161,15 @@ class DocumentMetaclass(ModelMetaclass):
         clsname: str,
         bases: list[Type[Collection]],
         attrs: dict[str, Any],
-    ):
+    ) -> Collection:
         class_type = super().__new__(cls, clsname, bases, attrs)
         if RedB._sub_classes is None:
             RedB._sub_classes = []
 
-        if clsname not in processed_classes:
+        if clsname not in RedB._processed_classes:
             RedB._sub_classes.append(class_type)
+            process_indices(clsname, attrs)
+            RedB._processed_classes.add(clsname)
 
         return class_type
 

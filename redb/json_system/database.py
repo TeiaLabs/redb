@@ -14,7 +14,7 @@ class JSONDatabase(Database):
 
     def get_collections(self) -> list[JSONCollection]:
         return [
-            JSONCollection(folder)
+            JSONCollection(collection_name=folder)
             for folder in self.__database_folder_path.glob("*")
             if folder.is_dir()
         ]
@@ -22,7 +22,7 @@ class JSONDatabase(Database):
     def get_collection(self, name: str) -> JSONCollection:
         for folder in self.__database_folder_path.glob("*"):
             if folder.is_dir() and folder.name == name:
-                return JSONCollection(collection_name=name)
+                return JSONCollection(collection_name=folder)
 
         raise ValueError(f"Database {name} not found")
 
@@ -33,7 +33,7 @@ class JSONDatabase(Database):
         shutil.rmtree(self.get_collection(name).__class__.__name__)
 
     def __getitem__(self, name) -> "JSONDatabase":
-        return JSONCollection(collection_name=name)
+        return JSONCollection(collection_name=self.__database_folder_path / name)
 
     def __truediv__(self, other):
         return self.__database_folder_path / other

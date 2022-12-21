@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Any, Type, TypeVar
+from typing import Any, Dict, Type, TypeVar
 
 from ..base import BaseCollection as Collection
 from ..interfaces import (
@@ -24,14 +24,27 @@ T = TypeVar("T", bound=Collection)
 class JSONCollection(Collection):
     __client_name__ = "json"
 
+    def __init__(self, collection_name: str | None = None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        object.__setattr__(self, "_collection_name", collection_name)
+
+    def dict(self, *args, **kwargs):
+        out = super().dict(*args, **kwargs)
+        if "_collection_name" in out:
+            out.pop("_collection_name")
+        return out
+
     @staticmethod
-    def _get_driver_collection(instance_or_class: Type[T] | T) -> "Collection":
+    def _get_driver_collection(
+        instance_or_class: Type["JSONCollection"] | "JSONCollection",
+    ) -> "Collection":
         if isinstance(instance_or_class, type):
             collection_name = instance_or_class.__name__
         else:
             collection_name = (
-                object.__getattribute__(instance_or_class, "__collection_name__")
-                or instance_or_class.__class__.__name__
+                instance_or_class.__class__.__name__
+                if not hasattr(instance_or_class, "_collection_name")
+                else object.__getattribute__(instance_or_class, "_collection_name").name
             )
 
         return get_collection_path(
@@ -53,14 +66,24 @@ class JSONCollection(Collection):
         skip: int = 0,
         limit: int = 1000,
     ) -> list[T]:
-        collection_path = JSONCollection._get_driver_collection(cls)
+        if filter is not None:
+            collection_path = JSONCollection._get_driver_collection(filter)
+        else:
+            collection_path = JSONCollection._get_driver_collection(cls)
+
         json_files = collection_path.glob("*.json")
 
-        return [
-            cls(**json.load(open(json_file)))
-            for json_file in json_files
-            if json_file.is_file()
-        ]
+        if cls == JSONCollection:
+            transform = lambda file_path: json.load(open(file_path))
+        else:
+            transform = lambda file_path: cls(**json.load(open(file_path)))
+
+        out = []
+        for json_file in json_files:
+            if json_file.is_file():
+                out.append(transform(json_file))
+
+        return out
 
     @classmethod
     def find_vectors(
@@ -104,7 +127,11 @@ class JSONCollection(Collection):
         cls: Type[T],
         filter: T | None = None,
     ) -> int:
-        collection_path = JSONCollection._get_driver_collection(cls)
+        if filter is not None:
+            collection_path = JSONCollection._get_driver_collection(filter)
+        else:
+            collection_path = JSONCollection._get_driver_collection(cls)
+
         json_files = collection_path.glob("*.json")
         return len(list(json_files))
 
@@ -133,7 +160,7 @@ class JSONCollection(Collection):
     @classmethod
     def insert_vectors(
         cls: Type[T],
-        data: dict[str, list[Any]],
+        data: Dict[str, list[Any]],
     ) -> InsertManyResult:
         size = len(data[next(iter(data.keys()))])
         ids = []

@@ -29,10 +29,7 @@ class MongoCollection(Collection):
         if isinstance(instance_or_class, type):
             collection_name = instance_or_class.__name__
         else:
-            collection_name = (
-                getattr(instance_or_class, "__collection_name__", None)  # TODO: get this from somewhere else
-                or instance_or_class.__class__.__name__
-            )
+            collection_name = instance_or_class.__class__.__name__
 
         return get_pymongo_collection(
             instance_or_class.__client_name__,

@@ -1,3 +1,2 @@
-from .base import Document
-from .instance import RedB
+from .instance import Document, RedB
 from .interfaces import Field, FieldIndice
