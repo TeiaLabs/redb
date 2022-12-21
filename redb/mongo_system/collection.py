@@ -29,7 +29,7 @@ class MongoCollection(Collection):
             collection_name = instance_or_class.__name__
         else:
             collection_name = (
-                object.__getattribute__(instance_or_class, "__collection_name__")
+                getattr(instance_or_class, "__collection_name__", None)  # TODO: get this from somewhere else
                 or instance_or_class.__class__.__name__
             )
 
@@ -159,10 +159,9 @@ class MongoCollection(Collection):
             upserted_ids=result.upserted_ids,
         )
 
-    def insert_one(data: T) -> InsertOneResult:
-        collection = MongoCollection._get_driver_collection(data)
-
-        result = collection.insert_one(document=data.dict())
+    def insert_one(self: T) -> InsertOneResult:
+        collection = MongoCollection._get_driver_collection(self)
+        result = collection.insert_one(document=self.dict())
         return InsertOneResult(inserted_id=result.inserted_id)
 
     @classmethod

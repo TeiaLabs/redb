@@ -1,15 +1,18 @@
 import inspect
+from datetime import datetime
 from typing import Any, Literal, Type, TypeVar
 
+from bson import ObjectId
+from pydantic import Field  # TODO: create REDB.Fields
 from pydantic.main import ModelMetaclass
 
 from .interfaces import Client, Collection
 from .json_system import JSONClient, JSONCollection, JSONConfig
 from .mongo_system import MongoClient, MongoCollection, MongoConfig
+from .milvus_system import MilvusClient, MilvusCollection, MilvusConfig
 
 processed_classes = {"Document"}
 NON_IHERITABLE_METHODS = {"__dict__", "__abstractmethods__", "__client_name__"}
-
 
 ConfigsType = TypeVar("ConfigsType", MongoConfig, JSONConfig, dict[str, Any])
 
@@ -57,6 +60,9 @@ class RedB:
         elif backend == "mongo" or check_config(config, MongoConfig):
             cls._client = MongoClient(config)
             base_class = MongoCollection
+        elif backend == "milvus" and check_config(config, MilvusConfig):
+            cls._client = MilvusClient(config)
+            base_class = MilvusCollection
         else:
             raise ValueError(f"Backend not found for config type: {type(config)!r}.")
 
@@ -116,4 +122,6 @@ class DocumentMetaclass(ModelMetaclass):
 
 
 class Document(Collection, metaclass=DocumentMetaclass):
-    pass
+    id: str = Field(default_factory=lambda: str(ObjectId()))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)  # TODO: autoupdate this field on updates

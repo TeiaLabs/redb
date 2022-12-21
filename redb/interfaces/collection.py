@@ -170,9 +170,9 @@ class BaseCollection(Collection, BaseModel):
     def __init__(self, collection_name: str | None = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        object.__setattr__(
-            self, "__collection_name__", collection_name or self.__class__.__name__
-        )
+        # object.__setattr__(
+        #     self, "__collection_name__", collection_name or self.__class__.__name__
+        # )
 
     @classmethod
     def collection_name(cls: Type[T]) -> str:
@@ -191,10 +191,16 @@ class BaseCollection(Collection, BaseModel):
 
     def __repr__(self) -> str:
         class_name = self.__class__.__name__
-
         # add all pydantic attributes like attr=val, attr2=val2
         attributes = ", ".join(
             f"{field}={getattr(self, field)}" for field in self.__fields__
         )
-
         return f"{class_name}({attributes})"
+
+    def __str__(self) -> str:
+        class_name = self.__class__.__name__
+        # add all pydantic attributes like attr=val, attr2=val2
+        attributes = ", ".join(
+            f"{field}={getattr(self, field)}" for field in self.__fields__
+        )
+        return f"{class_name}<{attributes}>"

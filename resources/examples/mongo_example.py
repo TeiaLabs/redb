@@ -1,34 +1,36 @@
 from __future__ import annotations
 
+import os
+import dotenv
+from datetime import datetime
+
 from redb import Document, RedB
 from redb.mongo_system import MongoConfig
 
+dotenv.load_dotenv()
 
-class Embedding(Document):
-    kb_name: str
-    model: str
-    text: str
-    vector: list[float]
-    source_url: str
+
+class Dog(Document):
+    name: str
+    birthday: datetime
+    # friends: list[Dog] = []  # TODO: make this work
 
 
 def main():
-    config = MongoConfig(database_uri="mongodb://localhost:27017/teia")
+    config = MongoConfig(database_uri=os.environ["MONGODB_URI"])
     RedB.setup(config=config)
     client = RedB.get_client("mongo")
     db = client.get_default_database()
-    [print(col.__collection_name__) for col in db.get_collections()]
-
-    d = Embedding(
-        kb_name="KB",
-        model="big-and-strong",
-        text="Some data.",
-        vector=[1, 2, 0.1],
-        source_url="www",
+    print([col for col in db.get_collections()])
+    d = Dog(
+        name="Spike",
+        birthday=datetime.today(),
+        friends=[Dog(name="Lily", birthday=datetime.today())]
     )
-    print(Embedding.delete_many(d))
+    print(d)
+    print(Dog.delete_many(d))
     print(d.insert_one())
-    print(Embedding.replace_one(filter=d, replacement=d, upsert=True))
+    print(Dog.replace_one(filter=d, replacement=d, upsert=True))
 
 
 if __name__ == "__main__":
