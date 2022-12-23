@@ -4,9 +4,11 @@ import os
 from datetime import datetime
 
 import dotenv
+import pydantic
 
-from redb import Document, Field, RedB, Indice, CompoundIndice
+from redb import Document, Field, RedB, Index, CompoundIndex
 from redb.mongo_system import MongoConfig
+from redb.interfaces import Direction
 
 dotenv.load_dotenv()
 
@@ -17,19 +19,37 @@ class Dog(Document):
     # friends: list[Dog] = []  # TODO: make this work
 
 
+
 class Embedding(Document):
     kb_name: str
     model: str
-    text: str 
+    text: str
+    model: Model
     vector: list[float]
     source_url: str
 
     @classmethod
-    def get_indices(cls) -> list[Indice | CompoundIndice]:
+    def get_indices(cls) -> list[Index | CompoundIndex]:
         return [
-            Indice(field=Embedding.model, name="index_name"),
-            CompoundIndice(fields=[Embedding.text, Embedding.kb_name], unique=True)
+            # Index(field=cls.model, name="index_name"),
+            # CompoundIndex(fields=[cls.text, cls.kb_name], unique=True),
+            Index(field=cls.model.provider.name, direction=Direction.ASCENDING),
         ]
+
+
+class Model(pydantic.BaseModel):
+    name: str
+    type: str
+    provider: API
+
+
+class API(pydantic.BaseModel):
+    name: str
+
+
+API.update_forward_refs()
+Model.update_forward_refs()
+Embedding.update_forward_refs()
 
 
 def main():
@@ -39,11 +59,11 @@ def main():
     db = client.get_default_database()
     for col in db.get_collections():
         [print(obj) for obj in col.find()]
-    
+
     d = Dog(
         name="Spike",
         birthday=datetime.today(),
-        friends=[Dog(name="Lily", birthday=datetime.today())],
+        # friends=[Dog(name="Lily", birthday=datetime.today())],
     )
 
     d = Embedding(
