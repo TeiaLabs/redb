@@ -5,8 +5,7 @@ from typing import Any, Literal, Type, TypeVar
 from bson import ObjectId
 from pydantic.main import ModelMetaclass
 
-from .interfaces import Client, Collection, Direction, Field, FieldIndice
-from .interfaces.fields import Index
+from .interfaces import Client, Collection, CompoundIndice, Field, Indice
 from .json_system import JSONClient, JSONCollection, JSONConfig
 from .milvus_system import MilvusClient, MilvusCollection, MilvusConfig
 from .mongo_system import MongoClient, MongoCollection, MongoConfig
@@ -24,25 +23,9 @@ def check_config(
     return isinstance(config, base_class) or isinstance(config, dict)
 
 
-def process_indices(clsname: str, attrs: dict[str, Any]) -> None:
-    if clsname not in RedB._indices:
-        RedB._indices[clsname] = {}
-
-    for attr, field in attrs.items():
-        if not attr.startswith("__") and hasattr(field, "index"):
-            index = field.index
-            index.group_name = attr if index.group_name is None else index.group_name
-            if index.group_name not in RedB._indices[clsname]:
-                RedB._indices[clsname][index.group_name] = []
-
-            index.name = attr if index.name is None else index.name
-            RedB._indices[clsname][index.group_name].append(index)
-
-
 class RedB:
     """Client singleton."""
 
-    _indices: dict[str, dict[str, list[FieldIndice]]] = {}
     _processed_classes: set[str] = {
         "Document",
         "BaseCollection",
@@ -89,7 +72,6 @@ class RedB:
             raise ValueError(f"Backend not found for config type: {type(config)!r}.")
 
         RedB.process_subclasses(base_class, namespace)
-        RedB.process_indices(namespace)
 
     @staticmethod
     def process_subclasses(
@@ -125,34 +107,17 @@ class RedB:
                     setattr(new_type, key, value)
 
             namespace[sub_class.__name__] = new_type
-
-    @staticmethod
-    def process_indices(
-        namespace: dict[str, Any],
-    ) -> None:
-        for clsname, grouped_indices in RedB._indices.items():
-            current_class: Collection = namespace[clsname]
-
-            for group_name in grouped_indices:
-                indices = grouped_indices[group_name]
-
-                full_name = [0] * (len(indices) + 1)
-                full_name[0] = indices[0].group_name
-
-                unique = False
-                directions = []
-                for idx, indice in enumerate(indices, start=1):
-                    full_name[indice.order or idx] = indice.name
-                    unique = unique or indice.unique
-                    directions.append(indice.direction or Direction.ASCENDING)
-
-                current_class.create_indice(
-                    Index(
-                        names=full_name,
-                        unique=unique,
-                        directions=directions,
+            indices = new_type.get_indices()
+            for indice in indices:
+                if isinstance(indice, Indice):
+                    indice = CompoundIndice(
+                        fields=[indice.field],
+                        name=indice.name,
+                        unique=indice.unique,
+                        direction=indice.direction
                     )
-                )
+
+                new_type.create_indice(indice)
 
 
 class DocumentMetaclass(ModelMetaclass):
@@ -168,10 +133,19 @@ class DocumentMetaclass(ModelMetaclass):
 
         if clsname not in RedB._processed_classes:
             RedB._sub_classes.append(class_type)
-            process_indices(clsname, attrs)
             RedB._processed_classes.add(clsname)
 
         return class_type
+
+    def __getattribute__(cls_or_self, name: str) -> Any:
+        try:
+            return super().__getattribute__(name)
+        except AttributeError as e:
+            if hasattr(cls_or_self, "__fields__"):
+                if name not in cls_or_self.__fields__:
+                    raise e
+
+                return cls_or_self.__fields__[name]
 
 
 class Document(Collection, metaclass=DocumentMetaclass):

@@ -16,7 +16,7 @@ from ..interfaces import (
     UpdateManyResult,
     UpdateOneResult,
 )
-from ..interfaces.fields import Index
+from ..interfaces.fields import CompoundIndice, Direction
 
 T = TypeVar("T", bound=Collection)
 
@@ -38,15 +38,21 @@ class MongoCollection(Collection):
         )
 
     @classmethod
-    def create_indice(cls: Type[T], indice: Index) -> None:
-        collection = MongoCollection._get_driver_collection(cls)
+    def create_indice(cls: Type[T], indice: CompoundIndice) -> None:
+        collection: PymongoCollection = MongoCollection._get_driver_collection(cls)
+        
+        if indice.direction is None:
+            indice.direction = Direction.ASCENDING
+
+        name = indice.name
+        if name is None:
+            name = "_".join([name.alias for name in indice.fields])
+            name = f"unique_{name}" if indice.unique else name            
+            name = f"{indice.direction.name.lower()}_{name}"
 
         collection.create_index(
-            [
-                (name, direction.value)
-                for name, direction in zip(indice.names[1:], indice.directions)
-            ],
-            name="_".join(indice.names),
+            [(name.alias, indice.direction.value) for name in indice.fields],
+            name=name,
             unique=indice.unique,
         )
 

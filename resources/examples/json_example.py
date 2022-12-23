@@ -1,19 +1,21 @@
 from __future__ import annotations
 
-from redb import Document, Field, FieldIndice, RedB
+from redb import Document, Indice, CompoundIndice, RedB
 from redb.json_system import JSONCollection
 
 
 class Embedding(Document):
     kb_name: str
-    model: str = Field(index=FieldIndice(group_name="nop"))
-    text: str = Field(
-        index=FieldIndice(group_name="hu3", order=2, direction=1, unique=True)
-    )
+    model: str
+    text: str
     vector: list[float]
-    source_url: str = Field(
-        index=FieldIndice(group_name="hu3", name="sourceUrl", order=1, direction=0)
-    )
+    source_url: str
+
+    @classmethod
+    def get_indices(cls) -> list[Indice | CompoundIndice]:
+        return [
+            Indice(field=Embedding.model)
+        ]
 
 
 def main():

@@ -16,7 +16,7 @@ from ..interfaces import (
     UpdateManyResult,
     UpdateOneResult,
 )
-from ..interfaces.fields import Index
+from ..interfaces.fields import CompoundIndice
 
 T = TypeVar("T", bound=Collection)
 
@@ -58,7 +58,7 @@ class JSONCollection(Collection):
         )
 
     @classmethod
-    def create_indice(cls: Type[T], _: Index) -> None:
+    def create_indice(cls: Type[T], _: CompoundIndice) -> None:
         pass
 
     @classmethod

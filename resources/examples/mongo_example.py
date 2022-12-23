@@ -5,7 +5,7 @@ from datetime import datetime
 
 import dotenv
 
-from redb import Document, Field, FieldIndice, RedB
+from redb import Document, Field, RedB, Indice, CompoundIndice
 from redb.mongo_system import MongoConfig
 
 dotenv.load_dotenv()
@@ -19,10 +19,17 @@ class Dog(Document):
 
 class Embedding(Document):
     kb_name: str
-    model: str = Field(index=FieldIndice(group_name="nop"))
-    text: str = Field(index=FieldIndice(group_name="hu3"))
+    model: str
+    text: str 
     vector: list[float]
-    source_url: str = Field(index=FieldIndice(group_name="hu3", name="sourceUrl"))
+    source_url: str
+
+    @classmethod
+    def get_indices(cls) -> list[Indice | CompoundIndice]:
+        return [
+            Indice(field=Embedding.model, name="index_name"),
+            CompoundIndice(fields=[Embedding.text, Embedding.kb_name], unique=True)
+        ]
 
 
 def main():

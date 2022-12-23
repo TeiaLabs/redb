@@ -3,6 +3,7 @@ from enum import Enum
 
 import pymongo
 from pydantic import BaseModel
+from pydantic.fields import ModelField
 from pydantic.main import FieldInfo as PydanticFieldInfo
 
 
@@ -24,27 +25,25 @@ class SortDBColumn(DBColumn):
 
 
 @dataclass
-class Index:
-    names: list[str] = None
+class Indice:
+    field: ModelField
+    name: str = None
     unique: bool = None
-    directions: list[Direction] = None
+    direction: Direction = None
 
 
 @dataclass
-class FieldIndice:
-    group_name: str = None
+class CompoundIndice:
+    fields: list[ModelField]
     name: str = None
     unique: bool = None
-    order: int = None
     direction: Direction = None
 
 
 class Field(PydanticFieldInfo):
     def __init__(
         self,
-        index: Index = None,
         *args,
         **kwargs,
     ) -> None:
-        self.index = index
         super().__init__(*args, **kwargs)

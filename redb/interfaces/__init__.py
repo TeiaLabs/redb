@@ -1,7 +1,14 @@
 from .client import Client
 from .collection import Collection, PyMongoOperations
 from .database import Database
-from .fields import Direction, Field, FieldIndice, IncludeDBColumn, SortDBColumn
+from .fields import (
+    CompoundIndice,
+    Direction,
+    Field,
+    IncludeDBColumn,
+    Indice,
+    SortDBColumn,
+)
 from .results import (
     BulkWriteResult,
     DeleteManyResult,

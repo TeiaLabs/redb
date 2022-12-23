@@ -11,7 +11,7 @@ from pymongo.operations import (
     UpdateOne,
 )
 
-from .fields import IncludeDBColumn, Index, SortDBColumn
+from .fields import IncludeDBColumn, SortDBColumn, CompoundIndice
 from .results import (
     BulkWriteResult,
     DeleteManyResult,
@@ -46,7 +46,7 @@ class Collection(ABC, BaseModel):
 
     @classmethod
     @abstractmethod
-    def create_indice(cls: Type[T], indice: Index) -> None:
+    def create_indice(cls: Type[T], indice: CompoundIndice) -> None:
         pass
 
     @classmethod
