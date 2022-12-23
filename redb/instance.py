@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Any, Literal, Type, TypeVar
 
 from bson import ObjectId
+from pydantic.fields import ModelField
 from pydantic.main import ModelMetaclass
 
 from .interfaces import Client, Collection, CompoundIndice, Field, Indice
@@ -114,7 +115,7 @@ class RedB:
                         fields=[indice.field],
                         name=indice.name,
                         unique=indice.unique,
-                        direction=indice.direction
+                        direction=indice.direction,
                     )
 
                 new_type.create_indice(indice)
@@ -145,7 +146,7 @@ class DocumentMetaclass(ModelMetaclass):
                 if name not in cls_or_self.__fields__:
                     raise e
 
-                return cls_or_self.__fields__[name]
+                return ClassField(model_field=cls_or_self.__fields__[name])
 
 
 class Document(Collection, metaclass=DocumentMetaclass):
@@ -154,3 +155,30 @@ class Document(Collection, metaclass=DocumentMetaclass):
     updated_at: datetime = Field(
         default_factory=datetime.utcnow
     )  # TODO: autoupdate this field on updates
+
+
+class ClassField:
+    def __init__(self, model_field: ModelField) -> None:
+        self.model_field = model_field
+
+    def __getattribute__(self, name: str) -> Any:
+        if name == "model_field":
+            return object.__getattribute__(self, name)
+
+        model_field = self.model_field
+        try:
+            annotation = model_field.annotation
+            if not hasattr(annotation, "__forward_value__"):
+                raise AttributeError
+            
+            forwarded = annotation.__forward_value__
+            if not hasattr(forwarded, "__fields__"):
+                raise AttributeError
+
+            fields = forwarded.__fields__
+            if name not in fields:
+                raise AttributeError
+
+            return ClassField(model_field=fields[name])
+        except AttributeError:
+            return model_field.__getattribute__(name)
