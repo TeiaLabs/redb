@@ -28,7 +28,7 @@ class SortDBColumn(DBColumn):
 class Indice:
     field: ModelField
     name: str = None
-    unique: bool = None
+    unique: bool = False
     direction: Direction = None
 
 
@@ -36,7 +36,7 @@ class Indice:
 class CompoundIndice:
     fields: list[ModelField]
     name: str = None
-    unique: bool = None
+    unique: bool = False
     direction: Direction = None
 
 
