@@ -1,7 +1,33 @@
 from __future__ import annotations
 
-from redb import Document, Indice, CompoundIndice, RedB
+from pydantic import BaseModel
+
+from redb import CompoundIndice, Document, Indice, RedB
 from redb.json_system import JSONCollection
+
+
+class Dog(Document):
+    name: str
+    birthday: str
+    other: SubclassMember
+
+    @classmethod
+    def get_indices(cls) -> list[Indice | CompoundIndice]:
+        return [Indice(field=Dog.other.another.name)]
+
+
+class SubclassMember(BaseModel):
+    name: str
+    another: SubSubClassMember
+
+
+class SubSubClassMember(BaseModel):
+    name: float
+
+
+SubclassMember.update_forward_refs()
+SubSubClassMember.update_forward_refs()
+Dog.update_forward_refs()
 
 
 class Embedding(Document):
@@ -13,9 +39,10 @@ class Embedding(Document):
 
     @classmethod
     def get_indices(cls) -> list[Indice | CompoundIndice]:
-        return [
-            Indice(field=Embedding.model)
-        ]
+        return [Indice(field=Embedding.model)]
+
+
+Embedding.update_forward_refs()
 
 
 def main():
@@ -24,7 +51,7 @@ def main():
         default_database_folder_path="db",
     )
     RedB.setup(backend="json", config=config)
-    
+
     client = RedB.get_client("json")
     db = client.get_default_database()
     collections = db.get_collections()
@@ -40,6 +67,7 @@ def main():
         vector=[1, 2, 0.1],
         source_url="www",
     )
+    print(d.model)
     print(Embedding.delete_many(filter=d))
     print(d.insert_one())
     print(Embedding.replace_one(filter=d, replacement=d, upsert=True))
