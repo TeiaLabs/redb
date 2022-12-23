@@ -1,8 +1,9 @@
 import inspect
 from datetime import datetime
-from typing import Any, Literal, Type, TypeVar
+from typing import Any, ForwardRef, Literal, Type, TypeVar
 
 from bson import ObjectId
+from pydantic import BaseModel
 from pydantic.fields import ModelField
 from pydantic.main import ModelMetaclass
 
@@ -146,7 +147,9 @@ class DocumentMetaclass(ModelMetaclass):
                 if name not in cls_or_self.__fields__:
                     raise e
 
-                return ClassField(model_field=cls_or_self.__fields__[name])
+                return ClassField(
+                    model_field=cls_or_self.__fields__[name], base_class=cls_or_self
+                )
 
 
 class Document(Collection, metaclass=DocumentMetaclass):
@@ -158,27 +161,35 @@ class Document(Collection, metaclass=DocumentMetaclass):
 
 
 class ClassField:
-    def __init__(self, model_field: ModelField) -> None:
+    def __init__(self, model_field: ModelField, base_class: BaseModel) -> None:
         self.model_field = model_field
+        self.base_class = base_class
 
     def __getattribute__(self, name: str) -> Any:
-        if name == "model_field":
+        if name in {"model_field", "base_class"}:
             return object.__getattribute__(self, name)
 
         model_field = self.model_field
         try:
+            base_class = None
             annotation = model_field.annotation
-            if not hasattr(annotation, "__forward_value__"):
-                raise AttributeError
-            
-            forwarded = annotation.__forward_value__
-            if not hasattr(forwarded, "__fields__"):
-                raise AttributeError
+            if isinstance(annotation, ForwardRef):
+                if not annotation.__forward_evaluated__:
+                    self.base_class.update_forward_refs()
 
-            fields = forwarded.__fields__
+                forwarded = annotation.__forward_value__
+                fields = forwarded.__fields__
+                base_class = forwarded
+            else:
+                if not hasattr(annotation, "__fields__"):
+                    raise AttributeError
+
+                fields = annotation.__fields__
+                base_class = annotation
+
             if name not in fields:
                 raise AttributeError
 
-            return ClassField(model_field=fields[name])
+            return ClassField(model_field=fields[name], base_class=base_class)
         except AttributeError:
             return model_field.__getattribute__(name)
