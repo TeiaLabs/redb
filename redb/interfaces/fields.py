@@ -1,21 +1,49 @@
+from dataclasses import dataclass
 from enum import Enum
 
 import pymongo
 from pydantic import BaseModel
+from pydantic.fields import ModelField
+from pydantic.main import FieldInfo as PydanticFieldInfo
 
 
 class Direction(Enum):
     ASCENDING = pymongo.ASCENDING
-    DESCENGIND = pymongo.DESCENDING
+    DESCENDING = pymongo.DESCENDING
 
 
-class Field(BaseModel):
+class DBColumn(BaseModel):
     name: str
 
 
-class IncludeField(Field):
+class IncludeDBColumn(DBColumn):
     include: bool
 
 
-class SortField(Field):
+class SortDBColumn(DBColumn):
     direction: Direction
+
+
+@dataclass
+class Indice:
+    field: ModelField
+    name: str = None
+    unique: bool = False
+    direction: Direction = None
+
+
+@dataclass
+class CompoundIndice:
+    fields: list[ModelField]
+    name: str = None
+    unique: bool = False
+    direction: Direction = None
+
+
+class Field(PydanticFieldInfo):
+    def __init__(
+        self,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)

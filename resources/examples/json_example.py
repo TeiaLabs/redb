@@ -1,15 +1,48 @@
 from __future__ import annotations
 
-from redb import RedB
+from pydantic import BaseModel
+
+from redb import CompoundIndice, Document, Indice, RedB
 from redb.json_system import JSONCollection
 
 
-class Embedding(JSONCollection):
+class Dog(Document):
+    name: str
+    birthday: str
+    other: SubclassMember
+
+    @classmethod
+    def get_indices(cls) -> list[Indice | CompoundIndice]:
+        return [Indice(field=Dog.other.another.name)]
+
+
+class SubclassMember(BaseModel):
+    name: str
+    another: SubSubClassMember
+
+
+class SubSubClassMember(BaseModel):
+    name: float
+
+
+SubclassMember.update_forward_refs()
+SubSubClassMember.update_forward_refs()
+Dog.update_forward_refs()
+
+
+class Embedding(Document):
     kb_name: str
     model: str
     text: str
     vector: list[float]
     source_url: str
+
+    @classmethod
+    def get_indices(cls) -> list[Indice | CompoundIndice]:
+        return [Indice(field=Embedding.model)]
+
+
+Embedding.update_forward_refs()
 
 
 def main():
@@ -19,6 +52,14 @@ def main():
     )
     RedB.setup(backend="json", config=config)
 
+    client = RedB.get_client("json")
+    db = client.get_default_database()
+    collections = db.get_collections()
+    for col in collections:
+        docs = JSONCollection.find(filter=col)
+        for doc in docs:
+            print(doc)
+
     d = Embedding(
         kb_name="KB",
         model="big-and-strong",
@@ -26,6 +67,7 @@ def main():
         vector=[1, 2, 0.1],
         source_url="www",
     )
+    print(d.model)
     print(Embedding.delete_many(filter=d))
     print(d.insert_one())
     print(Embedding.replace_one(filter=d, replacement=d, upsert=True))

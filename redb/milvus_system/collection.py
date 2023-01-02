@@ -1,27 +1,22 @@
 import json
-from typing import TypeVar, Type, Any,Literal
-from pathlib import Path
-
 import time
+from pathlib import Path
+from typing import Any, Literal, Type, TypeVar
 
 import numpy as np
-from pymilvus import (
-    FieldSchema,
-    CollectionSchema,
-    DataType,
-    Collection,
-)
+from pymilvus import Collection, CollectionSchema, DataType, FieldSchema
+
+from ..base import BaseCollection as Collection
 from ..interfaces import (
     BulkWriteResult,
-    Collection,
     DeleteManyResult,
     DeleteOneResult,
-    IncludeField,
+    IncludeDBColumn,
     InsertManyResult,
     InsertOneResult,
     PyMongoOperations,
     ReplaceOneResult,
-    SortField,
+    SortDBColumn,
     UpdateManyResult,
     UpdateOneResult,
 )
@@ -113,8 +108,8 @@ class MilvusCollection(Collection):
     def find(
         cls: Type[T],
         filter: T | None = None,
-        fields: list[IncludeField] | list[str] | None = None,
-        sort: list[SortField] | SortField | None = None,
+        fields: list[IncludeDBColumn] | list[str] | None = None,
+        sort: list[SortDBColumn] | SortDBColumn | None = None,
         skip: int = 0,
         limit: int = 1000,
     ) -> list[T]:
@@ -132,7 +127,7 @@ class MilvusCollection(Collection):
         cls: Type[T],
         column: str | None = None,
         filter: T | None = None,
-        sort: list[SortField] | SortField | None = None,
+        sort: list[SortDBColumn] | SortDBColumn | None = None,
         skip: int = 0,
         limit: int = 1000,
     ) -> list[T]:

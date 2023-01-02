@@ -2,20 +2,21 @@ from typing import Any, Type, TypeVar
 
 from pymongo.collection import Collection as PymongoCollection
 
+from ..base import BaseCollection as Collection
 from ..interfaces import (
     BulkWriteResult,
-    Collection,
     DeleteManyResult,
     DeleteOneResult,
-    IncludeField,
+    IncludeDBColumn,
     InsertManyResult,
     InsertOneResult,
     PyMongoOperations,
     ReplaceOneResult,
-    SortField,
+    SortDBColumn,
     UpdateManyResult,
     UpdateOneResult,
 )
+from ..interfaces.fields import CompoundIndice, Direction
 
 T = TypeVar("T", bound=Collection)
 
@@ -28,10 +29,7 @@ class MongoCollection(Collection):
         if isinstance(instance_or_class, type):
             collection_name = instance_or_class.__name__
         else:
-            collection_name = (
-                getattr(instance_or_class, "__collection_name__", None)  # TODO: get this from somewhere else
-                or instance_or_class.__class__.__name__
-            )
+            collection_name = instance_or_class.__class__.__name__
 
         return get_pymongo_collection(
             instance_or_class.__client_name__,
@@ -40,11 +38,30 @@ class MongoCollection(Collection):
         )
 
     @classmethod
+    def create_indice(cls: Type[T], indice: CompoundIndice) -> None:
+        collection: PymongoCollection = MongoCollection._get_driver_collection(cls)
+        
+        if indice.direction is None:
+            indice.direction = Direction.ASCENDING
+
+        name = indice.name
+        if name is None:
+            name = "_".join([name.alias for name in indice.fields])
+            name = f"unique_{name}" if indice.unique else name            
+            name = f"{indice.direction.name.lower()}_{name}"
+
+        collection.create_index(
+            [(name.alias, indice.direction.value) for name in indice.fields],
+            name=name,
+            unique=indice.unique,
+        )
+
+    @classmethod
     def find(
         cls: Type[T],
         filter: T | None = None,
-        fields: list[IncludeField] | list[str] | None = None,
-        sort: list[SortField] | SortField | None = None,
+        fields: list[IncludeDBColumn] | list[str] | None = None,
+        sort: list[SortDBColumn] | SortDBColumn | None = None,
         skip: int = 0,
         limit: int = 1000,
     ) -> list[T]:
@@ -84,7 +101,7 @@ class MongoCollection(Collection):
         cls: Type[T],
         column: str | None = None,
         filter: T | None = None,
-        sort: list[SortField] | SortField | None = None,
+        sort: list[SortDBColumn] | SortDBColumn | None = None,
         skip: int = 0,
         limit: int = 1000,
     ) -> list[T]:
