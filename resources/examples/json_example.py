@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from redb import CompoundIndex, Document, Index, RedB
+from redb import CompoundIndex, Document, Index, RedB, Field
 from redb.json_system import JSONCollection
 
 
@@ -31,8 +31,8 @@ Dog.update_forward_refs()
 
 
 class Embedding(Document):
-    kb_name: str
-    model: str
+    kb_name: str = Field(hashable=True)
+    model: str = Field(hashable=True)
     text: str
     vector: list[float]
     source_url: str
