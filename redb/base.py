@@ -26,9 +26,10 @@ class BaseCollection(Collection, BaseModel):
     def collection_name(cls: Type[T]) -> str:
         return cls.__name__.lower()
 
-    def get_hashable_fields(self) -> list[str]:
+    @classmethod
+    def get_hashable_fields(cls) -> list[str]:
         field_names = []
-        for name, field in self.__fields__.items():
+        for name, field in cls.__fields__.items():
             info = field.field_info
             if hasattr(info, "hashable") and getattr(info, "hashable"):
                 field_names.append(name)
