@@ -19,7 +19,7 @@ class BaseCollection(Collection, BaseModel):
     def dict(self, keep_id: bool = False, *args, **kwargs) -> dict:
         out = super().dict(*args, **kwargs)
         if not keep_id:
-            out["_id"] = self.get_hash()
+            out["id"] = self.get_hash()
         return out
 
     @classmethod
