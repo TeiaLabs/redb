@@ -156,20 +156,7 @@ class DocumentMetaclass(ModelMetaclass):
 class Document(Collection, metaclass=DocumentMetaclass):
     id: str = Field(default_factory=lambda: str(ObjectId()))
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
-
-    @property
-    def hashable_fields(self):
-        ignore_fields = ("id", "created_at", "updated_at")
-        return {k for k in self.__fields__ if k not in ignore_fields}
-
-    def get_hash(self) -> str:
-        string = "".join(str(getattr(k)) for k in self.hashable_fields)
-        return self.hash_function(string)
-
-    @classmethod
-    def hash_function(cls, sting: str) -> str:
-        return hashlib.sha3_256(sting.encode("utf-8")).hexdigest()
+    updated_at: datetime = Field(default_factory=datetime.utcnow)   
 
 
 class ClassField:

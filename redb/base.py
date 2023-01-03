@@ -1,10 +1,9 @@
 import hashlib
-import pickle
 from typing import Type, TypeVar
 
 from pydantic import BaseModel
 
-from .interfaces import Collection, CompoundIndex, Index
+from .interfaces import Collection, CompoundIndex, Index, Field
 
 T = TypeVar("T", bound="Collection")
 
@@ -12,6 +11,12 @@ T = TypeVar("T", bound="Collection")
 class BaseCollection(Collection, BaseModel):
     __database_name__: str | None = None
     __client_name__: str | None = None
+
+    def dict(self, keep_id: bool = False, *args, **kwargs)-> dict:
+        out = super().dict(*args, **kwargs)
+        if not keep_id:
+            out["_id"] = self.get_hash()
+        return out
 
     @classmethod
     def get_indices(cls) -> list[Index | CompoundIndex]:
@@ -21,16 +26,22 @@ class BaseCollection(Collection, BaseModel):
     def collection_name(cls: Type[T]) -> str:
         return cls.__name__.lower()
 
-    def get_hash(self) -> str:
-        hashses = []
-        for field in self.__fields__:
-            value = self.__getattribute__(field)
-            key_field_hash = hashlib.md5(field.encode("utf8")).hexdigest()
-            val_field_hash = hashlib.md5(pickle.dumps(value)).hexdigest()
-            hashses += [key_field_hash, val_field_hash]
+    def get_hashable_fields(self) -> list[str]:
+        field_names = []
+        for name, field in self.__fields__.items():
+            info = field.field_info
+            if hasattr(info, "hashable") and getattr(info, "hashable"):
+                field_names.append(name)
 
-        hex_digest = hashlib.sha256("".join(hashses).encode("utf-8")).hexdigest()
-        return hex_digest
+        return field_names
+
+    @classmethod
+    def hash_function(cls, string: str) -> str:
+        return hashlib.sha3_256(string.encode("utf-8")).hexdigest()
+
+    def get_hash(self) -> str:
+        string = "".join(str(getattr(self, k)) for k in self.get_hashable_fields())
+        return self.hash_function(string)
 
     def __repr__(self) -> str:
         class_name = self.__class__.__name__
