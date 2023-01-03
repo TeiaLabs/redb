@@ -1,3 +1,4 @@
+import hashlib
 import inspect
 from datetime import datetime
 from typing import Any, ForwardRef, Literal, Type, TypeVar
@@ -7,7 +8,7 @@ from pydantic import BaseModel
 from pydantic.fields import ModelField
 from pydantic.main import ModelMetaclass
 
-from .interfaces import Client, Collection, CompoundIndice, Field, Indice
+from .interfaces import Client, Collection, CompoundIndex, Field, Index
 from .json_system import JSONClient, JSONCollection, JSONConfig
 from .milvus_system import MilvusClient, MilvusCollection, MilvusConfig
 from .mongo_system import MongoClient, MongoCollection, MongoConfig
@@ -111,8 +112,8 @@ class RedB:
             namespace[sub_class.__name__] = new_type
             indices = new_type.get_indices()
             for indice in indices:
-                if isinstance(indice, Indice):
-                    indice = CompoundIndice(
+                if isinstance(indice, Index):
+                    indice = CompoundIndex(
                         fields=[indice.field],
                         name=indice.name,
                         unique=indice.unique,
@@ -155,9 +156,7 @@ class DocumentMetaclass(ModelMetaclass):
 class Document(Collection, metaclass=DocumentMetaclass):
     id: str = Field(default_factory=lambda: str(ObjectId()))
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(
-        default_factory=datetime.utcnow
-    )  # TODO: autoupdate this field on updates
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class ClassField:

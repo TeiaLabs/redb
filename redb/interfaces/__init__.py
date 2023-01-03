@@ -2,11 +2,11 @@ from .client import Client
 from .collection import Collection, PyMongoOperations
 from .database import Database
 from .fields import (
-    CompoundIndice,
+    CompoundIndex,
     Direction,
     Field,
     IncludeDBColumn,
-    Indice,
+    Index,
     SortDBColumn,
 )
 from .results import (

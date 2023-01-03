@@ -16,7 +16,7 @@ from ..interfaces import (
     UpdateManyResult,
     UpdateOneResult,
 )
-from ..interfaces.fields import CompoundIndice
+from ..interfaces.fields import CompoundIndex
 
 T = TypeVar("T", bound=Collection)
 
@@ -32,10 +32,10 @@ class JSONCollection(Collection):
         out = super().dict(*args, **kwargs)
         if "_collection_name" in out:
             out.pop("_collection_name")
-        
+
         out["created_at"] = str(out["created_at"])
         out["updated_at"] = str(out["updated_at"])
-        
+
         return out
 
     @staticmethod
@@ -58,7 +58,7 @@ class JSONCollection(Collection):
         )
 
     @classmethod
-    def create_indice(cls: Type[T], _: CompoundIndice) -> None:
+    def create_indice(cls: Type[T], _: CompoundIndex) -> None:
         pass
 
     @classmethod

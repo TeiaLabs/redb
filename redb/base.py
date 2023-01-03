@@ -4,7 +4,7 @@ from typing import Type, TypeVar
 
 from pydantic import BaseModel
 
-from .interfaces import Collection, CompoundIndice, Indice
+from .interfaces import Collection, CompoundIndex, Index
 
 T = TypeVar("T", bound="Collection")
 
@@ -14,7 +14,7 @@ class BaseCollection(Collection, BaseModel):
     __client_name__: str | None = None
 
     @classmethod
-    def get_indices(cls) -> list[Indice | CompoundIndice]:
+    def get_indices(cls) -> list[Index | CompoundIndex]:
         return []
 
     @classmethod

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from redb import CompoundIndice, Document, Indice, RedB
+from redb import CompoundIndex, Document, Index, RedB
 from redb.json_system import JSONCollection
 
 
@@ -12,8 +12,8 @@ class Dog(Document):
     other: SubclassMember
 
     @classmethod
-    def get_indices(cls) -> list[Indice | CompoundIndice]:
-        return [Indice(field=Dog.other.another.name)]
+    def get_indices(cls) -> list[Index | CompoundIndex]:
+        return [Index(field=Dog.other.another.name)]
 
 
 class SubclassMember(BaseModel):
@@ -38,8 +38,8 @@ class Embedding(Document):
     source_url: str
 
     @classmethod
-    def get_indices(cls) -> list[Indice | CompoundIndice]:
-        return [Indice(field=Embedding.model)]
+    def get_indices(cls) -> list[Index | CompoundIndex]:
+        return [Index(field=Embedding.model)]
 
 
 Embedding.update_forward_refs()

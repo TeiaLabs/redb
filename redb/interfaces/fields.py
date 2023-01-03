@@ -25,7 +25,7 @@ class SortDBColumn(DBColumn):
 
 
 @dataclass
-class Indice:
+class Index:
     field: ModelField
     name: str = None
     unique: bool = False
@@ -33,7 +33,7 @@ class Indice:
 
 
 @dataclass
-class CompoundIndice:
+class CompoundIndex:
     fields: list[ModelField]
     name: str = None
     unique: bool = False
