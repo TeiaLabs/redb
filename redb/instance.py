@@ -154,9 +154,12 @@ class DocumentMetaclass(ModelMetaclass):
 
 
 class Document(Collection, metaclass=DocumentMetaclass):
-    id: str = Field(default_factory=lambda: str(ObjectId()))
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)   
+
+    @property
+    def id(self):
+        pass
 
 
 class ClassField:

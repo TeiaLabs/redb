@@ -12,7 +12,11 @@ class BaseCollection(Collection, BaseModel):
     __database_name__: str | None = None
     __client_name__: str | None = None
 
-    def dict(self, keep_id: bool = False, *args, **kwargs)-> dict:
+    @property
+    def id(self):
+        return self.get_hash()
+
+    def dict(self, keep_id: bool = False, *args, **kwargs) -> dict:
         out = super().dict(*args, **kwargs)
         if not keep_id:
             out["_id"] = self.get_hash()
