@@ -43,7 +43,9 @@ class CompoundIndex:
 class Field(PydanticFieldInfo):
     def __init__(
         self,
+        hashable: bool = False,
         *args,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
+        self.hashable = hashable
