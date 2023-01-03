@@ -36,6 +36,9 @@ class Embedding(Document):
             Index(field=cls.model.provider.name, direction=Direction.ASCENDING),
         ]
 
+    @property
+    def hashable_fields(self):
+        return ["kb_name", self.model.hashble_fields, "text"]
 
 class Model(pydantic.BaseModel):
     name: str
@@ -68,7 +71,7 @@ def main():
 
     d = Embedding(
         kb_name="KB",
-        model="big-and-strong",
+        model=Model(name="big-and-strong", type="encoder", provider=API(name="OpenTeia")),
         text="Some data.",
         vector=[1, 2, 0.1],
         source_url="www",
@@ -77,6 +80,7 @@ def main():
     print(Dog.delete_many(d))
     print(d.insert_one())
     print(Dog.replace_one(filter=d, replacement=d, upsert=True))
+    print(d.get_hash())
 
 
 if __name__ == "__main__":
