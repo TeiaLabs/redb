@@ -6,9 +6,9 @@ from typing import Any, Literal, Type, TypeVar
 import numpy as np
 from pymilvus import Collection, CollectionSchema, DataType, FieldSchema
 
-from ..base import BaseCollection as Collection
 from ..interfaces import (
     BulkWriteResult,
+    Collection,
     DeleteManyResult,
     DeleteOneResult,
     IncludeDBColumn,

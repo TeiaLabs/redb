@@ -2,9 +2,10 @@ from typing import Any, Type, TypeVar
 
 from pymongo.collection import Collection as PymongoCollection
 
-from ..base import BaseCollection as Collection
+from ..document import Document
 from ..interfaces import (
     BulkWriteResult,
+    Collection,
     DeleteManyResult,
     DeleteOneResult,
     IncludeDBColumn,
@@ -18,29 +19,21 @@ from ..interfaces import (
 )
 from ..interfaces.fields import CompoundIndex, Direction
 
-T = TypeVar("T", bound=Collection)
+T = TypeVar("T", bound=Document)
 
 
 class MongoCollection(Collection):
     __client_name__: str = "mongo"
 
-    @staticmethod
-    def _get_driver_collection(instance_or_class: Type[T] | T) -> "Collection":
-        if isinstance(instance_or_class, type):
-            collection_name = instance_or_class.__name__
-        else:
-            collection_name = instance_or_class.__class__.__name__
+    def __init__(self, collection: PymongoCollection) -> None:
+        super().__init__()
 
-        return get_pymongo_collection(
-            instance_or_class.__client_name__,
-            collection_name,
-            instance_or_class.__database_name__,
-        )
+        self.collection = collection
 
-    @classmethod
-    def create_indice(cls: Type[T], indice: CompoundIndex) -> None:
-        collection: PymongoCollection = MongoCollection._get_driver_collection(cls)
+    def _get_driver_collection(self):
+        return self.collection
 
+    def create_indice(self, indice: CompoundIndex) -> None:
         if indice.direction is None:
             indice.direction = Direction.ASCENDING
 
@@ -50,23 +43,20 @@ class MongoCollection(Collection):
             name = f"unique_{name}" if indice.unique else name
             name = f"{indice.direction.name.lower()}_{name}"
 
-        collection.create_index(
+        self.collection.create_index(
             [(name.alias, indice.direction.value) for name in indice.fields],
             name=name,
             unique=indice.unique,
         )
 
-    @classmethod
     def find(
-        cls: Type[T],
+        self,
         filter: T | None = None,
         fields: list[IncludeDBColumn] | list[str] | None = None,
         sort: list[SortDBColumn] | SortDBColumn | None = None,
         skip: int = 0,
         limit: int = 1000,
     ) -> list[T]:
-        collection = MongoCollection._get_driver_collection(cls)
-
         formatted_filter = filter
         if filter is not None and not isinstance(filter, dict):
             formatted_filter = filter.dict()
@@ -85,20 +75,16 @@ class MongoCollection(Collection):
             else:
                 formatted_sort = [(sort.name, sort.direction)]
 
-        return [
-            cls(**result)
-            for result in collection.find(
-                filter=formatted_filter,
-                projection=formatted_fields,
-                sort=formatted_sort,
-                skip=skip,
-                limit=limit,
-            )
-        ]
+        return self.collection.find(
+            filter=formatted_filter,
+            projection=formatted_fields,
+            sort=formatted_sort,
+            skip=skip,
+            limit=limit,
+        )
 
-    @classmethod
     def find_vectors(
-        cls: Type[T],
+        self,
         column: str | None = None,
         filter: T | None = None,
         sort: list[SortDBColumn] | SortDBColumn | None = None,
@@ -107,66 +93,49 @@ class MongoCollection(Collection):
     ) -> list[T]:
         pass
 
-    @classmethod
     def find_one(
-        cls: Type[T],
+        self,
         filter: T | None = None,
         skip: int = 0,
     ) -> T:
-        collection = MongoCollection._get_driver_collection(cls)
-
         formatted_filter = filter
         if filter is not None and not isinstance(filter, dict):
             formatted_filter = filter.dict()
 
-        return cls(
-            **collection.find_one(
-                filter=formatted_filter,
-                skip=skip,
-            )
+        return self.collection.find_one(
+            filter=formatted_filter,
+            skip=skip,
         )
 
-    @classmethod
     def distinct(
-        cls: Type[T],
+        self,
         key: str,
         filter: T | None = None,
     ) -> list[T]:
-        collection = MongoCollection._get_driver_collection(cls)
-
         formatted_filter = filter
         if filter is not None and not isinstance(filter, dict):
             formatted_filter = filter.dict()
 
-        return [
-            cls(**result)
-            for result in collection.distinct(
-                key=key,
-                filter=formatted_filter,
-            )
-        ]
+        return self.collection.distinct(
+            key=key,
+            filter=formatted_filter,
+        )
 
-    @classmethod
     def count_documents(
-        cls: Type[T],
+        self,
         filter: T | None = None,
     ) -> int:
-        collection = MongoCollection._get_driver_collection(cls)
-
         formatted_filter = {}
         if filter is not None and not isinstance(filter, dict):
             formatted_filter = filter.dict()
 
-        return collection.count_documents(filter=formatted_filter)
+        return self.collection.count_documents(filter=formatted_filter)
 
-    @classmethod
     def bulk_write(
-        cls: Type[T],
+        self,
         operations: list[PyMongoOperations],
     ) -> BulkWriteResult:
-        collection = MongoCollection._get_driver_collection(cls)
-
-        result = collection.bulk_write(requests=operations)
+        result = self.collection.bulk_write(requests=operations)
         return BulkWriteResult(
             deleted_count=result.deleted_count,
             inserted_count=result.inserted_count,
@@ -176,38 +145,32 @@ class MongoCollection(Collection):
             upserted_ids=result.upserted_ids,
         )
 
-    def insert_one(self: T) -> InsertOneResult:
-        collection = MongoCollection._get_driver_collection(self)
-        result = collection.insert_one(document=self.dict())
+    def insert_one(self, data: T) -> InsertOneResult:
+        result = self.collection.insert_one(document=data.dict())
         return InsertOneResult(inserted_id=result.inserted_id)
 
-    @classmethod
     def insert_vectors(
-        cls: Type[T],
+        self,
         data: dict[str, list[Any]],
     ) -> InsertManyResult:
         pass
 
-    @classmethod
     def insert_many(
-        cls: Type[T],
+        self,
         data: list[T],
     ) -> InsertManyResult:
-        collection = MongoCollection._get_driver_collection(cls)
-
-        result = collection.insert_many(
+        result = self.collection.insert_many(
             documents=[document.dict() for document in data]
         )
         return InsertManyResult(inserted_ids=result.inserted_ids)
 
     def replace_one(
+        self,
         filter: T,
         replacement: T,
         upsert: bool = False,
     ) -> ReplaceOneResult:
-        collection = MongoCollection._get_driver_collection(filter)
-
-        result = collection.replace_one(
+        result = self.collection.replace_one(
             filter=filter.dict(),
             replacement=replacement.dict(),
             upsert=upsert,
@@ -219,13 +182,12 @@ class MongoCollection(Collection):
         )
 
     def update_one(
+        self,
         filter: T,
         update: T,
         upsert: bool = False,
     ) -> UpdateOneResult:
-        collection = MongoCollection._get_driver_collection(filter)
-
-        result = collection.update_one(
+        result = self.collection.update_one(
             filter=filter.dict(),
             update=update.dict(),
             upsert=upsert,
@@ -236,16 +198,13 @@ class MongoCollection(Collection):
             upserted_id=result.upserted_id,
         )
 
-    @classmethod
     def update_many(
-        cls: Type[T],
+        self,
         filter: T,
         update: T,
         upsert: bool = False,
     ) -> UpdateManyResult:
-        collection = MongoCollection._get_driver_collection(cls)
-
-        result = collection.update_many(
+        result = self.collection.update_many(
             filter=filter.dict(),
             update=update.dict(),
             upsert=upsert,
@@ -256,34 +215,13 @@ class MongoCollection(Collection):
             upserted_id=result.upserted_id,
         )
 
-    def delete_one(filter: T) -> DeleteOneResult:
-        collection = MongoCollection._get_driver_collection(filter)
-
-        collection.delete_one(filter=filter.dict())
+    def delete_one(self, filter: T) -> DeleteOneResult:
+        self.collection.delete_one(filter=filter.dict())
         return DeleteOneResult()
 
-    @classmethod
     def delete_many(
-        cls: Type[T],
+        self,
         filter: T,
     ) -> DeleteManyResult:
-        collection = MongoCollection._get_driver_collection(cls)
-
-        result = collection.delete_many(filter=filter.dict())
+        result = self.collection.delete_many(filter=filter.dict())
         return DeleteManyResult(deleted_count=result.deleted_count)
-
-
-def get_pymongo_collection(
-    client_name: str,
-    collection_name: str,
-    database_name: str | None = None,
-) -> PymongoCollection:
-    from ..instance import RedB
-
-    client = RedB.get_client(client_name)
-    database = (
-        client.get_database(database_name)
-        if database_name
-        else client.get_default_database()
-    )
-    return database._get_driver_database()[collection_name]

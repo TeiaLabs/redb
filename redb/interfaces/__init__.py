@@ -2,6 +2,7 @@ from .client import Client
 from .collection import Collection, PyMongoOperations
 from .database import Database
 from .fields import (
+    ClassField,
     CompoundIndex,
     Direction,
     Field,
