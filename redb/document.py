@@ -39,7 +39,8 @@ class DocumentMetaclass(ModelMetaclass):
                     raise e
 
                 return ClassField(
-                    model_field=cls_or_self.__fields__[name], base_class=cls_or_self
+                    model_field=cls_or_self.__fields__[name],
+                    base_class=cls_or_self,
                 )
 
 
@@ -102,22 +103,16 @@ class BaseDocument(BaseModel, metaclass=DocumentMetaclass):
         return out
 
     @classmethod
+    def collection_name(cls: Type[T]) -> str:
+        return cls.__name__.lower()
+
+    @classmethod
     def get_indices(cls) -> list[Index | CompoundIndex]:
         return []
 
     @classmethod
-    def collection_name(cls: Type[T]) -> str:
-        return cls.__name__.lower()
-
-    @staticmethod
-    def get_hashable_fields(cls: Type[BaseModel]) -> list[ModelField]:
-        fields = []
-        for field in cls.__fields__.values():
-            info = field.field_info
-            if hasattr(info, "hashable") and getattr(info, "hashable"):
-                fields.append(field)
-
-        return fields
+    def get_hashable_fields(cls) -> list[ClassField]:
+        return []
 
     @staticmethod
     def hash_function(string: str) -> str:
@@ -129,11 +124,11 @@ class BaseDocument(BaseModel, metaclass=DocumentMetaclass):
     @staticmethod
     def _get_hash(self) -> str:
         stringfied_fields = []
-        for field in Document.get_hashable_fields(self):
-            if BaseModel in field.type_.mro():
-                stringfied_fields.append(Document._get_hash(getattr(self, field.alias)))
-            else:
-                stringfied_fields.append(str(getattr(self, field.alias)))
+        # for field in Document.get_hashable_fields(self):
+        #     if BaseModel in field.type_.mro():
+        #         stringfied_fields.append(Document._get_hash(getattr(self, field.alias)))
+        #     else:
+        #         stringfied_fields.append(str(getattr(self, field.alias)))
 
         string = "".join(stringfied_fields)
         return Document.hash_function(string)
