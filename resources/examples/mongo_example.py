@@ -3,21 +3,17 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-import dotenv
 import pydantic
 
-from redb import Document, Field, RedB, Index, CompoundIndex
-from redb.mongo_system import MongoConfig
+from redb import CompoundIndex, Document, Field, Index, RedB
 from redb.interfaces import Direction
-
-dotenv.load_dotenv()
+from redb.mongo_system import MongoConfig
 
 
 class Dog(Document):
     name: str
     birthday: datetime
     # friends: list[Dog] = []  # TODO: make this work
-
 
 
 class Embedding(Document):
@@ -40,6 +36,7 @@ class Embedding(Document):
     def hashable_fields(self):
         return ["kb_name", self.model.hashble_fields, "text"]
 
+
 class Model(pydantic.BaseModel):
     name: str
     type: str
@@ -50,15 +47,12 @@ class API(pydantic.BaseModel):
     name: str
 
 
-API.update_forward_refs()
-Model.update_forward_refs()
-Embedding.update_forward_refs()
-
-
 def main():
-    config = MongoConfig(database_uri=os.environ["MONGODB_URI"])
+    config = MongoConfig(database_uri="mongodb://localhost:27017/", default_database="teia")
     RedB.setup(config=config)
-    client = RedB.get_client("mongo")
+    client = RedB.get_client()
+    Embedding.create_indices()
+
     db = client.get_default_database()
     for col in db.get_collections():
         [print(obj) for obj in col.find()]
@@ -71,7 +65,9 @@ def main():
 
     d = Embedding(
         kb_name="KB",
-        model=Model(name="big-and-strong", type="encoder", provider=API(name="OpenTeia")),
+        model=Model(
+            name="big-and-strong", type="encoder", provider=API(name="OpenTeia")
+        ),
         text="Some data.",
         vector=[1, 2, 0.1],
         source_url="www",

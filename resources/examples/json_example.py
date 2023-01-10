@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from redb import CompoundIndex, Document, Index, RedB, Field
+from redb import CompoundIndex, Document, Field, Index, RedB
 from redb.json_system import JSONCollection
 
 
@@ -25,11 +25,6 @@ class SubSubClassMember(BaseModel):
     name: float
 
 
-SubclassMember.update_forward_refs()
-SubSubClassMember.update_forward_refs()
-Dog.update_forward_refs()
-
-
 class Embedding(Document):
     kb_name: str = Field(hashable=True)
     model: str = Field(hashable=True)
@@ -42,9 +37,6 @@ class Embedding(Document):
         return [Index(field=Embedding.model)]
 
 
-Embedding.update_forward_refs()
-
-
 def main():
     config = dict(
         client_folder_path="resources",
@@ -52,11 +44,11 @@ def main():
     )
     RedB.setup(backend="json", config=config)
 
-    client = RedB.get_client("json")
+    client = RedB.get_client()
     db = client.get_default_database()
     collections = db.get_collections()
     for col in collections:
-        docs = JSONCollection.find(filter=col)
+        docs = col.find()
         for doc in docs:
             print(doc)
 
@@ -68,9 +60,17 @@ def main():
         source_url="www",
     )
     print(d.model)
-    print(Embedding.delete_many(filter=d))
-    print(d.insert_one())
-    print(Embedding.replace_one(filter=d, replacement=d, upsert=True))
+    try:
+        print(Embedding.delete_many(filter=d))
+    except ValueError as e:
+        print(e)
+
+    try:
+        print(d.insert_one())
+        print(Embedding.replace_one(filter=d, replacement=d, upsert=True))
+    except ValueError as e:
+        print(e)
+
     print(
         Embedding.insert_vectors(
             dict(

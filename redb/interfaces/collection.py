@@ -11,7 +11,7 @@ from pymongo.operations import (
     UpdateOne,
 )
 
-from .fields import IncludeDBColumn, SortDBColumn, CompoundIndex
+from .fields import CompoundIndex, IncludeDBColumn, SortDBColumn
 from .results import (
     BulkWriteResult,
     DeleteManyResult,
@@ -38,14 +38,13 @@ PyMongoOperations = TypeVar(
 T = TypeVar("T", bound="Collection")
 
 
-class Collection(ABC, BaseModel):
+class Collection(ABC):
     @staticmethod
     @abstractmethod
     def _get_driver_collection(instance_or_class: Type[T] | T) -> "Collection":
         pass
 
     @classmethod
-    @abstractmethod
     def create_indice(cls: Type[T], indice: CompoundIndex) -> None:
         pass
 

@@ -1,2 +1,3 @@
-from .instance import Document, RedB
-from .interfaces import Field, Index, CompoundIndex
+from .document import Document
+from .instance import RedB
+from .interfaces import CompoundIndex, Field, Index

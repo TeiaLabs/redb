@@ -2,9 +2,12 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Type, TypeVar
 
-from ..base import BaseCollection as Collection
+from bson import ObjectId
+
+from ..document import Document
 from ..interfaces import (
     BulkWriteResult,
+    Collection,
     DeleteManyResult,
     DeleteOneResult,
     IncludeDBColumn,
@@ -18,69 +21,34 @@ from ..interfaces import (
 )
 from ..interfaces.fields import CompoundIndex
 
-T = TypeVar("T", bound=Collection)
+T = TypeVar("T", bound=Document)
 
 
 class JSONCollection(Collection):
     __client_name__ = "json"
 
-    def __init__(self, collection_name: str | None = None, *args, **kwargs):
+    def __init__(self, collection: Path, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        object.__setattr__(self, "_collection_name", collection_name)
 
-    def dict(self, *args, **kwargs):
-        out = super().dict(*args, **kwargs)
-        if "_collection_name" in out:
-            out.pop("_collection_name")
+        self.collection = collection
 
-        out["created_at"] = str(out["created_at"])
-        out["updated_at"] = str(out["updated_at"])
+    def _get_driver_collection(self):
+        return self.collecton
 
-        return out
-
-    @staticmethod
-    def _get_driver_collection(
-        instance_or_class: Type["JSONCollection"] | "JSONCollection",
-    ) -> "Collection":
-        if isinstance(instance_or_class, type):
-            collection_name = instance_or_class.__name__
-        else:
-            collection_name = (
-                instance_or_class.__class__.__name__
-                if not hasattr(instance_or_class, "_collection_name")
-                else object.__getattribute__(instance_or_class, "_collection_name").name
-            )
-
-        return get_collection_path(
-            instance_or_class.__client_name__,
-            collection_name,
-            instance_or_class.__database_name__,
-        )
-
-    @classmethod
-    def create_indice(cls: Type[T], _: CompoundIndex) -> None:
+    def create_indice(self, _: CompoundIndex) -> None:
         pass
 
-    @classmethod
     def find(
-        cls: Type[T],
+        self,
         filter: T | None = None,
         fields: list[IncludeDBColumn] | list[str] | None = None,
         sort: list[SortDBColumn] | SortDBColumn | None = None,
         skip: int = 0,
         limit: int = 1000,
     ) -> list[T]:
-        if filter is not None:
-            collection_path = JSONCollection._get_driver_collection(filter)
-        else:
-            collection_path = JSONCollection._get_driver_collection(cls)
+        json_files = self.collection.glob("*.json")
 
-        json_files = collection_path.glob("*.json")
-
-        if cls == JSONCollection:
-            transform = lambda file_path: json.load(open(file_path))
-        else:
-            transform = lambda file_path: cls(**json.load(open(file_path)))
+        transform = lambda file_path: json.load(open(file_path))
 
         out = []
         for json_file in json_files:
@@ -89,9 +57,8 @@ class JSONCollection(Collection):
 
         return out
 
-    @classmethod
     def find_vectors(
-        cls: Type[T],
+        self,
         column: str | None = None,
         filter: T | None = None,
         sort: list[SortDBColumn] | SortDBColumn | None = None,
@@ -100,69 +67,59 @@ class JSONCollection(Collection):
     ) -> list[T]:
         pass
 
-    @classmethod
     def find_one(
-        cls: Type[T],
+        self,
         filter: T | None = None,
         skip: int = 0,
     ) -> T:
         pass
 
-    @classmethod
-    def find_by_id(cls: Type[T], id: str) -> T | None:
-        collection_path = JSONCollection._get_driver_collection(cls)
-        json_path = collection_path / Path(f"{id}.json")
+    def find_by_id(self, id: str) -> T | None:
+        json_path = self.collection / Path(f"{id}.json")
         if json_path.is_file():
             with open(json_path) as f:
                 data = json.load(f)
-            return cls(**data)
+            return data
         return None
 
-    @classmethod
     def distinct(
-        cls: Type[T],
+        self,
         key: str,
         filter: T | None = None,
     ) -> list[T]:
         pass
 
-    @classmethod
     def count_documents(
-        cls: Type[T],
+        self,
         filter: T | None = None,
     ) -> int:
-        if filter is not None:
-            collection_path = JSONCollection._get_driver_collection(filter)
-        else:
-            collection_path = JSONCollection._get_driver_collection(cls)
-
-        json_files = collection_path.glob("*.json")
+        json_files = self.collection.glob("*.json")
         return len(list(json_files))
 
-    @classmethod
     def bulk_write(
-        cls: Type[T],
+        self,
         operations: list[PyMongoOperations],
     ) -> BulkWriteResult:
         pass
 
-    def insert_one(data: T) -> InsertOneResult:
-        collection_path = JSONCollection._get_driver_collection(data)
-        collection_path.mkdir(parents=True, exist_ok=True)
+    def insert_one(self, data: T) -> InsertOneResult:
+        self.collection.mkdir(parents=True, exist_ok=True)
 
-        id = data.get_hash()
-        json_path = collection_path / Path(f"{id}.json")
+        if not isinstance(data, dict):
+            data = data.dict()
+
+        id = data["id"]
+        json_path = self.collection / Path(f"{id}.json")
         if json_path.is_file():
             raise ValueError(f"Document with {id} already exists!")
 
-        data = data.dict()
         with open(json_path, "w") as f:
             json.dump(data, f, indent=4)
 
         return InsertOneResult(inserted_id=id)
 
-    @classmethod
     def insert_vectors(
+        self,
         cls: Type[T],
         data: Dict[str, list[Any]],
     ) -> InsertManyResult:
@@ -170,39 +127,31 @@ class JSONCollection(Collection):
         ids = []
         for i in range(size):
             obj = {k: data[k][i] for k in data}
-            ids.append(cls(**obj).insert_one().inserted_id)
+            ids.append(self.insert_one(cls(**obj)).inserted_id)
 
         return InsertManyResult(inserted_ids=ids)
 
-    @classmethod
     def insert_many(
-        cls: Type[T],
+        self,
         data: list[T],
     ) -> InsertManyResult:
         ids = []
         for item in data:
-            if isinstance(item, dict):
-                item = cls(**item)
-            if isinstance(item, cls):
-                ids.append(item.insert_one().inserted_id)
-            else:
-                raise ValueError(
-                    f"Document '{item}' could not be converted to class '{cls}'"
-                )
+            ids.append(self.insert_one(item).inserted_id)
 
         return InsertManyResult(inserted_ids=ids)
 
     def replace_one(
+        self,
         filter: T,
         replacement: T,
         upsert: bool = False,
     ) -> ReplaceOneResult:
-        collection_path = JSONCollection._get_driver_collection(filter)
-        collection_path.mkdir(parents=True, exist_ok=True)
+        self.collection.mkdir(parents=True, exist_ok=True)
 
         upserted = False
         id = filter.get_hash()
-        json_path = collection_path / Path(f"{id}.json")
+        json_path = self.collection / Path(f"{id}.json")
         data = replacement.dict()
         if json_path.is_file():
             with open(json_path, "w") as f:
@@ -221,16 +170,16 @@ class JSONCollection(Collection):
         )
 
     def update_one(
+        self,
         filter: T,
         update: T,
         upsert: bool = False,
     ) -> UpdateOneResult:
-        collection_path = JSONCollection._get_driver_collection(filter)
-        collection_path.mkdir(parents=True, exist_ok=True)
+        self.collection.mkdir(parents=True, exist_ok=True)
 
         upserted = False
         id = filter.get_hash()
-        json_path = collection_path / Path(f"{id}.json")
+        json_path = self.collection / Path(f"{id}.json")
         obj = update.dict(exclude_unset=True)
         if json_path.is_file():
             with open(json_path) as f:
@@ -253,9 +202,8 @@ class JSONCollection(Collection):
             upserted_id=id if upserted else None,
         )
 
-    @classmethod
     def update_many(
-        cls: Type[T],
+        self,
         filter: T,
         update: T,
         upsert: bool = False,
@@ -273,19 +221,17 @@ class JSONCollection(Collection):
             upserted_id=upserted_ids,
         )
 
-    def delete_one(filter: T) -> DeleteOneResult:
-        collection_path = JSONCollection._get_driver_collection(filter)
+    def delete_one(self, filter: T) -> DeleteOneResult:
         id = filter.get_hash()
-        file = collection_path / f"{id}.json"
+        file = self.collection / f"{id}.json"
         if not file.exists():
             raise ValueError(f"Document with {id} does not exists!")
 
         file.unlink()
         return DeleteOneResult()
 
-    @classmethod
     def delete_many(
-        cls: Type[T],
+        self,
         filter: T,
     ) -> DeleteManyResult:
         documents = filter.find()
@@ -293,20 +239,3 @@ class JSONCollection(Collection):
             document.delete_one()
 
         return DeleteManyResult(deleted_count=len(documents))
-
-
-def get_collection_path(
-    client_name: str,
-    collection_name: str,
-    database_name: str | None = None,
-) -> Path:
-    from ..instance import RedB
-
-    client = RedB.get_client(client_name)
-    database = (
-        client.get_database(database_name)
-        if database_name
-        else client.get_default_database()
-    )
-
-    return database._get_driver_database() / collection_name
