@@ -1,5 +1,6 @@
 import hashlib
 from datetime import datetime
+from operator import itemgetter
 from typing import Any, ClassVar, Dict, Optional, Type, TypeVar
 
 from pydantic import BaseModel
@@ -99,7 +100,7 @@ class BaseDocument(BaseModel, metaclass=DocumentMetaclass):
     def dict(self, keep_id: bool = False, *args, **kwargs) -> Dict:
         out = super().dict(*args, **kwargs)
         if not keep_id:
-            out["id"] = self.get_hash()
+            out["id"] = self.get_hash(kwargs)
         return out
 
     @classmethod
@@ -112,26 +113,38 @@ class BaseDocument(BaseModel, metaclass=DocumentMetaclass):
 
     @classmethod
     def get_hashable_fields(cls) -> list[ClassField]:
-        return []
+        return list(cls.__fields__.values())
 
     @staticmethod
     def hash_function(string: str) -> str:
         return hashlib.sha3_256(string.encode("utf-8")).hexdigest()
 
-    def get_hash(self) -> str:
-        return Document._get_hash(self)
+    def _get_key_value_tuples_for_hash(
+        self, fields: list[ClassField], data: Optional[Dict[str, Any]] = None
+    ) -> list[tuple[str, Any]]:
+        if data:
+            get_attribute = lambda attr_name: data[attr_name]
+        else:
+            get_attribute = lambda attr_name: getattr(self, attr_name)
+        key_val_tuples = [
+            (field.alias, get_attribute(field.alias).get_hash())
+            if isinstance(field, BaseModel)
+            else str(field.alias, get_attribute(field.alias))
+            for field in fields
+        ]
+        return key_val_tuples
 
     @staticmethod
-    def _get_hash(self) -> str:
-        stringfied_fields = []
-        # for field in Document.get_hashable_fields(self):
-        #     if BaseModel in field.type_.mro():
-        #         stringfied_fields.append(Document._get_hash(getattr(self, field.alias)))
-        #     else:
-        #         stringfied_fields.append(str(getattr(self, field.alias)))
+    def _assemble_hash_string(fields: list[tuple[str, Any]]) -> str:
+        return "|".join([str(val) for _, val in fields])
 
-        string = "".join(stringfied_fields)
-        return Document.hash_function(string)
+    def get_hash(self, data: Optional[Dict[str, Any]] = None) -> str:
+        fields = self.get_hashable_fields()
+        if not fields:
+            raise ValueError("No hashable fields found.")
+        key_val_tuples = self._get_key_value_tuples_for_hash(fields, data)
+        string = self._assemble_hash_string(key_val_tuples)
+        return self.hash_function(string)
 
     def __repr__(self) -> str:
         class_name = self.__class__.__name__
@@ -148,9 +161,10 @@ class Document(BaseDocument):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-    @property
-    def id(self):
-        return self.get_hash()
+    def __init__(__pydantic_self__, **data: Any) -> None:
+        if "id" not in data:
+            data["id"] = __pydantic_self__.get_hash(data)
+        super().__init__(**data)
 
     def dict(self, *args, **kwargs) -> Dict:
         out = super().dict(*args, **kwargs)
