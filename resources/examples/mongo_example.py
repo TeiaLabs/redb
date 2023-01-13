@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+from typing import Optional
 
 import pydantic
 
-from redb import CompoundIndex, Document, Field, Index, RedB
+from redb import ClassField, CompoundIndex, Document, Field, Index, RedB
 from redb.interfaces import Direction
 from redb.mongo_system import MongoConfig
 
@@ -16,12 +17,23 @@ class Dog(Document):
     # friends: list[Dog] = []  # TODO: make this work
 
 
+class API(pydantic.BaseModel):
+    name: str
+
+
+class Model(pydantic.BaseModel):
+    name: str
+    type: str
+    provider: API
+
+
 class Embedding(Document):
     kb_name: str
     model: str
     text: str
     model: Model
     vector: list[float]
+    other_models: Optional[list[Model]]
     source_url: str
 
     @classmethod
@@ -32,19 +44,13 @@ class Embedding(Document):
             Index(field=cls.model.provider.name, direction=Direction.ASCENDING),
         ]
 
-    @property
-    def hashable_fields(self):
-        return ["kb_name", self.model.hashble_fields, "text"]
-
-
-class Model(pydantic.BaseModel):
-    name: str
-    type: str
-    provider: API
-
-
-class API(pydantic.BaseModel):
-    name: str
+    @classmethod
+    def get_hashable_fields(cls) -> list[ClassField]:
+        return [
+            Embedding.kb_name,
+            Embedding.model.provider.name,
+            Embedding.other_models[0].provider.name,
+        ]
 
 
 def main():
@@ -72,6 +78,9 @@ def main():
         vector=[1, 2, 0.1],
         source_url="www",
     )
+    hashable_fields = Embedding.get_hashable_fields()
+    for m_field in hashable_fields:
+        print(m_field.resolve(d))
     print(d)
     print(Dog.delete_many(d))
     print(d.insert_one())

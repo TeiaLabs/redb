@@ -53,35 +53,62 @@ class Field(PydanticFieldInfo):
 
 
 class ClassField:
-    def __init__(self, model_field: ModelField, base_class: BaseModel) -> None:
+    def __init__(
+        self,
+        model_field: ModelField,
+        base_class: BaseModel,
+    ) -> None:
         self.model_field = model_field
         self.base_class = base_class
+        self.attr_names = [model_field.alias]
+
+    def resolve(self, obj):
+        for attr_name in self.attr_names:
+            if not obj:
+                return None
+
+            obj = getattr(obj, attr_name)
+
+        return obj
 
     def __getattribute__(self, name: str) -> Any:
-        if name in {"model_field", "base_class"}:
-            return object.__getattribute__(self, name)
+        if name in {"model_field", "base_class", "attr_names", "resolve"}:
+            return super().__getattribute__(name)
 
         model_field = self.model_field
         try:
             base_class = None
             annotation = model_field.annotation
+            if hasattr(annotation, "_name") and annotation._name == "Optional":
+                annotation = annotation.__args__[0]
+
+            if hasattr(annotation, "__args__"):
+                if annotation.__origin__ not in {list, set}:
+                    raise ValueError("Are you trying to outsmart me!? HA HA")
+
+                annotation = annotation.__args__[0]
+
             if isinstance(annotation, ForwardRef):
                 if not annotation.__forward_evaluated__:
                     self.base_class.update_forward_refs()
 
-                forwarded: BaseModel = annotation.__forward_value__
-                fields = forwarded.__fields__
-                base_class = forwarded
+                base_class = annotation.__forward_value__
             else:
-                if not hasattr(annotation, "__fields__"):
-                    raise AttributeError
-
-                fields = annotation.__fields__
                 base_class = annotation
 
+            if not hasattr(annotation, "__fields__"):
+                raise AttributeError
+
+            fields = base_class.__fields__
             if name not in fields:
                 raise AttributeError
 
-            return ClassField(model_field=fields[name], base_class=base_class)
+            self.model_field = fields[name]
+            self.base_class = base_class
+            self.attr_names.append(name)
+            return self
         except AttributeError:
             return model_field.__getattribute__(name)
+
+    def __getitem__(self, _):
+        return self
