@@ -199,10 +199,22 @@ class Document(BaseDocument):
     ) -> list["Document"]:
         collection = Document._get_collection(cls)
         results = collection.find(filter, fields, sort, skip, limit)
+
+        # Verify if we have all the mandatory fields to instantiate cls
+        # it will return dic otherwise
+        return_cls = cls
+        if fields:
+            required_fields = {
+                k for k, v in cls.__fields__.items()
+                if v.required
+            }
+
+            if not all(k in fields for k in required_fields):
+                return_cls = dict
+
         if not results:
             return results
-
-        return [cls(**result) for result in results]
+        return [return_cls(**result) for result in results]
 
     @classmethod
     def find_vectors(
