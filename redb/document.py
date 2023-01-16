@@ -126,10 +126,11 @@ class BaseDocument(BaseModel, metaclass=DocumentMetaclass):
             get_attribute = lambda attr_name: data[attr_name]
         else:
             get_attribute = lambda attr_name: getattr(self, attr_name)
+
         key_val_tuples = [
-            (field.alias, get_attribute(field.alias).get_hash())
+            (field.alias, str(get_attribute(field.alias).get_hash()))
             if isinstance(field, BaseModel)
-            else str(field.alias, get_attribute(field.alias))
+            else (f"{field.alias}", f"{get_attribute(field.alias)}")
             for field in fields
         ]
         return key_val_tuples
