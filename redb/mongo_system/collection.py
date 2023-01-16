@@ -90,7 +90,6 @@ class MongoCollection(Collection):
             limit=limit,
         )
 
-
     def find_vectors(
         self,
         column: str | None = None,
