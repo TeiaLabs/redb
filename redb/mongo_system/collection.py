@@ -39,12 +39,19 @@ class MongoCollection(Collection):
 
         name = indice.name
         if name is None:
-            name = "_".join([name.alias for name in indice.fields])
+            name = "_".join([
+                name.alias if hasattr(name, 'alias') else "id"
+                for name in indice.fields
+            ])
             name = f"unique_{name}" if indice.unique else name
             name = f"{indice.direction.name.lower()}_{name}"
 
-        self.collection.create_index(
-            [(name.alias, indice.direction.value) for name in indice.fields],
+        self.collection.create_index([
+                (name.alias, indice.direction.value)
+                if hasattr(name, 'alias')
+                else ("id", indice.direction.value)
+                for name in indice.fields
+            ],
             name=name,
             unique=indice.unique,
         )
