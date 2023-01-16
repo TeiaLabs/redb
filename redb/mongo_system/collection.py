@@ -72,10 +72,8 @@ class MongoCollection(Collection):
         if fields is not None:
             if isinstance(fields[0], str):
                 formatted_fields = {field: True for field in fields}
-                return_cls = dict
             else:
                 formatted_fields = {field.name: field.include for field in fields}
-                return_cls = self.__class__
 
         formatted_sort = sort
         if sort is not None:
@@ -84,7 +82,7 @@ class MongoCollection(Collection):
             else:
                 formatted_sort = [(sort.name, sort.direction)]
 
-        return_data = self.collection.find(
+        return self.collection.find(
             filter=formatted_filter,
             projection=formatted_fields,
             sort=formatted_sort,
@@ -92,7 +90,6 @@ class MongoCollection(Collection):
             limit=limit,
         )
 
-        return [return_cls(**x) for x in return_data]
 
     def find_vectors(
         self,
