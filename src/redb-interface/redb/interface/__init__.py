@@ -5,7 +5,6 @@ from .fields import (
     ClassField,
     CompoundIndice,
     Direction,
-    Field,
     IncludeColumn,
     Indice,
     SortColumn,

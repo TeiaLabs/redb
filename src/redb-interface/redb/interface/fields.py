@@ -29,7 +29,7 @@ class SortColumn(Column):
 
 @dataclass
 class Indice:
-    field: ModelField
+    field: "ClassField"
     name: str | None = None
     unique: bool = False
     direction: Direction | None = None
@@ -37,21 +37,10 @@ class Indice:
 
 @dataclass
 class CompoundIndice:
-    fields: list[ModelField]
+    fields: list["ClassField"]
     name: str | None = None
     unique: bool = False
     direction: Direction | None = None
-
-
-class Field(PydanticFieldInfo):
-    def __init__(
-        self,
-        hashable: bool = False,
-        *args,
-        **kwargs,
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.hashable = hashable
 
 
 class ClassField:
@@ -64,13 +53,27 @@ class ClassField:
         for attr_name in self.attr_names:
             if not obj:
                 return None
-
-            obj = getattr(obj, attr_name)
+            if attr_name.endswith("[0]"):
+                # If the attribute is iterable, we get its firts object
+                obj = getattr(obj, attr_name[: attr_name.rindex("[0]")])
+                obj = obj[0]
+            else:
+                # Otherwise just get it
+                obj = getattr(obj, attr_name)
 
         return obj
 
+    def get_joined_attrs(self, char: str = ".") -> str:
+        return char.join(self.attr_names)
+
     def __getattribute__(self, name: str) -> Any:
-        if name in {"model_field", "base_class", "attr_names", "resolve"}:
+        if name in {
+            "model_field",
+            "base_class",
+            "attr_names",
+            "resolve",
+            "get_joined_attrs",
+        }:
             return super().__getattribute__(name)
 
         try:
@@ -92,6 +95,7 @@ class ClassField:
             return self.model_field.__getattribute__(name)
 
     def __getitem__(self, _):
+        self.attr_names[-1] = f"{self.attr_names[-1]}[0]"
         return self
 
 
