@@ -16,7 +16,7 @@ def read_multiline_as_list(file_path: Path | str) -> list[str]:
 requirements = read_multiline_as_list("requirements.txt")
 
 setuptools.setup(
-    name="redb_json_schema",
+    name="redb_json_system",
     version="1.0.0",
     packages=setuptools.find_namespace_packages(),
     python_requires=">=3.10",
