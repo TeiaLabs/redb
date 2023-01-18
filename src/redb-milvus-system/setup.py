@@ -19,6 +19,6 @@ setuptools.setup(
     name="redb_milvus_system",
     version="1.0.0",
     packages=setuptools.find_namespace_packages(),
-    python_requires=">=3.10",
+    python_requires="<=3.10",
     install_requires=requirements,
 )
