@@ -9,7 +9,7 @@ from .database import MongoDatabase
 
 
 class MongoClient(Client):
-    def __init__(self, mongo_config: MongoConfig | dict) -> None:
+    def __init__(self, mongo_config: MongoConfig | dict):
         if isinstance(mongo_config, dict):
             mongo_config = MongoConfig(**mongo_config)
         self.__client = PymongoClient(
@@ -22,7 +22,7 @@ class MongoClient(Client):
         else:
             self.__default_database = self.get_database(mongo_config.default_database)
 
-    def _get_driver_client(self) -> Client:
+    def _get_driver_client(self) -> PymongoClient:
         return self.__client
 
     def get_databases(self) -> Sequence[MongoDatabase]:
@@ -37,8 +37,16 @@ class MongoClient(Client):
     def get_default_database(self) -> MongoDatabase:
         return self.__default_database
 
-    def drop_database(self, name: str) -> None:
-        self.__client.drop_database(name)
+    def drop_database(self, name: str) -> bool:
+        try:
+            self.__client.drop_database(name)
+            return True
+        except TypeError:
+            return False
 
-    def close(self) -> None:
-        self.__client.close()
+    def close(self) -> bool:
+        try:
+            self.__client.close()
+            return True
+        except Exception:
+            return False
