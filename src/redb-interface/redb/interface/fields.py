@@ -1,11 +1,13 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, ForwardRef
+from typing import Any, ForwardRef, TypeVar
 
 import pymongo
 from pydantic import BaseModel
 from pydantic.fields import ModelField
 from pydantic.main import FieldInfo as PydanticFieldInfo
+
+T = TypeVar("T")
 
 
 class Direction(Enum):
@@ -53,16 +55,12 @@ class Field(PydanticFieldInfo):
 
 
 class ClassField:
-    def __init__(
-        self,
-        model_field: ModelField,
-        base_class: BaseModel,
-    ) -> None:
+    def __init__(self, model_field: ModelField, base_class: BaseModel):
         self.model_field = model_field
         self.base_class = base_class
         self.attr_names = [model_field.alias]
 
-    def resolve(self, obj):
+    def resolve(self, obj: T) -> T | None:
         for attr_name in self.attr_names:
             if not obj:
                 return None
@@ -75,28 +73,11 @@ class ClassField:
         if name in {"model_field", "base_class", "attr_names", "resolve"}:
             return super().__getattribute__(name)
 
-        model_field = self.model_field
         try:
-            base_class = None
-            annotation = model_field.annotation
-            if hasattr(annotation, "_name") and annotation._name == "Optional":
-                annotation = annotation.__args__[0]
+            annotation = __get_unwrapped_annotation(self.model_field.annotation)
+            base_class = __get_type_from_annotation(annotation, self.base_class)
 
-            if hasattr(annotation, "__args__"):
-                if annotation.__origin__ not in {list, set}:
-                    raise ValueError("Are you trying to outsmart me!? HA HA")
-
-                annotation = annotation.__args__[0]
-
-            if isinstance(annotation, ForwardRef):
-                if not annotation.__forward_evaluated__:
-                    self.base_class.update_forward_refs()
-
-                base_class = annotation.__forward_value__
-            else:
-                base_class = annotation
-
-            if not hasattr(annotation, "__fields__"):
+            if not hasattr(base_class, "__fields__"):
                 raise AttributeError
 
             fields = base_class.__fields__
@@ -108,7 +89,35 @@ class ClassField:
             self.attr_names.append(name)
             return self
         except AttributeError:
-            return model_field.__getattribute__(name)
+            return self.model_field.__getattribute__(name)
 
     def __getitem__(self, _):
         return self
+
+
+def __get_unwrapped_annotation(annotation: T) -> T:
+    annotation = __unwrap_optional(annotation)
+    annotation = __unwrap_iterable(annotation)
+    return annotation
+
+
+def __unwrap_optional(annotation: T) -> T:
+    if hasattr(annotation, "_name") and annotation._name == "Optional":
+        return annotation.__args__[0]
+    return annotation
+
+
+def __unwrap_iterable(annotation: T) -> T:
+    if hasattr(annotation, "__args__"):
+        if annotation.__origin__ not in {list, set}:
+            raise ValueError("Are you trying to outsmart me!? HA HA")
+        return annotation.__args__[0]
+    return annotation
+
+
+def __get_type_from_annotation(annotation: T, base_class: BaseModel) -> BaseModel:
+    if isinstance(annotation, ForwardRef):
+        if not annotation.__forward_evaluated__:
+            base_class.update_forward_refs()
+        return annotation.__forward_value__
+    return annotation
