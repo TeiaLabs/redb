@@ -23,9 +23,12 @@ def get_optional_requirements() -> dict[str, list[str]]:
 
 
 requirements = read_multiline_as_list("requirements.txt")
-requirements_teia = read_multiline_as_list("requirements-teia.txt")
 
 opt_requirements = get_optional_requirements()
+opt_requirements["json"] = [f"redb_json_system @ {BASE_URL}/redb-json-system"]
+opt_requirements["mongo"] = [f"redb_mongo_system @ {BASE_URL}/redb-mongo-system"]
+opt_requirements["milvus"] = [f"redb_milvus_system @ {BASE_URL}/redb-milvus-system"]
+opt_requirements["all"] = [value[0] for value in opt_requirements.values()]
 
 with open("README.md", "r") as readme_file:
     long_description = readme_file.read()
@@ -41,8 +44,8 @@ setuptools.setup(
     url="https://github.com/teialabs/redb",
     packages=setuptools.find_packages(where="src"),
     package_dir={"": "src"},
-    keywords="",
+    keywords="database milvus mongo json interface",
     python_requires=">=3.10",
-    install_requires=requirements + requirements_teia,
+    install_requires=requirements,
     extras_require=opt_requirements,
 )

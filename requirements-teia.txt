@@ -1,1 +1,0 @@
-redb.interface @ git+ssh://git@github.com/TeiaLabs/redb.git@extract-packages#subdirectory=src/redb-interface&egg=redb.interface
