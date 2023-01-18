@@ -14,11 +14,12 @@ def read_multiline_as_list(file_path: Path | str) -> list[str]:
 
 
 requirements = read_multiline_as_list("requirements.txt")
+requirements_teia = read_multiline_as_list("requirements-teia.txt")
 
 setuptools.setup(
-    name="redb_milvus_system",
+    name="redb_migo_system",
     version="1.0.0",
     packages=setuptools.find_namespace_packages(),
-    python_requires="<=3.10",
-    install_requires=requirements,
+    python_requires="<=3.10.9",
+    install_requires=requirements + requirements_teia,
 )
