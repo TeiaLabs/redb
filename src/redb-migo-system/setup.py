@@ -13,7 +13,6 @@ def read_multiline_as_list(file_path: Path | str) -> list[str]:
         return contents
 
 
-requirements = read_multiline_as_list("requirements.txt")
 requirements_teia = read_multiline_as_list("requirements-teia.txt")
 
 setuptools.setup(
@@ -21,5 +20,5 @@ setuptools.setup(
     version="1.0.0",
     packages=setuptools.find_namespace_packages(),
     python_requires="<=3.10.9",
-    install_requires=requirements + requirements_teia,
+    install_requires=requirements_teia,
 )

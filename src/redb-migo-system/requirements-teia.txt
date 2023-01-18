@@ -1,1 +1,1 @@
-migo @ git+ssh://git@github.com:TeiaLabs/migo.git
+migo @ git+ssh://git@github.com/TeiaLabs/migo.git
