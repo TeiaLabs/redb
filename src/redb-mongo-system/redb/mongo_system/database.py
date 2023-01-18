@@ -1,4 +1,5 @@
 from pymongo.database import Database as PymongoDatabase
+from pymongo.errors import CollectionInvalid
 
 from redb.interface import Database
 
@@ -9,7 +10,7 @@ class MongoDatabase(Database):
     def __init__(self, database: PymongoDatabase) -> None:
         self.__database = database
 
-    def _get_driver_database(self) -> "Database":
+    def _get_driver_database(self) -> PymongoDatabase:
         return self.__database
 
     def get_collections(self) -> list[MongoCollection]:
@@ -21,11 +22,19 @@ class MongoDatabase(Database):
     def get_collection(self, name: str) -> MongoCollection:
         return MongoCollection(self.__database[name])
 
-    def create_collection(self, name: str) -> None:
-        self.__database.create_collection(name)
+    def create_collection(self, name: str) -> bool:
+        try:
+            self.__database.create_collection(name)
+            return True
+        except CollectionInvalid:
+            return False
 
-    def delete_collection(self, name: str) -> None:
-        self.__database.drop_collection(name)
+    def delete_collection(self, name: str) -> bool:
+        try:
+            self.__database.drop_collection(name)
+            return True
+        except CollectionInvalid:
+            return False
 
     def __getitem__(self, name) -> MongoCollection:
         return self.get_collection(name)
