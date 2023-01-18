@@ -58,17 +58,6 @@ class Collection(ABC):
         pass
 
     @abstractmethod
-    def find_vectors(
-        self,
-        column: str | None = None,
-        filter: T | None = None,
-        sort: list[SortColumn] | SortColumn | None = None,
-        skip: int = 0,
-        limit: int = 0,
-    ) -> list[T]:
-        pass
-
-    @abstractmethod
     def find_one(self, filter: T | None = None, skip: int = 0) -> T:
         pass
 
