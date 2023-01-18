@@ -23,6 +23,8 @@ def get_optional_requirements() -> dict[str, list[str]]:
 
 
 requirements = read_multiline_as_list("requirements.txt")
+requirements_teia = read_multiline_as_list("requirements-teia.txt")
+
 opt_requirements = get_optional_requirements()
 
 with open("README.md", "r") as readme_file:
@@ -37,9 +39,10 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/teialabs/redb",
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_packages(where="src"),
+    package_dir={"": "src"},
     keywords="",
     python_requires=">=3.10",
-    install_requires=requirements,
+    install_requires=requirements + requirements_teia,
     extras_require=opt_requirements,
 )
