@@ -3,12 +3,12 @@ from .collection import Collection, PyMongoOperations
 from .database import Database
 from .fields import (
     ClassField,
-    CompoundIndex,
+    CompoundIndice,
     Direction,
     Field,
-    IncludeDBColumn,
-    Index,
-    SortDBColumn,
+    IncludeColumn,
+    Indice,
+    SortColumn,
 )
 from .results import (
     BulkWriteResult,

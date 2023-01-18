@@ -15,28 +15,28 @@ class Direction(Enum):
     DESCENDING = pymongo.DESCENDING
 
 
-class DBColumn(BaseModel):
+class Column(BaseModel):
     name: str
 
 
-class IncludeDBColumn(DBColumn):
+class IncludeColumn(Column):
     include: bool
 
 
-class SortDBColumn(DBColumn):
+class SortColumn(Column):
     direction: Direction
 
 
 @dataclass
-class Index:
+class Indice:
     field: ModelField
-    name: str = None
+    name: str | None = None
     unique: bool = False
-    direction: Direction = None
+    direction: Direction | None = None
 
 
 @dataclass
-class CompoundIndex:
+class CompoundIndice:
     fields: list[ModelField]
     name: str | None = None
     unique: bool = False
