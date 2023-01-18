@@ -17,11 +17,11 @@ class Database(ABC):
         pass
 
     @abstractmethod
-    def create_collection(self, name: str) -> None:
+    def create_collection(self, name: str) -> bool:
         pass
 
     @abstractmethod
-    def delete_collection(self, name: str) -> None:
+    def delete_collection(self, name: str) -> bool:
         pass
 
     @abstractmethod
