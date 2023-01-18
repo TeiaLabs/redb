@@ -1,22 +1,25 @@
-from typing import Any
+from typing import Any, TypeVar
 
 from pymongo.collection import Collection as PymongoCollection
 
 from redb.interface import (
     BulkWriteResult,
     Collection,
+    CompoundIndice,
     DeleteManyResult,
     DeleteOneResult,
-    IncludeDBColumn,
+    Direction,
+    IncludeColumn,
     InsertManyResult,
     InsertOneResult,
     PyMongoOperations,
     ReplaceOneResult,
-    SortDBColumn,
+    SortColumn,
     UpdateManyResult,
     UpdateOneResult,
 )
-from redb.interface.fields import CompoundIndex, Direction
+
+T = TypeVar("T", bound=dict[str, Any])
 
 
 class MongoCollection(Collection):
@@ -27,43 +30,33 @@ class MongoCollection(Collection):
 
         self.collection = collection
 
-    def _get_driver_collection(self):
+    def _get_driver_collection(self) -> PymongoCollection:
         return self.collection
 
-    def create_indice(self, indice: CompoundIndex) -> None:
+    def create_indice(self, indice: CompoundIndice) -> None:
         if indice.direction is None:
             indice.direction = Direction.ASCENDING
 
         name = indice.name
         if name is None:
-            name = "_".join(
-                [
-                    name.alias if hasattr(name, "alias") else "id"
-                    for name in indice.fields
-                ]
-            )
+            name = "_".join([field.get_joined_attrs("_") for field in indice.fields])
             name = f"unique_{name}" if indice.unique else name
             name = f"{indice.direction.name.lower()}_{name}"
 
         self.collection.create_index(
-            [
-                (name.alias, indice.direction.value)
-                if hasattr(name, "alias")
-                else ("id", indice.direction.value)
-                for name in indice.fields
-            ],
+            [field.get_joined_attrs() for field in indice.fields],
             name=name,
             unique=indice.unique,
         )
 
     def find(
         self,
-        filter: dict | None = None,
-        fields: list[IncludeDBColumn] | list[str] | None = None,
-        sort: list[SortDBColumn] | SortDBColumn | None = None,
+        filter: T | None = None,
+        fields: list[IncludeColumn] | list[str] | None = None,
+        sort: list[SortColumn] | SortColumn | None = None,
         skip: int = 0,
-        limit: int = 1000,
-    ) -> list[dict]:
+        limit: int = 0,
+    ) -> list[T]:
         formatted_fields = fields
         if fields is not None:
             if isinstance(fields[0], str):
@@ -86,29 +79,19 @@ class MongoCollection(Collection):
             limit=limit,
         )
 
-    def find_vectors(
-        self,
-        column: str | None = None,
-        filter: dict | None = None,
-        sort: list[SortDBColumn] | SortDBColumn | None = None,
-        skip: int = 0,
-        limit: int = 1000,
-    ) -> list[dict]:
-        pass
-
-    def find_one(self, filter: dict | None = None, skip: int = 0) -> dict:
+    def find_one(self, filter: T | None = None, skip: int = 0) -> dict:
         return self.collection.find_one(
             filter=filter,
             skip=skip,
         )
 
-    def distinct(self, key: str, filter: dict | None = None) -> list[dict]:
+    def distinct(self, key: str, filter: T | None = None) -> list[dict]:
         return self.collection.distinct(
             key=key,
             filter=filter,
         )
 
-    def count_documents(self, filter: dict | None = None) -> int:
+    def count_documents(self, filter: T | None = None) -> int:
         return self.collection.count_documents(filter=filter)
 
     def bulk_write(
@@ -130,16 +113,26 @@ class MongoCollection(Collection):
         return InsertOneResult(inserted_id=result.inserted_id)
 
     def insert_vectors(self, data: dict[str, list[Any]]) -> InsertManyResult:
-        pass
+        keys = list(data.keys())
+        values_size = len(data[keys[0]])
 
-    def insert_many(self, data: list[dict]) -> InsertManyResult:
+        instances = [None] * values_size
+        for i in range(values_size):
+            instance = {}
+            for key in keys:
+                instance[key] = data[key][i]
+            instances[i] = instance
+
+        return self.insert_many(instances)
+
+    def insert_many(self, data: list[T]) -> InsertManyResult:
         result = self.collection.insert_many(documents=data)
         return InsertManyResult(inserted_ids=result.inserted_ids)
 
     def replace_one(
         self,
-        filter: dict,
-        replacement: dict,
+        filter: T,
+        replacement: T,
         upsert: bool = False,
     ) -> ReplaceOneResult:
         result = self.collection.replace_one(
@@ -155,8 +148,8 @@ class MongoCollection(Collection):
 
     def update_one(
         self,
-        filter: dict,
-        update: dict,
+        filter: T,
+        update: T,
         upsert: bool = False,
     ) -> UpdateOneResult:
         result = self.collection.update_one(
@@ -172,8 +165,8 @@ class MongoCollection(Collection):
 
     def update_many(
         self,
-        filter: dict,
-        update: dict,
+        filter: T,
+        update: T,
         upsert: bool = False,
     ) -> UpdateManyResult:
         result = self.collection.update_many(
@@ -187,10 +180,10 @@ class MongoCollection(Collection):
             upserted_id=result.upserted_id,
         )
 
-    def delete_one(self, filter: dict) -> DeleteOneResult:
+    def delete_one(self, filter: T) -> DeleteOneResult:
         self.collection.delete_one(filter=filter)
         return DeleteOneResult()
 
-    def delete_many(self, filter: dict) -> DeleteManyResult:
+    def delete_many(self, filter: T) -> DeleteManyResult:
         result = self.collection.delete_many(filter=filter)
         return DeleteManyResult(deleted_count=result.deleted_count)
