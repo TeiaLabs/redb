@@ -22,12 +22,12 @@ def get_optional_requirements() -> dict[str, list[str]]:
     return requirements
 
 
-requirements = read_multiline_as_list("requirements.txt")
+requirements = [f"redb_interface @ {BASE_URL}/redb-interface"]
 
 opt_requirements = get_optional_requirements()
 opt_requirements["json"] = [f"redb_json_system @ {BASE_URL}/redb-json-system"]
 opt_requirements["mongo"] = [f"redb_mongo_system @ {BASE_URL}/redb-mongo-system"]
-opt_requirements["milvus"] = [f"redb_milvus_system @ {BASE_URL}/redb-milvus-system"]
+opt_requirements["migo"] = [f"redb_migo_system @ {BASE_URL}/redb-migo-system"]
 opt_requirements["all"] = [value[0] for value in opt_requirements.values()]
 
 with open("README.md", "r") as readme_file:

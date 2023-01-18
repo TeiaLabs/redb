@@ -1,7 +1,7 @@
 from typing import Literal
 
 from redb.interface import Client
-from redb.interface.configs import JSONConfig, MilvusConfig, MongoConfig
+from redb.interface.configs import JSONConfig, MigoConfig, MongoConfig
 
 
 def check_config(
@@ -49,11 +49,11 @@ class RedB:
             cls._client = MongoClient(config)
             cls._client_name = "mongo"
 
-        elif backend == "milvus" and check_config(config, MilvusConfig):
-            from redb.milvus_system import MilvusClient
+        elif backend == "migo" and check_config(config, MigoConfig):
+            from redb.migo_system import MigoClient
 
-            cls._client = MilvusClient(config)
-            cls._client_name = "milvus"
+            cls._client = MigoClient(config)
+            cls._client_name = "migo"
 
         else:
             raise ValueError(f"Backend not found for config type: {type(config)!r}.")

@@ -74,7 +74,7 @@ class BaseDocument(BaseModel, metaclass=DocumentMetaclass):
             return database._get_driver_database()[collection_name]
         elif client_name == "json":
             return database._get_driver_database() / collection_name
-        elif client_name == "milvus":
+        elif client_name == "migo":
             pass
 
     @staticmethod
@@ -91,10 +91,10 @@ class BaseDocument(BaseModel, metaclass=DocumentMetaclass):
 
             return JSONCollection(driver_collection)
 
-        elif client_name == "milvus":
-            from redb.milvus_system import MilvusCollection
+        elif client_name == "migo":
+            from redb.migo_system import MigoCollection
 
-            return MilvusCollection(driver_collection)
+            return MigoCollection(driver_collection)
 
     @staticmethod
     def _get_collection(instance_or_class: Type["Document"] | "Document"):

@@ -8,7 +8,7 @@ class JSONConfig:
 
 
 @dataclass
-class MilvusConfig:
+class MigoConfig:
     client_folder_path: str
 
 
