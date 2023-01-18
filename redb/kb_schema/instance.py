@@ -56,17 +56,17 @@ class Instance(Document):
 
     @classmethod
     def get_kb_names(cls) -> set:
-        instances = cls.find()
+        instances = cls.find(fields=["kb_name"], limit=0)
         if len(instances) == 0:
             return {}
-        return set([x.kb_name for x in instances])
+        return set([x["kb_name"] for x in instances])
 
     @classmethod
     def get_model_instances(cls, model_type, model_name):
         return cls.find({
             "content_embedding.model_type": model_type,
             "content_embedding.model_name": model_name,
-        })
+        }, limit=0)
 
     @classmethod
     def instances_to_dataframe(
@@ -110,10 +110,11 @@ class Instance(Document):
 
     @classmethod
     def insert_dataframe(cls, dataframe: pd.DataFrame) -> list:
-        ids = []
-        for data in dataframe.iterrows():
-            ids.append(cls.from_row(data[1]).insert_one())
-        return ids
+        instances = [
+            cls.from_row(row[1]) for row in dataframe.iterrows()
+        ]
+
+        return cls.insert_many(instances)
 
 
 Embedding.update_forward_refs()
