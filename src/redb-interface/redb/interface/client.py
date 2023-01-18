@@ -22,9 +22,9 @@ class Client(ABC):
         pass
 
     @abstractmethod
-    def drop_database(self, name: str) -> None:
+    def drop_database(self, name: str) -> bool:
         pass
 
     @abstractmethod
-    def close(self) -> None:
+    def close(self) -> bool:
         pass
