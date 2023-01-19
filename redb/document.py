@@ -195,7 +195,7 @@ class Document(BaseDocument):
         fields: Optional[list[IncludeDBColumn] | list[str]] = None,
         sort: Optional[list[SortDBColumn] | SortDBColumn] = None,
         skip: int = 0,
-        limit: int = 1000,
+        limit: int = 0,
     ) -> list["Document"]:
         collection = Document._get_collection(cls)
         results = collection.find(filter, fields, sort, skip, limit)
