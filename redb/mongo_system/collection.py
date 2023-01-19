@@ -39,7 +39,7 @@ class MongoCollection(Collection):
 
         name = indice.name
         if name is None:
-            name = "_".join([
+            name = ".".join([
                 name.alias if hasattr(name, 'alias') else "id"
                 for name in indice.fields
             ])
@@ -47,7 +47,7 @@ class MongoCollection(Collection):
             name = f"{indice.direction.name.lower()}_{name}"
 
         self.collection.create_index([
-                (name.alias, indice.direction.value)
+                (name.resolve(), indice.direction.value)
                 if hasattr(name, 'alias')
                 else ("id", indice.direction.value)
                 for name in indice.fields

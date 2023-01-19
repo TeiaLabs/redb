@@ -62,14 +62,8 @@ class ClassField:
         self.base_class = base_class
         self.attr_names = [model_field.alias]
 
-    def resolve(self, obj):
-        for attr_name in self.attr_names:
-            if not obj:
-                return None
-
-            obj = getattr(obj, attr_name)
-
-        return obj
+    def resolve(self) -> str:
+        return ".".join([attr_name for attr_name in self.attr_names])
 
     def __getattribute__(self, name: str) -> Any:
         if name in {"model_field", "base_class", "attr_names", "resolve"}:
