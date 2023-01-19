@@ -31,7 +31,11 @@ class Instance(Document):
 
     @classmethod
     def get_indices(cls) -> list[Index | CompoundIndex]:
-        return [Index(field=cls.id)]
+        return [
+            Index(field=cls.id),
+            Index(field=cls.kb_name),
+            CompoundIndex(fields=[cls.content_embedding[0].model_name, cls.content_embedding[0].model_type])
+        ]
 
     @classmethod
     def content_embedding_name(cls):
