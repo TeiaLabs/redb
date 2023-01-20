@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -9,7 +10,12 @@ class JSONConfig:
 
 @dataclass
 class MigoConfig:
-    client_folder_path: str
+    milvus_connection_alias: str
+    milvus_host: str
+    milvus_port: int
+    mongo_database_uri: str
+    mongo_kwargs: dict[str, Any] = field(default_factory=dict)
+    milvus_kwargs: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

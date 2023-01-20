@@ -4,6 +4,9 @@ from pathlib import Path
 
 import setuptools
 
+# BASE_URL = "git+ssh://git@github.com/TeiaLabs/redb.git#subdirectory=src"
+BASE_URL = "file://localhost/home/severo/Documents/Projects/redb/src"
+
 
 def read_multiline_as_list(file_path: Path | str) -> list[str]:
     with open(file_path) as req_file:
