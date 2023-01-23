@@ -45,13 +45,22 @@ class JSONCollection(Collection):
         skip: int = 0,
         limit: int = 0,
     ) -> list[ReturnType]:
-        json_files = self.__collection.glob("*.json")
         transform = lambda file_path: json.load(open(file_path))
+        if "id" in filter:
+            file_path = self.__collection / f"{filter['id']}.json"
+            if file_path.is_file() and not file_path.is_symlink():
+                return return_cls(**transform(file_path))
+
+            if len(filter.keys()) == 1:
+                # If the only filter was the ID, return empty list
+                return []
+
+        json_files = self.__collection.glob("*.json")
         out = []
         for i, json_file in enumerate(json_files):
             if i < skip:
                 continue
-            if limit and i > limit:
+            if limit and limit < len(out):
                 break
             if not json_file.is_file():
                 continue
@@ -88,36 +97,16 @@ class JSONCollection(Collection):
         filter: OptionalJson = None,
         skip: int = 0,
     ) -> ReturnType:
-        json_files = self.__collection.glob("*.json")
-        transform = lambda file_path: json.load(open(file_path))
-        for i, json_file in enumerate(json_files):
-            if i < skip:
-                continue
-            if json_file.is_symlink():
-                continue
-
-            transformed_json: dict = transform(json_file)
-            if filter is not None:
-                ignore_file = False
-                for key in filter:
-                    if key not in transformed_json:
-                        ignore_file = True
-                        break
-                    if transformed_json[key] != filter[key]:
-                        ignore_file = True
-                        break
-                if ignore_file:
-                    continue
-
-            if fields is not None:
-                transformed_json = {
-                    key: value
-                    for key, value in transformed_json.items()
-                    if key in fields
-                }
-
-            return return_cls(**transformed_json)
-
+        captures = self.find(
+            cls,
+            return_cls,
+            filter=filter,
+            fields=fields,
+            skip=skip,
+            limit=1,
+        )
+        if captures:
+            return captures[0]
         return None
 
     def distinct(
