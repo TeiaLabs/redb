@@ -1,3 +1,0 @@
-special fields:
-    ✔ allow choosing which fields should be used for the hash @done(23-01-03 10:58)
-    ✔ default encoding for the hash should be URL safe @done(23-01-03 10:58)

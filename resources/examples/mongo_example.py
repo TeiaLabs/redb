@@ -1,24 +1,22 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
 from typing import Optional
 
 import dotenv
-import pydantic
 
-from redb import ClassField, CompoundIndex, Document, Field, Index, RedB
-from redb.interfaces import Direction
-from redb.mongo_system import MongoConfig
+from redb import ClassField, CompoundIndex, Document, Index, MongoConfig, RedB
+from redb.base import BaseDocument
+from redb.interface.fields import Direction
 
 dotenv.load_dotenv()
 
 
-class API(pydantic.BaseModel):
+class API(BaseDocument):
     name: str
 
 
-class Model(pydantic.BaseModel):
+class Model(BaseDocument):
     name: str
     type: str
     provider: API
@@ -34,7 +32,7 @@ class Embedding(Document):
     source_url: str
 
     @classmethod
-    def get_indices(cls) -> list[Index | CompoundIndex]:
+    def get_indexes(cls) -> list[Index | CompoundIndex]:
         return [
             Index(field=cls.id),
             Index(field=cls.model, name="index_namerino"),  # cls.model should raise
@@ -53,14 +51,11 @@ class Embedding(Document):
 
 
 def main():
-    config = MongoConfig(database_uri=os.environ["MONGODB_URI"], default_database="teia")
+    config = MongoConfig(
+        database_uri=os.environ["MONGODB_URI"], default_database="teia"
+    )
     RedB.setup(config=config)
-    client = RedB.get_client()
-    Embedding.create_indices()
-
-    db = client.get_default_database()
-    for col in db.get_collections():
-        [print(obj) for obj in col.find()]
+    Embedding.create_indexes()
 
     d = Embedding(
         kb_name="KB",
@@ -76,10 +71,10 @@ def main():
         print(m_field.resolve(d))
     print(d)
     from pymongo.errors import DuplicateKeyError
+
     try:
         print(d.insert_one())
     except DuplicateKeyError as e:
-        print(e, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
         print(dict(e.details))
     print(d.get_hash())
 

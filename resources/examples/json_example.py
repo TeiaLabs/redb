@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from pydantic import BaseModel
-
-from redb import CompoundIndex, Document, Field, Index, RedB
-from redb.json_system import JSONCollection
+from redb import ClassField, CompoundIndex, Document, Field, Index, RedB
+from redb.base import BaseDocument
 
 
 class Dog(Document):
@@ -12,28 +10,32 @@ class Dog(Document):
     other: SubclassMember
 
     @classmethod
-    def get_indices(cls) -> list[Index | CompoundIndex]:
+    def get_indexes(cls) -> list[Index | CompoundIndex]:
         return [Index(field=Dog.other.another.name)]
 
 
-class SubclassMember(BaseModel):
+class SubclassMember(BaseDocument):
     name: str
     another: SubSubClassMember
 
 
-class SubSubClassMember(BaseModel):
+class SubSubClassMember(BaseDocument):
     name: float
 
 
 class Embedding(Document):
-    kb_name: str = Field(hashable=True)
-    model: str = Field(hashable=True)
+    kb_name: str
+    model: str
     text: str
-    vector: list[float]
+    vector: list[float] = Field(vector_type="FLOAT", dimensions=1)
     source_url: str
 
     @classmethod
-    def get_indices(cls) -> list[Index | CompoundIndex]:
+    def get_hashable_fields(cls) -> list[ClassField]:
+        return [cls.kb_name, cls.model]
+
+    @classmethod
+    def get_indexes(cls) -> list[Index | CompoundIndex]:
         return [Index(field=Embedding.model)]
 
 
@@ -43,14 +45,6 @@ def main():
         default_database_folder_path="db",
     )
     RedB.setup(backend="json", config=config)
-
-    client = RedB.get_client()
-    db = client.get_default_database()
-    collections = db.get_collections()
-    for col in collections:
-        docs = col.find()
-        for doc in docs:
-            print(doc)
 
     d = Embedding(
         kb_name="KB",
@@ -74,6 +68,7 @@ def main():
     print(
         Embedding.insert_vectors(
             dict(
+                id=["a", "b"],
                 kb_name=["a", "b"],
                 model=["alpha", "beta"],
                 text=["some data", "another data"],

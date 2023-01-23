@@ -1,19 +1,22 @@
 from __future__ import annotations
 
-from pathlib import Path
+import dotenv
 
-from redb import RedB
-from redb.milvus_system import MilvusCollection, MilvusConfig
+from redb import Document, Field, MigoConfig, RedB
+from redb.base import BaseDocument
+
+dotenv.load_dotenv()
 
 
-class Embedding(MilvusCollection):
+class Embedding(BaseDocument):
     """Semantic vector."""
+
     model_type: str
     model_name: str
-    vector: list[float]
+    vector: list[float] = Field(vector_type="FLOAT", dimensions=1)
 
 
-class Instance(MilvusCollection):
+class Instance(Document):
     kb_name: str
     text: str
     embs: list[Embedding]
@@ -21,14 +24,17 @@ class Instance(MilvusCollection):
 
 
 def main():
-    config = MilvusConfig(
-        client_folder_path="resources",
+    config = MigoConfig(
+        milvus_connection_alias="",
+        milvus_host="localhost",
+        milvus_port=8000,
+        mongo_database_uri=os.environ["MONGODB_URI"],
     )
     RedB.setup("milvus", config, globals())
     a = Embedding(
         model_type="a",
         model_name="b",
-        vector=[1,2,3],
+        vector=[1, 2, 3],
     )
     b = Instance(
         kb_name="KB",
@@ -36,11 +42,9 @@ def main():
         embs=[a],
         source_url="www",
     )
-    print(a, b)
-    exit()
-    print(Embedding.delete_many(d))
-    print(d.insert_one())
-    print(Embedding.replace_one(filter=d, replacement=d, upsert=True))
+    print(Embedding.delete_many(b))
+    print(b.insert_one())
+    print(Embedding.replace_one(filter=b, replacement=b, upsert=True))
     print(
         Embedding.insert_vectors(
             dict(
