@@ -67,7 +67,7 @@ class Instance(Document):
         return cls.find({
             "content_embedding.model_type": model_type,
             "content_embedding.model_name": model_name,
-        }, limit=0)
+        })
 
     @classmethod
     def instances_to_dataframe(
