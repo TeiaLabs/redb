@@ -38,6 +38,7 @@ requirements = read_multiline_as_list("requirements.txt")
 requirements.append(f"redb_interface @ {BASE_URL}/redb-interface")
 
 opt_requirements = get_optional_requirements()
+opt_requirements["schema"] = [f"redb_teia_schema @ {BASE_URL}/redb-teia-schema"]
 opt_requirements["json"] = [systems["json"]]
 opt_requirements["mongo"] = [systems["mongo"]]
 opt_requirements["migo"] = [systems["migo"]]
