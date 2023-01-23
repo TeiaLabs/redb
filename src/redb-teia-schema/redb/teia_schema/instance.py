@@ -57,10 +57,7 @@ class Instance(Document):
 
     @classmethod
     def get_kb_names(cls) -> set:
-        instances = cls.distinct(key="kb_name")
-        if len(instances) == 0:
-            return {}
-        return set([x["kb_name"] for x in instances])
+        return set(cls.distinct(key="kb_name"))
 
     @classmethod
     def get_model_instances(cls, model_type, model_name):
