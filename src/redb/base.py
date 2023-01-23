@@ -1,9 +1,6 @@
 import hashlib
 from typing import Any, ClassVar, Type
 
-from pydantic import BaseModel, ValidationError
-from pydantic.error_wrappers import ErrorWrapper
-from pydantic.errors import MissingError
 from pydantic.main import ModelMetaclass
 
 from redb.interface.fields import ClassField, CompoundIndex, Index
