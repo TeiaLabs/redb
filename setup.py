@@ -57,9 +57,9 @@ with open("README.md", "r") as readme_file:
 
 setuptools.setup(
     name="redb",
-    version="1.0.0",
-    author="Nei Cardoso de Oliveira Neto",
-    author_email="nei.neto@hotmail.com",
+    version="1.0.1",
+    author="Teia Labs",
+    author_email="contato@teialabs.com",
     description="",
     long_description=long_description,
     long_description_content_type="text/markdown",
