@@ -93,6 +93,8 @@ class ClassField:
             if attr_name.endswith("[0]"):
                 # If the attribute is iterable, we get its firts object
                 obj = get_attribute(attr_name[: attr_name.rindex("[0]")])
+                if not obj:
+                    return obj
                 obj = obj[0]
             else:
                 # Otherwise just get it
