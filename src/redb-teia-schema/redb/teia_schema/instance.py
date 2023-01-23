@@ -57,7 +57,7 @@ class Instance(Document):
 
     @classmethod
     def get_kb_names(cls) -> set:
-        instances = cls.find(fields=["kb_name"], limit=0)
+        instances = cls.distinct(key="kb_name")
         if len(instances) == 0:
             return {}
         return set([x["kb_name"] for x in instances])
