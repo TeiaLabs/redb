@@ -107,7 +107,10 @@ class BaseDocument(BaseModel, metaclass=DocumentMetaclass):
 
     @classmethod
     def get_hashable_fields(cls) -> list[ClassField]:
-        return list(cls.__fields__.values())
+        return [
+            ClassField(model_field=field, base_class=cls)
+            for field in cls.__fields__.values()
+        ]
 
     @staticmethod
     def hash_function(string: str) -> str:
@@ -136,9 +139,9 @@ class BaseDocument(BaseModel, metaclass=DocumentMetaclass):
     def get_hash(
         self,
         data: dict[str, Any] | None = None,
-        user_data_fields: bool = False,
+        use_data_fields: bool = False,
     ) -> str:
-        if user_data_fields:
+        if use_data_fields:
             fields = list(data.keys())
         else:
             fields = self.get_hashable_fields()

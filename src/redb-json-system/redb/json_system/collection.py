@@ -46,10 +46,10 @@ class JSONCollection(Collection):
         limit: int = 0,
     ) -> list[ReturnType]:
         transform = lambda file_path: json.load(open(file_path))
-        if "id" in filter:
+        if filter is not None and "id" in filter:
             file_path = self.__collection / f"{filter['id']}.json"
             if file_path.is_file() and not file_path.is_symlink():
-                return return_cls(**transform(file_path))
+                return [return_cls(**transform(file_path))]
 
             if len(filter.keys()) == 1:
                 # If the only filter was the ID, return empty list
@@ -60,7 +60,7 @@ class JSONCollection(Collection):
         for i, json_file in enumerate(json_files):
             if i < skip:
                 continue
-            if limit and limit < len(out):
+            if limit and len(out) >= limit:
                 break
             if not json_file.is_file():
                 continue
@@ -226,7 +226,7 @@ class JSONCollection(Collection):
 
         original_content.update(update)
         if cls is dict:
-            new_id = BaseDocument().get_dict_hash(data=original_content, use_data_fields=True)
+            new_id = BaseDocument().get_hash(data=original_content, use_data_fields=True)
         else:
             new_id = cls.get_hash(data=original_content)
 
