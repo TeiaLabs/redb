@@ -119,7 +119,7 @@ class MongoCollection(Collection):
 
     def insert_one(
         self,
-        _: Type[Document],
+        cls: Type[Document],
         data: dict,
     ) -> InsertOneResult:
         result = self.__collection.insert_one(document=data)

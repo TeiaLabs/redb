@@ -21,7 +21,6 @@ class Instance(Document):
     query_embedding: Optional[list[Embedding]] = []
     query: Optional[str]
     url: Optional[str]  # TODO: this should be a set/list
-    id: str  # this is an auto-filled id
 
     @classmethod
     def get_hashable_fields(cls) -> list[ClassField]:
