@@ -1,16 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Any, TypeVar, Union
+from typing import Any, Type, TypeVar
 
-from pymongo.operations import (
-    DeleteMany,
-    DeleteOne,
-    InsertOne,
-    ReplaceOne,
-    UpdateMany,
-    UpdateOne,
-)
+from redb.base import BaseDocument
 
-from .fields import CompoundIndice, IncludeColumn, SortColumn
+from .fields import CompoundIndice, PyMongoOperations
 from .results import (
     BulkWriteResult,
     DeleteManyResult,
@@ -22,19 +15,18 @@ from .results import (
     UpdateOneResult,
 )
 
-PyMongoOperations = TypeVar(
-    "PyMongoOperations",
-    bound=Union[
-        InsertOne,
-        DeleteOne,
-        DeleteMany,
-        ReplaceOne,
-        UpdateOne,
-        UpdateMany,
-    ],
+Json = TypeVar(
+    "Json",
+    bound=dict[str, Any],
 )
-
-T = TypeVar("T", bound=dict[str, Any])
+OptionalJson = TypeVar(
+    "OptionalJson",
+    bound=dict[str, Any] | None,
+)
+ReturnType = TypeVar(
+    "ReturnType",
+    bound=Type[BaseDocument | dict],
+)
 
 
 class Collection(ABC):
@@ -43,53 +35,82 @@ class Collection(ABC):
         pass
 
     @abstractmethod
-    def create_indice(self, indice: CompoundIndice) -> None:
+    def create_indice(
+        self,
+        indice: CompoundIndice,
+    ) -> bool:
         pass
 
     @abstractmethod
     def find(
         self,
-        filter: T | None = None,
-        fields: list[IncludeColumn] | list[str] | None = None,
-        sort: list[SortColumn] | SortColumn | None = None,
+        cls: Type[BaseDocument],
+        return_cls: ReturnType,
+        filter: OptionalJson = None,
+        fields: dict[str, bool] | None = None,
+        sort: dict[tuple[str, str | int]] | None = None,
         skip: int = 0,
         limit: int = 0,
-    ) -> list[T]:
+    ) -> list[ReturnType]:
         pass
 
     @abstractmethod
-    def find_one(self, filter: T | None = None, skip: int = 0) -> T:
+    def find_one(
+        self,
+        cls: Type[BaseDocument],
+        return_cls: ReturnType,
+        filter: OptionalJson = None,
+        fields: dict[str, bool] | None = None,
+        skip: int = 0,
+    ) -> ReturnType:
         pass
 
     @abstractmethod
-    def distinct(self, key: str, filter: T | None = None) -> list[T]:
+    def distinct(
+        self,
+        cls: ReturnType,
+        key: str,
+        filter: OptionalJson = None,
+    ) -> list[ReturnType]:
         pass
 
     @abstractmethod
-    def count_documents(self, filter: T | None = None) -> int:
+    def count_documents(
+        self,
+        cls: Type[BaseDocument],
+        filter: OptionalJson = None,
+    ) -> int:
         pass
 
     @abstractmethod
-    def bulk_write(self, operations: list[PyMongoOperations]) -> BulkWriteResult:
+    def bulk_write(
+        self,
+        operations: list[PyMongoOperations],
+    ) -> BulkWriteResult:
         pass
 
     @abstractmethod
-    def insert_one(self, data: T) -> InsertOneResult:
+    def insert_one(
+        self,
+        cls: Type[BaseDocument],
+        data: Json,
+    ) -> InsertOneResult:
         pass
 
     @abstractmethod
-    def insert_vectors(sel, data: dict[str, list[Any]]) -> InsertManyResult:
-        pass
-
-    @abstractmethod
-    def insert_many(self, data: list[T]) -> InsertManyResult:
+    def insert_many(
+        self,
+        cls: Type[BaseDocument],
+        data: list[Json],
+    ) -> InsertManyResult:
         pass
 
     @abstractmethod
     def replace_one(
         self,
-        filter: T,
-        replacement: T,
+        cls: Type[BaseDocument],
+        filter: Json,
+        replacement: Json,
         upsert: bool = False,
     ) -> ReplaceOneResult:
         pass
@@ -97,8 +118,9 @@ class Collection(ABC):
     @abstractmethod
     def update_one(
         self,
-        filter: T,
-        update: T,
+        cls: Type[BaseDocument],
+        filter: Json,
+        update: Json,
         upsert: bool = False,
     ) -> UpdateOneResult:
         pass
@@ -106,16 +128,25 @@ class Collection(ABC):
     @abstractmethod
     def update_many(
         self,
-        filter: T,
-        update: T,
+        cls: Type[BaseDocument],
+        filter: Json,
+        update: Json,
         upsert: bool = False,
     ) -> UpdateManyResult:
         pass
 
     @abstractmethod
-    def delete_one(self, filter: T) -> DeleteOneResult:
+    def delete_one(
+        self,
+        cls: Type[BaseDocument],
+        filter: Json,
+    ) -> DeleteOneResult:
         pass
 
     @abstractmethod
-    def delete_many(self, filter: T) -> DeleteManyResult:
+    def delete_many(
+        self,
+        cls: Type[BaseDocument],
+        filter: Json,
+    ) -> DeleteManyResult:
         pass

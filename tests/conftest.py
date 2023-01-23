@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from redb import RedB
-from redb.json_system import JSONConfig
+from redb.interface.configs import JSONConfig
 
 
 @pytest.fixture(scope="session")
@@ -22,5 +22,10 @@ def collection_path(db_path):
 
 
 @pytest.fixture(autouse=True, scope="session")
-def client(client_path, db_path):
-    RedB.setup(JSONConfig(client_folder_path=client_path, default_database_folder_path=db_path))
+def client(client_path):
+    RedB.setup(
+        JSONConfig(
+            client_folder_path=client_path,
+            default_database_folder_path="resources",
+        )
+    )

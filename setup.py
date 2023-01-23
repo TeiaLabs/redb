@@ -4,8 +4,17 @@ from pathlib import Path
 
 import setuptools
 
+# For local development only
+root = Path(__file__).parent.absolute().as_posix()
+BASE_URL = f"file://localhost/{root}/src"
+
 # BASE_URL = "git+ssh://git@github.com/TeiaLabs/redb.git#subdirectory=src"
-BASE_URL = "file://localhost/home/severo/Documents/Projects/redb/src"
+
+systems = {
+    "json": f"redb_json_system @ {BASE_URL}/redb-json-system",
+    "mongo": f"redb_mongo_system @ {BASE_URL}/redb-mongo-system",
+    "migo": f"redb_migo_system @ {BASE_URL}/redb-migo-system",
+}
 
 
 def read_multiline_as_list(file_path: Path | str) -> list[str]:
@@ -25,20 +34,27 @@ def get_optional_requirements() -> dict[str, list[str]]:
     return requirements
 
 
-requirements = [f"redb_interface @ {BASE_URL}/redb-interface"]
+requirements = read_multiline_as_list("requirements.txt")
+requirements.append(f"redb_interface @ {BASE_URL}/redb-interface")
 
 opt_requirements = get_optional_requirements()
-opt_requirements["json"] = [f"redb_json_system @ {BASE_URL}/redb-json-system"]
-opt_requirements["mongo"] = [f"redb_mongo_system @ {BASE_URL}/redb-mongo-system"]
-opt_requirements["migo"] = [f"redb_migo_system @ {BASE_URL}/redb-migo-system"]
-opt_requirements["all"] = [value[0] for value in opt_requirements.values()]
+opt_requirements["json"] = [systems["json"]]
+opt_requirements["mongo"] = [systems["mongo"]]
+opt_requirements["migo"] = [systems["migo"]]
+opt_requirements["systems"] = list(systems.values())
+opt_requirements["all"] = [
+    value
+    for key, values in opt_requirements.items()
+    if key != "systems"
+    for value in values
+]
 
 with open("README.md", "r") as readme_file:
     long_description = readme_file.read()
 
 setuptools.setup(
     name="redb",
-    version="0.1.0",
+    version="1.0.0",
     author="Nei Cardoso de Oliveira Neto",
     author_email="nei.neto@hotmail.com",
     description="",

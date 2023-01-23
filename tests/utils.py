@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from redb.json_system import JSONCollection
+from redb import Document
 
 
-class Embedding(JSONCollection):
+class Embedding(Document):
     kb_name: str
     model: str
     text: str

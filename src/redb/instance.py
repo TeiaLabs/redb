@@ -1,6 +1,5 @@
 from typing import Literal
 
-from redb.interface import Client
 from redb.interface.configs import JSONConfig, MigoConfig, MongoConfig
 
 
@@ -14,11 +13,11 @@ def check_config(
 class RedB:
     """Client singleton."""
 
-    _client: Client | None = None
+    _client = None
     _client_name: str | None = None
 
     @classmethod
-    def get_client(cls) -> Client:
+    def get_client(cls):
         if cls._client is None:
             raise RuntimeError("Client not setup. Call setup() first.")
         return cls._client

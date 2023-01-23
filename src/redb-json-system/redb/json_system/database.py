@@ -1,7 +1,7 @@
 import shutil
 from pathlib import Path
 
-from redb.interface import Database
+from redb.interface.database import Database
 
 from .collection import JSONCollection
 
@@ -33,8 +33,8 @@ class JSONDatabase(Database):
     def delete_collection(self, name: str) -> None:
         shutil.rmtree(self.get_collection(name).__class__.__name__)
 
-    def __getitem__(self, name) -> "JSONDatabase":
+    def __getitem__(self, name: str) -> "JSONDatabase":
         return JSONCollection(self.__database_folder_path / name)
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: Path):
         return self.__database_folder_path / other

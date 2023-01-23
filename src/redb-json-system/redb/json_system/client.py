@@ -1,7 +1,7 @@
 import shutil
 from pathlib import Path
 
-from redb.interface import Client
+from redb.interface.client import Client
 from redb.interface.configs import JSONConfig
 
 from .database import JSONDatabase
@@ -43,11 +43,15 @@ class JSONClient(Client):
     def get_default_database(self) -> JSONDatabase:
         return self.__default_database
 
-    def drop_database(self, name: str) -> None:
-        shutil.rmtree(self.get_database(name).database_path)
+    def drop_database(self, name: str) -> bool:
+        try:
+            shutil.rmtree(self.get_database(name).database_path)
+            return True
+        except:
+            return False
 
-    def close(self) -> None:
-        return
+    def close(self) -> bool:
+        return True
 
     def __truediv__(self, other):
         return self.__client_folder_path / other

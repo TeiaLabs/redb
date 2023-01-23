@@ -25,5 +25,5 @@ class Database(ABC):
         pass
 
     @abstractmethod
-    def __getitem__(self, name) -> Collection:
+    def __getitem__(self, name: str) -> Collection:
         pass

@@ -1,25 +1,20 @@
-from typing import Any, TypeVar
+from typing import Type
 
 from pymongo.collection import Collection as PymongoCollection
 
-from redb.interface import (
+from redb import Document
+from redb.interface.collection import Collection, Json, OptionalJson, ReturnType
+from redb.interface.fields import CompoundIndice, Direction, PyMongoOperations
+from redb.interface.results import (
     BulkWriteResult,
-    Collection,
-    CompoundIndice,
     DeleteManyResult,
     DeleteOneResult,
-    Direction,
-    IncludeColumn,
     InsertManyResult,
     InsertOneResult,
-    PyMongoOperations,
     ReplaceOneResult,
-    SortColumn,
     UpdateManyResult,
     UpdateOneResult,
 )
-
-T = TypeVar("T", bound=dict[str, Any])
 
 
 class MongoCollection(Collection):
@@ -28,12 +23,15 @@ class MongoCollection(Collection):
     def __init__(self, collection: PymongoCollection) -> None:
         super().__init__()
 
-        self.collection = collection
+        self.__collection = collection
 
     def _get_driver_collection(self) -> PymongoCollection:
-        return self.collection
+        return self.__collection
 
-    def create_indice(self, indice: CompoundIndice) -> None:
+    def create_indice(
+        self,
+        indice: CompoundIndice,
+    ) -> bool:
         if indice.direction is None:
             indice.direction = Direction.ASCENDING
 
@@ -41,64 +39,75 @@ class MongoCollection(Collection):
         if name is None:
             name = "_".join([field.get_joined_attrs("_") for field in indice.fields])
             name = f"unique_{name}" if indice.unique else name
-            name = f"{indice.direction.name.lower()}_{name}"
-
-        self.collection.create_index(
-            [field.get_joined_attrs() for field in indice.fields],
-            name=name,
-            unique=indice.unique,
-        )
+            name = f"{indice.direction.name.lower()}_{name}_index"
+        try:
+            self.__collection.create_index(
+                [field.get_joined_attrs() for field in indice.fields],
+                name=name,
+                unique=indice.unique,
+            )
+            return True
+        except:
+            return False
 
     def find(
         self,
-        filter: T | None = None,
-        fields: list[IncludeColumn] | list[str] | None = None,
-        sort: list[SortColumn] | SortColumn | None = None,
+        cls: Type[Document],
+        return_cls: ReturnType,
+        filter: OptionalJson = None,
+        fields: dict[str, bool] | None = None,
+        sort: dict[tuple[str, str | int]] | None = None,
         skip: int = 0,
         limit: int = 0,
-    ) -> list[T]:
-        formatted_fields = fields
-        if fields is not None:
-            if isinstance(fields[0], str):
-                formatted_fields = {field: True for field in fields}
-            else:
-                formatted_fields = {field.name: field.include for field in fields}
+    ) -> list[ReturnType]:
+        return [
+            return_cls(**result)
+            for result in self.__collection.find(
+                filter=filter,
+                projection=fields,
+                sort=sort,
+                skip=skip,
+                limit=limit,
+            )
+        ]
 
-        formatted_sort = sort
-        if sort is not None:
-            if isinstance(sort, list):
-                formatted_sort = [(field.name, field.direction) for field in sort]
-            else:
-                formatted_sort = [(sort.name, sort.direction)]
-
-        return self.collection.find(
-            filter=filter,
-            projection=formatted_fields,
-            sort=formatted_sort,
-            skip=skip,
-            limit=limit,
-        )
-
-    def find_one(self, filter: T | None = None, skip: int = 0) -> dict:
-        return self.collection.find_one(
+    def find_one(
+        self,
+        cls: Type[Document],
+        return_cls: ReturnType,
+        filter: OptionalJson = None,
+        skip: int = 0,
+    ) -> ReturnType:
+        result = self.__collection.find_one(
             filter=filter,
             skip=skip,
         )
+        return return_cls(**result)
 
-    def distinct(self, key: str, filter: T | None = None) -> list[dict]:
-        return self.collection.distinct(
+    def distinct(
+        self,
+        cls: ReturnType,
+        key: str,
+        filter: OptionalJson = None,
+    ) -> list[ReturnType]:
+        result = self.__collection.distinct(
             key=key,
             filter=filter,
         )
+        return cls(**result)
 
-    def count_documents(self, filter: T | None = None) -> int:
-        return self.collection.count_documents(filter=filter)
+    def count_documents(
+        self,
+        cls: Type[Document],
+        filter: OptionalJson = None,
+    ) -> int:
+        return self.__collection.count_documents(filter=filter)
 
     def bulk_write(
         self,
         operations: list[PyMongoOperations],
     ) -> BulkWriteResult:
-        result = self.collection.bulk_write(requests=operations)
+        result = self.__collection.bulk_write(requests=operations)
         return BulkWriteResult(
             deleted_count=result.deleted_count,
             inserted_count=result.inserted_count,
@@ -108,34 +117,30 @@ class MongoCollection(Collection):
             upserted_ids=result.upserted_ids,
         )
 
-    def insert_one(self, data: dict) -> InsertOneResult:
-        result = self.collection.insert_one(document=data)
+    def insert_one(
+        self,
+        _: Type[Document],
+        data: dict,
+    ) -> InsertOneResult:
+        result = self.__collection.insert_one(document=data)
         return InsertOneResult(inserted_id=result.inserted_id)
 
-    def insert_vectors(self, data: dict[str, list[Any]]) -> InsertManyResult:
-        keys = list(data.keys())
-        values_size = len(data[keys[0]])
-
-        instances = [None] * values_size
-        for i in range(values_size):
-            instance = {}
-            for key in keys:
-                instance[key] = data[key][i]
-            instances[i] = instance
-
-        return self.insert_many(instances)
-
-    def insert_many(self, data: list[T]) -> InsertManyResult:
-        result = self.collection.insert_many(documents=data)
+    def insert_many(
+        self,
+        cls: Type[Document],
+        data: list[Json],
+    ) -> InsertManyResult:
+        result = self.__collection.insert_many(documents=data)
         return InsertManyResult(inserted_ids=result.inserted_ids)
 
     def replace_one(
         self,
-        filter: T,
-        replacement: T,
+        cls: Type[Document],
+        filter: Json,
+        replacement: Json,
         upsert: bool = False,
     ) -> ReplaceOneResult:
-        result = self.collection.replace_one(
+        result = self.__collection.replace_one(
             filter=filter,
             replacement=replacement,
             upsert=upsert,
@@ -148,11 +153,12 @@ class MongoCollection(Collection):
 
     def update_one(
         self,
-        filter: T,
-        update: T,
+        cls: Type[Document],
+        filter: Json,
+        update: Json,
         upsert: bool = False,
     ) -> UpdateOneResult:
-        result = self.collection.update_one(
+        result = self.__collection.update_one(
             filter=filter,
             update=update,
             upsert=upsert,
@@ -165,11 +171,12 @@ class MongoCollection(Collection):
 
     def update_many(
         self,
-        filter: T,
-        update: T,
+        cls: Type[Document],
+        filter: Json,
+        update: Json,
         upsert: bool = False,
     ) -> UpdateManyResult:
-        result = self.collection.update_many(
+        result = self.__collection.update_many(
             filter=filter,
             update=update,
             upsert=upsert,
@@ -180,10 +187,18 @@ class MongoCollection(Collection):
             upserted_id=result.upserted_id,
         )
 
-    def delete_one(self, filter: T) -> DeleteOneResult:
-        self.collection.delete_one(filter=filter)
+    def delete_one(
+        self,
+        cls: Type[Document],
+        filter: Json,
+    ) -> DeleteOneResult:
+        self.__collection.delete_one(filter=filter)
         return DeleteOneResult()
 
-    def delete_many(self, filter: T) -> DeleteManyResult:
-        result = self.collection.delete_many(filter=filter)
+    def delete_many(
+        self,
+        cls: Type[Document],
+        filter: Json,
+    ) -> DeleteManyResult:
+        result = self.__collection.delete_many(filter=filter)
         return DeleteManyResult(deleted_count=result.deleted_count)

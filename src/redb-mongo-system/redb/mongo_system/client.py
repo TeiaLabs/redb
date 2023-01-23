@@ -2,7 +2,7 @@ from typing import Sequence
 
 from pymongo import MongoClient as PymongoClient
 
-from redb.interface import Client
+from redb.interface.client import Client
 from redb.interface.configs import MongoConfig
 
 from .database import MongoDatabase

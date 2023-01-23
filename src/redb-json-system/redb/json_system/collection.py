@@ -1,24 +1,21 @@
 import json
 from pathlib import Path
-from typing import Any, Dict, Type, TypeVar
+from typing import Type
 
-from redb.interface import (
+from redb import Document
+from redb.base import BaseDocument
+from redb.interface.collection import Collection, Json, OptionalJson, ReturnType
+from redb.interface.fields import CompoundIndice, PyMongoOperations
+from redb.interface.results import (
     BulkWriteResult,
-    Collection,
     DeleteManyResult,
     DeleteOneResult,
-    IncludeDBColumn,
     InsertManyResult,
     InsertOneResult,
-    PyMongoOperations,
     ReplaceOneResult,
-    SortDBColumn,
     UpdateManyResult,
     UpdateOneResult,
 )
-from redb.interfaces.fields import CompoundIndex
-
-T = TypeVar("T", bound=Document)
 
 
 class JSONCollection(Collection):
@@ -27,190 +24,280 @@ class JSONCollection(Collection):
     def __init__(self, collection: Path, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.collection = collection
+        self.__collection = collection
 
     def _get_driver_collection(self):
-        return self.collecton
+        return self.__collection
 
-    def create_indice(self, _: CompoundIndex) -> None:
-        pass
+    def create_indice(
+        self,
+        indice: CompoundIndice,
+    ) -> bool:
+        raise NotImplementedError
 
     def find(
         self,
-        filter: T | None = None,
-        fields: list[IncludeDBColumn] | list[str] | None = None,
-        sort: list[SortDBColumn] | SortDBColumn | None = None,
+        cls: Type[Document],
+        return_cls: ReturnType,
+        filter: OptionalJson = None,
+        fields: dict[str, bool] | None = None,
+        sort: dict[tuple[str, str | int]] | None = None,
         skip: int = 0,
-        limit: int = 1000,
-    ) -> list[T]:
-        json_files = self.collection.glob("*.json")
-
+        limit: int = 0,
+    ) -> list[ReturnType]:
+        json_files = self.__collection.glob("*.json")
         transform = lambda file_path: json.load(open(file_path))
-
         out = []
-        for json_file in json_files:
-            if json_file.is_file():
-                out.append(transform(json_file))
+        for i, json_file in enumerate(json_files):
+            if i < skip:
+                continue
+            if limit and i > limit:
+                break
+            if not json_file.is_file():
+                continue
+
+            transformed_json: dict = transform(json_file)
+            if filter is not None:
+                ignore_file = False
+                for key in filter:
+                    if key not in transformed_json:
+                        ignore_file = True
+                        break
+                    if transformed_json[key] != filter[key]:
+                        ignore_file = True
+                        break
+                if ignore_file:
+                    continue
+
+            if fields is not None:
+                transformed_json = {
+                    key: value
+                    for key, value in transformed_json.items()
+                    if key in fields
+                }
+
+            out.append(return_cls(**transformed_json))
 
         return out
 
-    def find_vectors(
-        self,
-        column: str | None = None,
-        filter: T | None = None,
-        sort: list[SortDBColumn] | SortDBColumn | None = None,
-        skip: int = 0,
-        limit: int = 1000,
-    ) -> list[T]:
-        pass
-
     def find_one(
         self,
-        filter: T | None = None,
+        cls: Type[Document],
+        return_cls: ReturnType,
+        fields: dict[str, bool] | None = None,
+        filter: OptionalJson = None,
         skip: int = 0,
-    ) -> T:
-        pass
+    ) -> ReturnType:
+        json_files = self.__collection.glob("*.json")
+        transform = lambda file_path: json.load(open(file_path))
+        for i, json_file in enumerate(json_files):
+            if i < skip:
+                continue
+            if json_file.is_symlink():
+                continue
 
-    def find_by_id(self, id: str) -> T | None:
-        json_path = self.collection / Path(f"{id}.json")
-        if json_path.is_file():
-            with open(json_path) as f:
-                data = json.load(f)
-            return data
+            transformed_json: dict = transform(json_file)
+            if filter is not None:
+                ignore_file = False
+                for key in filter:
+                    if key not in transformed_json:
+                        ignore_file = True
+                        break
+                    if transformed_json[key] != filter[key]:
+                        ignore_file = True
+                        break
+                if ignore_file:
+                    continue
+
+            if fields is not None:
+                transformed_json = {
+                    key: value
+                    for key, value in transformed_json.items()
+                    if key in fields
+                }
+
+            return return_cls(**transformed_json)
+
         return None
 
     def distinct(
         self,
+        cls: ReturnType,
         key: str,
-        filter: T | None = None,
-    ) -> list[T]:
-        pass
+        filter: OptionalJson = None,
+    ) -> list[ReturnType]:
+        docs = self.find(cls, return_cls=dict, filter=filter)
+        computed_values = set()
+        out = []
+        for doc in docs:
+            if doc[key] in computed_values:
+                continue
+
+            computed_values.add(doc[key])
+            out.append(cls(**doc))
+
+        return out
 
     def count_documents(
         self,
-        filter: T | None = None,
+        cls: Type[Document],
+        filter: OptionalJson = None,
     ) -> int:
-        json_files = self.collection.glob("*.json")
-        return len(list(json_files))
+        return len(self.find(cls, return_cls=dict, filter=filter))
 
-    def bulk_write(
+    def bulk_write(self, _: list[PyMongoOperations]) -> BulkWriteResult:
+        raise NotImplementedError
+
+    def insert_one(
         self,
-        operations: list[PyMongoOperations],
-    ) -> BulkWriteResult:
-        pass
-
-    def insert_one(self, data: T) -> InsertOneResult:
-        self.collection.mkdir(parents=True, exist_ok=True)
-
-        if not isinstance(data, dict):
-            data = data.dict()
+        cls: Type[Document],
+        data: Json,
+    ) -> InsertOneResult:
+        self.__collection.mkdir(parents=True, exist_ok=True)
 
         id = data["id"]
-        json_path = self.collection / Path(f"{id}.json")
+        json_path = self.__collection / Path(f"{id}.json")
         if json_path.is_file():
-            raise ValueError(f"Document with {id} already exists!")
+            raise ValueError(f"Document with {id} already exists")
 
         with open(json_path, "w") as f:
             json.dump(data, f, indent=4)
 
         return InsertOneResult(inserted_id=id)
 
-    def insert_vectors(
-        self,
-        cls: Type[T],
-        data: Dict[str, list[Any]],
-    ) -> InsertManyResult:
-        size = len(data[next(iter(data.keys()))])
-        ids = []
-        for i in range(size):
-            obj = {k: data[k][i] for k in data}
-            ids.append(self.insert_one(cls(**obj)).inserted_id)
-
-        return InsertManyResult(inserted_ids=ids)
-
     def insert_many(
         self,
-        data: list[T],
+        cls: Type[Document],
+        data: list[Json],
     ) -> InsertManyResult:
         ids = []
         for item in data:
-            ids.append(self.insert_one(item).inserted_id)
+            ids.append(self.insert_one(cls, data=item).inserted_id)
 
         return InsertManyResult(inserted_ids=ids)
 
     def replace_one(
         self,
-        filter: T,
-        replacement: T,
+        cls: Type[Document],
+        filter: Json,
+        replacement: Json,
         upsert: bool = False,
     ) -> ReplaceOneResult:
-        self.collection.mkdir(parents=True, exist_ok=True)
+        doc = self.find_one(cls, return_cls=dict, filter=filter)
+        if doc is None:
+            if not upsert:
+                raise ValueError(f"Document not found")
 
+            self.insert_one(cls, data=replacement)
+            return ReplaceOneResult(
+                matched_count=1,
+                modified_count=1,
+                upserted_id=replacement["id"],
+            )
+
+        original_path = self.__collection / Path(f"{doc['id']}.json")
         upserted = False
-        id = filter.get_hash()
-        json_path = self.collection / Path(f"{id}.json")
-        data = replacement.dict()
-        if json_path.is_file():
-            with open(json_path, "w") as f:
-                json.dump(data, f, indent=4)
-        elif upsert:
+        if replacement["id"] != doc["id"]:
+            # Since the ID has changed, we need to remove the old one
+            original_path.unlink()
             upserted = True
-            with open(json_path, "w") as f:
-                json.dump(data, f, indent=4)
-        else:
-            raise ValueError(f"Document with {id} does not exists!")
+
+        new_path = self.__collection / Path(f"{replacement['id']}.json")
+        with open(new_path, "w") as f:
+            json.dump(replacement, f, indent=4)
 
         return ReplaceOneResult(
             matched_count=1,
             modified_count=1,
-            upserted_id=id if upserted else None,
+            upserted_id=replacement["id"] if upserted else None,
         )
 
     def update_one(
         self,
-        filter: T,
-        update: T,
+        cls: Type[Document],
+        filter: Json,
+        update: Json,
         upsert: bool = False,
     ) -> UpdateOneResult:
-        self.collection.mkdir(parents=True, exist_ok=True)
+        doc = self.find_one(cls, return_cls=dict, filter=filter)
+        if doc is None:
+            if not upsert:
+                raise ValueError(f"Document not found")
+
+            self.insert_one(cls, data=update)
+            return UpdateOneResult(
+                matched_count=1,
+                modified_count=1,
+                upserted_id=update["id"],
+            )
+
+        original_path = self.__collection / Path(f"{doc['id']}.json")
+        with open(original_path, "r") as f:
+            original_content: dict = json.load(f)
+
+        original_content.update(update)
+        if cls is dict:
+            new_id = BaseDocument().get_dict_hash(data=original_content)
+        else:
+            new_id = cls.get_hash(data=original_content)
 
         upserted = False
-        id = filter.get_hash()
-        json_path = self.collection / Path(f"{id}.json")
-        obj = update.dict(exclude_unset=True)
-        if json_path.is_file():
-            with open(json_path) as f:
-                data = json.load(f)
-
-            data.update(obj)
-            with open(json_path, "w") as f:
-                json.dump(data, f, indent=4)
-
-        elif upsert:
+        if doc["id"] != new_id:
+            # Since the ID has changed, we need to remove the old one
+            original_path.unlink()
             upserted = True
-            with open(json_path, "w") as f:
-                json.dump(data, f, indent=4)
-        else:
-            raise ValueError(f"Document with {id} does not exists!")
+
+        original_content["id"] = new_id
+        new_path = self.__collection / Path(f"{new_id}.json")
+        with open(new_path, "w") as f:
+            json.dump(original_content, f, indent=4)
 
         return UpdateOneResult(
             matched_count=1,
             modified_count=1,
-            upserted_id=id if upserted else None,
+            upserted_id=new_id if upserted else None,
         )
 
     def update_many(
         self,
-        filter: T,
-        update: T,
+        cls: Type[Document],
+        filter: Json,
+        update: Json,
         upsert: bool = False,
     ) -> UpdateManyResult:
         upserted_ids = []
+        docs = self.find(cls, return_cls=dict, filter=filter)
+        if not docs:
+            if not upsert:
+                raise ValueError(f"Document not found")
 
-        documents = filter.find()
-        for document in documents:
-            result = document.update_one(document, update, upsert)
-            upserted_ids.append(result.upserted_id)
+            self.insert_one(cls, data=update)
+            return UpdateManyResult(
+                matched_count=1,
+                modified_count=1,
+                upserted_id=update["id"],
+            )
+
+        for doc in docs:
+            original_path = self.__collection / Path(f"{doc['id']}.json")
+            with open(original_path, "r") as f:
+                original_content: dict = json.load(f)
+
+            original_content.update(update)
+            if cls is dict:
+                new_id = BaseDocument().get_dict_hash(data=original_content)
+            else:
+                new_id = cls.get_hash(data=original_content)
+
+            if doc["id"] != new_id:
+                # Since the ID has changed, we need to remove the old one
+                original_path.unlink()
+                upserted_ids.append(new_id)
+
+            original_content["id"] = new_id
+            new_path = self.__collection / Path(f"{new_id}.json")
+            with open(new_path, "w") as f:
+                json.dump(original_content, f, indent=4)
 
         return UpdateManyResult(
             matched_count=len(filter),
@@ -218,21 +305,27 @@ class JSONCollection(Collection):
             upserted_id=upserted_ids,
         )
 
-    def delete_one(self, filter: T) -> DeleteOneResult:
-        id = filter.get_hash()
-        file = self.collection / f"{id}.json"
-        if not file.exists():
-            raise ValueError(f"Document with {id} does not exists!")
+    def delete_one(
+        self,
+        cls: Type[Document],
+        filter: Json,
+    ) -> DeleteOneResult:
+        doc = self.find_one(cls, return_cls=dict, filter=filter)
+        if doc is None:
+            raise ValueError(f"Document not found")
 
+        file = self.__collection / f"{doc['id']}.json"
         file.unlink()
         return DeleteOneResult()
 
     def delete_many(
         self,
-        filter: T,
+        cls: Type[Document],
+        filter: Json,
     ) -> DeleteManyResult:
-        documents = filter.find()
-        for document in documents:
-            document.delete_one()
+        docs = self.find(cls, return_cls=dict, filter=filter)
+        for doc in docs:
+            file = self.__collection / f"{doc['id']}.json"
+            file.unlink()
 
-        return DeleteManyResult(deleted_count=len(documents))
+        return DeleteManyResult(deleted_count=len(docs))

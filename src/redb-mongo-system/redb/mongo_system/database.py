@@ -1,7 +1,7 @@
 from pymongo.database import Database as PymongoDatabase
 from pymongo.errors import CollectionInvalid
 
-from redb.interface import Database
+from redb.interface.database import Database
 
 from .collection import MongoCollection
 
@@ -36,5 +36,5 @@ class MongoDatabase(Database):
         except CollectionInvalid:
             return False
 
-    def __getitem__(self, name) -> MongoCollection:
+    def __getitem__(self, name: str) -> MongoCollection:
         return self.get_collection(name)

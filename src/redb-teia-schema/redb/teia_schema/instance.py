@@ -2,7 +2,9 @@ from typing import Optional
 
 import pandas as pd
 from pydantic import BaseModel
-from redb import ClassField, CompoundIndex, Document, Index
+
+from redb import Document
+from redb.interface.fields import ClassField, CompoundIndice, Indice
 
 
 class Embedding(BaseModel):
@@ -18,8 +20,8 @@ class Instance(Document):
     kb_name: Optional[str]
     query_embedding: Optional[list[Embedding]] = []
     query: Optional[str]
-    url: Optional[str] # TODO: this should be a set/list
-    id: str # this is an auto-filled id
+    url: Optional[str]  # TODO: this should be a set/list
+    id: str  # this is an auto-filled id
 
     @classmethod
     def get_hashable_fields(cls) -> list[ClassField]:
@@ -30,8 +32,8 @@ class Instance(Document):
         return indices
 
     @classmethod
-    def get_indices(cls) -> list[Index | CompoundIndex]:
-        return [Index(field=cls.id)]
+    def get_indices(cls) -> list[Indice | CompoundIndice]:
+        return [Indice(field=cls.id)]
 
     @classmethod
     def content_embedding_name(cls):
@@ -87,26 +89,24 @@ class Instance(Document):
     def from_row(cls, dataframe_row: pd.DataFrame):
 
         content_embedding = None
-        if ("content_embedding.vector" in dataframe_row and
-            dataframe_row["content_embedding.vector"] is not None):
-            content_embedding = [Embedding(
-                model_name=dataframe_row["content_embedding.model_name"],
-                model_type=dataframe_row["content_embedding.model_type"],
-                vector=dataframe_row["content_embedding.vector"],
-            )]
+        if (
+            "content_embedding.vector" in dataframe_row
+            and dataframe_row["content_embedding.vector"] is not None
+        ):
+            content_embedding = [
+                Embedding(
+                    model_name=dataframe_row["content_embedding.model_name"],
+                    model_type=dataframe_row["content_embedding.model_type"],
+                    vector=dataframe_row["content_embedding.vector"],
+                )
+            ]
 
-        inst = cls(
-            content_embedding=content_embedding,
-            **dataframe_row.to_dict()
-        )
+        inst = cls(content_embedding=content_embedding, **dataframe_row.to_dict())
         return inst
 
     @classmethod
     def from_df(cls, dataframe: pd.DataFrame) -> list:
-       return [
-            cls.from_row(x[1])
-            for x in dataframe.iterrows()
-        ]
+        return [cls.from_row(x[1]) for x in dataframe.iterrows()]
 
     @classmethod
     def insert_dataframe(cls, dataframe: pd.DataFrame) -> list:
@@ -115,7 +115,3 @@ class Instance(Document):
         ]
 
         return cls.insert_many(instances)
-
-
-Embedding.update_forward_refs()
-Instance.update_forward_refs()

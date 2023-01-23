@@ -2,8 +2,10 @@ from typing import Sequence
 
 from migo.client import Client as MigoDriverClient
 
-from .database import MigoDatabase
+from redb.interface.client import Client
 from redb.interface.configs import MigoConfig
+
+from .database import MigoDatabase
 
 
 class MigoClient(Client):
@@ -20,5 +22,24 @@ class MigoClient(Client):
     def _get_driver_client(self) -> MigoDriverClient:
         return self.__migo_driver
 
+    def get_default_database(self) -> MigoDatabase:
+        return MigoDatabase(self.__migo_driver.get_default_database())
+
     def get_databases(self) -> Sequence[MigoDatabase]:
-        return self.__migo_driver.get_databases()
+        return [
+            MigoDatabase(database) for database in self.__migo_driver.get_databases()
+        ]
+
+    def drop_database(self, name: str) -> bool:
+        try:
+            self.__migo_driver.drop_database(name)
+            return True
+        except:
+            return False
+
+    def close(self) -> bool:
+        try:
+            self.__migo_driver.close()
+            return True
+        except:
+            return False

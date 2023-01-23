@@ -1,13 +1,32 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, ForwardRef, TypeVar
+from typing import Any, ForwardRef, TypeVar, Union
 
 import pymongo
 from pydantic import BaseModel
-from pydantic.fields import ModelField
-from pydantic.main import FieldInfo as PydanticFieldInfo
+from pydantic.fields import FieldInfo, ModelField
+from pymongo.operations import (
+    DeleteMany,
+    DeleteOne,
+    InsertOne,
+    ReplaceOne,
+    UpdateMany,
+    UpdateOne,
+)
 
 T = TypeVar("T")
+
+PyMongoOperations = TypeVar(
+    "PyMongoOperations",
+    bound=Union[
+        InsertOne,
+        DeleteOne,
+        DeleteMany,
+        ReplaceOne,
+        UpdateOne,
+        UpdateMany,
+    ],
+)
 
 
 class Direction(Enum):
@@ -43,6 +62,19 @@ class CompoundIndice:
     direction: Direction | None = None
 
 
+class Field(FieldInfo):
+    def __init__(
+        self,
+        vector_type: str | None = None,
+        dimensions: int | None = None,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.vector_type = vector_type
+        self.dimensions = dimensions
+
+
 class ClassField:
     def __init__(self, model_field: ModelField, base_class: BaseModel):
         self.model_field = model_field
@@ -64,7 +96,7 @@ class ClassField:
         return obj
 
     def get_joined_attrs(self, char: str = ".") -> str:
-        return char.join(self.attr_names)
+        return char.join(self.attr_names).replace("[0]", "")
 
     def __getattribute__(self, name: str) -> Any:
         if name in {
@@ -77,8 +109,8 @@ class ClassField:
             return super().__getattribute__(name)
 
         try:
-            annotation = __get_unwrapped_annotation(self.model_field.annotation)
-            base_class = __get_type_from_annotation(annotation, self.base_class)
+            annotation = _get_unwrapped_annotation(self.model_field.annotation)
+            base_class = _get_type_from_annotation(annotation, self.base_class)
 
             if not hasattr(base_class, "__fields__"):
                 raise AttributeError
@@ -99,19 +131,19 @@ class ClassField:
         return self
 
 
-def __get_unwrapped_annotation(annotation: T) -> T:
-    annotation = __unwrap_optional(annotation)
-    annotation = __unwrap_iterable(annotation)
+def _get_unwrapped_annotation(annotation: T) -> T:
+    annotation = _unwrap_optional(annotation)
+    annotation = _unwrap_iterable(annotation)
     return annotation
 
 
-def __unwrap_optional(annotation: T) -> T:
+def _unwrap_optional(annotation: T) -> T:
     if hasattr(annotation, "_name") and annotation._name == "Optional":
         return annotation.__args__[0]
     return annotation
 
 
-def __unwrap_iterable(annotation: T) -> T:
+def _unwrap_iterable(annotation: T) -> T:
     if hasattr(annotation, "__args__"):
         if annotation.__origin__ not in {list, set}:
             raise ValueError("Are you trying to outsmart me!? HA HA")
@@ -119,7 +151,7 @@ def __unwrap_iterable(annotation: T) -> T:
     return annotation
 
 
-def __get_type_from_annotation(annotation: T, base_class: BaseModel) -> BaseModel:
+def _get_type_from_annotation(annotation: T, base_class: BaseModel) -> BaseModel:
     if isinstance(annotation, ForwardRef):
         if not annotation.__forward_evaluated__:
             base_class.update_forward_refs()
