@@ -25,7 +25,7 @@ T = TypeVar("T", bound=Type[MigoDocument | MigoFilter])
 
 
 @lru_cache(maxsize=128)
-def __build_migo_data(
+def _build_migo_data(
     cls: Type[Document],
     data: OptionalJson,
     out: T,
@@ -52,7 +52,7 @@ def __build_migo_data(
 
 
 @lru_cache(maxsize=128)
-def __build_migo_fields(
+def _build_migo_fields(
     cls: Type[Document],
     fields: dict[str, bool] | None,
 ) -> list[MigoField] | None:
@@ -128,8 +128,8 @@ class MigoCollection(Collection):
             else:
                 formatted_sort = [(sort.name, sort.direction)]
 
-        migo_filter = __build_migo_data(cls, data=filter, out=MigoFilter)
-        migo_fields = __build_migo_fields(cls, formatted_fields)
+        migo_filter = _build_migo_data(cls, data=filter, out=MigoFilter)
+        migo_fields = _build_migo_fields(cls, formatted_fields)
         results = self.__collection.find_many(
             filter=migo_filter,
             sort=formatted_sort,
@@ -153,8 +153,8 @@ class MigoCollection(Collection):
             else:
                 formatted_fields = {field.name: field.include for field in fields}
 
-        migo_filter = __build_migo_data(cls, data=filter, out=MigoFilter)
-        migo_fields = __build_migo_fields(cls, formatted_fields)
+        migo_filter = _build_migo_data(cls, data=filter, out=MigoFilter)
+        migo_fields = _build_migo_fields(cls, formatted_fields)
         results = self.__collection.find_one(filter=migo_filter, fields=migo_fields)
         return [return_cls(**result) for result in results]
 
@@ -164,7 +164,7 @@ class MigoCollection(Collection):
         key: str,
         filter: OptionalJson = None,
     ) -> list[ReturnType]:
-        migo_filter = __build_migo_data(cls, data=filter, out=MigoFilter)
+        migo_filter = _build_migo_data(cls, data=filter, out=MigoFilter)
         result = self.__collection.distinct(key=key, filter=migo_filter)
         return cls(**result)
 
@@ -173,7 +173,7 @@ class MigoCollection(Collection):
         cls: Type[Document],
         filter: OptionalJson = None,
     ) -> int:
-        migo_filter = __build_migo_data(cls, data=filter, out=MigoFilter)
+        migo_filter = _build_migo_data(cls, data=filter, out=MigoFilter)
         return self.count_documents(filter=migo_filter)
 
     def bulk_write(self, _: list[PyMongoOperations]) -> BulkWriteResult:
@@ -184,7 +184,7 @@ class MigoCollection(Collection):
         cls: Type[Document],
         data: Json,
     ) -> InsertOneResult:
-        migo_data = __build_migo_data(cls, data=data, out=MigoDocument)
+        migo_data = _build_migo_data(cls, data=data, out=MigoDocument)
         return self.__collection.insert_one(data=migo_data)
 
     def insert_many(
@@ -194,7 +194,7 @@ class MigoCollection(Collection):
     ) -> InsertManyResult:
         migo_data = BatchDocument(mongo_documents=[], milvus_arrays=[])
         for value in data:
-            migo_doc = __build_migo_data(cls, data=value, out=MigoDocument)
+            migo_doc = _build_migo_data(cls, data=value, out=MigoDocument)
             if migo_doc.mongo_document is not None:
                 migo_data.mongo_documents.append(migo_doc.mongo_document)
             if migo_doc.milvus_array:
@@ -209,8 +209,8 @@ class MigoCollection(Collection):
         replacement: Json,
         upsert: bool = False,
     ) -> ReplaceOneResult:
-        migo_doc = __build_migo_data(cls, data=replacement, out=MigoDocument)
-        migo_filter = __build_migo_data(cls, data=filter, out=MigoFilter)
+        migo_doc = _build_migo_data(cls, data=replacement, out=MigoDocument)
+        migo_filter = _build_migo_data(cls, data=filter, out=MigoFilter)
         return self.__collection.replace_one(
             data=migo_doc,
             filter=migo_filter,
@@ -224,8 +224,8 @@ class MigoCollection(Collection):
         update: Json,
         upsert: bool = False,
     ) -> UpdateOneResult:
-        migo_doc = __build_migo_data(cls, data=update, out=MigoDocument)
-        migo_filter = __build_migo_data(cls, data=filter, out=MigoDocument)
+        migo_doc = _build_migo_data(cls, data=update, out=MigoDocument)
+        migo_filter = _build_migo_data(cls, data=filter, out=MigoDocument)
         return self.__collection.update_one(
             data=migo_doc,
             filter=migo_filter,
@@ -239,8 +239,8 @@ class MigoCollection(Collection):
         update: Json,
         upsert: bool = False,
     ) -> UpdateManyResult:
-        migo_doc = __build_migo_data(cls, data=update, out=MigoDocument)
-        migo_filter = __build_migo_data(cls, data=filter, out=MigoFilter)
+        migo_doc = _build_migo_data(cls, data=update, out=MigoDocument)
+        migo_filter = _build_migo_data(cls, data=filter, out=MigoFilter)
         return self.__collection.update_many(
             data=migo_doc,
             filter=migo_filter,
@@ -252,7 +252,7 @@ class MigoCollection(Collection):
         cls: Type[Document],
         filter: Json,
     ) -> DeleteOneResult:
-        migo_filter = __build_migo_data(cls, data=filter, out=MigoFilter)
+        migo_filter = _build_migo_data(cls, data=filter, out=MigoFilter)
         return self.__collection.delete_one(filter=migo_filter)
 
     def delete_many(
@@ -260,5 +260,5 @@ class MigoCollection(Collection):
         cls: Type[Document],
         filter: Json,
     ) -> DeleteManyResult:
-        migo_filter = __build_migo_data(cls, data=filter, out=MigoFilter)
+        migo_filter = _build_migo_data(cls, data=filter, out=MigoFilter)
         return self.__collection.delete_many(filter=migo_filter)
