@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import setuptools
 
-# For local development only
-root = Path(__file__).parent.absolute().as_posix()
-BASE_URL = f"file://localhost/{root}/src"
-
-# BASE_URL = "git+ssh://git@github.com/TeiaLabs/redb.git#subdirectory=src"
+if os.environ.get("REDB_LOCAL"):
+    # For local development only
+    root = Path(__file__).parent.absolute().as_posix()
+    BASE_URL = f"file://localhost/{root}/src"
+else:
+    BASE_URL = "git+ssh://git@github.com/TeiaLabs/redb.git#subdirectory=src"
 
 systems = {
     "json": f"redb_json_system @ {BASE_URL}/redb-json-system",
