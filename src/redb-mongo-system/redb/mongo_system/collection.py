@@ -4,7 +4,7 @@ from pymongo.collection import Collection as PymongoCollection
 
 from redb import Document
 from redb.interface.collection import Collection, Json, OptionalJson, ReturnType
-from redb.interface.fields import CompoundIndice, Direction, PyMongoOperations
+from redb.interface.fields import CompoundIndex, Direction, PyMongoOperations
 from redb.interface.results import (
     BulkWriteResult,
     DeleteManyResult,
@@ -28,23 +28,23 @@ class MongoCollection(Collection):
     def _get_driver_collection(self) -> PymongoCollection:
         return self.__collection
 
-    def create_indice(
+    def create_index(
         self,
-        indice: CompoundIndice,
+        index: CompoundIndex,
     ) -> bool:
-        if indice.direction is None:
-            indice.direction = Direction.ASCENDING
+        if index.direction is None:
+            index.direction = Direction.ASCENDING
 
-        name = indice.name
+        name = index.name
         if name is None:
-            name = "_".join([field.get_joined_attrs("_") for field in indice.fields])
-            name = f"unique_{name}" if indice.unique else name
-            name = f"{indice.direction.name.lower()}_{name}_index"
+            name = "_".join([field.get_joined_attrs("_") for field in index.fields])
+            name = f"unique_{name}" if index.unique else name
+            name = f"{index.direction.name.lower()}_{name}_index"
         try:
             self.__collection.create_index(
-                [field.get_joined_attrs() for field in indice.fields],
+                [field.get_joined_attrs() for field in index.fields],
                 name=name,
-                unique=indice.unique,
+                unique=index.unique,
             )
             return True
         except:

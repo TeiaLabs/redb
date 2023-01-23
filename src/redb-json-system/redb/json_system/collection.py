@@ -5,7 +5,7 @@ from typing import Type
 from redb import Document
 from redb.base import BaseDocument
 from redb.interface.collection import Collection, Json, OptionalJson, ReturnType
-from redb.interface.fields import CompoundIndice, PyMongoOperations
+from redb.interface.fields import CompoundIndex, PyMongoOperations
 from redb.interface.results import (
     BulkWriteResult,
     DeleteManyResult,
@@ -29,9 +29,9 @@ class JSONCollection(Collection):
     def _get_driver_collection(self):
         return self.__collection
 
-    def create_indice(
+    def create_index(
         self,
-        indice: CompoundIndice,
+        index: CompoundIndex,
     ) -> bool:
         raise NotImplementedError
 

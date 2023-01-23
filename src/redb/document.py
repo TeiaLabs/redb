@@ -2,10 +2,10 @@ from datetime import datetime
 from typing import Any, Dict, Type, TypeVar
 
 from redb.interface.fields import (
-    CompoundIndice,
+    CompoundIndex,
     Field,
     IncludeColumn,
-    Indice,
+    Index,
     PyMongoOperations,
     SortColumn,
 )
@@ -66,12 +66,12 @@ class Document(BaseDocument):
         return out
 
     @classmethod
-    def create_indices(cls: Type["Document"]) -> None:
+    def create_indexes(cls: Type["Document"]) -> None:
         collection = Document._get_collection(cls)
-        indices = cls.get_indices()
-        for indice in indices:
-            indice = _format_indice(indice)
-            collection.create_indice(indice)
+        indexes = cls.get_indexes()
+        for index in indexes:
+            index = _format_index(index)
+            collection.create_index(index)
 
     @classmethod
     def find(
@@ -299,13 +299,13 @@ def _format_document_data(data: OptionalDocumentData):
     return data
 
 
-def _format_indice(indice: Indice | CompoundIndice):
-    if isinstance(indice, Indice):
-        indice = CompoundIndice(
-            fields=[indice.field],
-            name=indice.name,
-            unique=indice.unique,
-            direction=indice.direction,
+def _format_index(index: Index | CompoundIndex):
+    if isinstance(index, Index):
+        index = CompoundIndex(
+            fields=[index.field],
+            name=index.name,
+            unique=index.unique,
+            direction=index.direction,
         )
 
-    return indice
+    return index

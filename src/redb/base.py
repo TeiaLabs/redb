@@ -6,7 +6,7 @@ from pydantic.error_wrappers import ErrorWrapper
 from pydantic.errors import MissingError
 from pydantic.main import ModelMetaclass
 
-from redb.interface.fields import ClassField, CompoundIndice, Indice
+from redb.interface.fields import ClassField, CompoundIndex, Index
 
 from .instance import RedB
 
@@ -104,7 +104,7 @@ class BaseDocument(BaseModel, metaclass=DocumentMetaclass):
         return cls.__name__.lower()
 
     @classmethod
-    def get_indices(cls) -> list[Indice | CompoundIndice]:
+    def get_indexes(cls) -> list[Index | CompoundIndex]:
         return []
 
     @classmethod
@@ -126,9 +126,7 @@ class BaseDocument(BaseModel, metaclass=DocumentMetaclass):
             get_attribute = lambda attr_name: getattr(self, attr_name)
 
         if isinstance(fields[0], str):
-            key_val_tuples = [
-                (field, str(get_attribute(field))) for field in fields
-            ]
+            key_val_tuples = [(field, str(get_attribute(field))) for field in fields]
         else:
             key_val_tuples = [
                 (field.alias, str(get_attribute(field.alias).get_hash()))

@@ -47,7 +47,7 @@ class SortColumn(Column):
 
 
 @dataclass
-class Indice:
+class Index:
     field: "ClassField"
     name: str | None = None
     unique: bool = False
@@ -55,7 +55,7 @@ class Indice:
 
 
 @dataclass
-class CompoundIndice:
+class CompoundIndex:
     fields: list["ClassField"]
     name: str | None = None
     unique: bool = False

@@ -4,7 +4,7 @@ import pandas as pd
 from pydantic import BaseModel
 
 from redb import Document
-from redb.interface.fields import ClassField, CompoundIndice, Indice
+from redb.interface.fields import ClassField, CompoundIndex, Index
 
 
 class Embedding(BaseModel):
@@ -25,15 +25,15 @@ class Instance(Document):
 
     @classmethod
     def get_hashable_fields(cls) -> list[ClassField]:
-        indices = [
+        fields = [
             cls.kb_name,
             cls.content,
         ]
-        return indices
+        return fields
 
     @classmethod
-    def get_indices(cls) -> list[Indice | CompoundIndice]:
-        return [Indice(field=cls.id)]
+    def get_indexes(cls) -> list[Index | CompoundIndex]:
+        return [Index(field=cls.id)]
 
     @classmethod
     def content_embedding_name(cls):

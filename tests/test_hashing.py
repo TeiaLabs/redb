@@ -1,6 +1,6 @@
 from redb import ClassField, Document, RedB
 from redb.interface.configs import MongoConfig
-from redb.interface.fields import CompoundIndice, Direction, Field, Indice
+from redb.interface.fields import CompoundIndex, Direction, Field, Index
 
 
 def test_simple_case():

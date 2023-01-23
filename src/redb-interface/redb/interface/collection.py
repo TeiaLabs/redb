@@ -3,7 +3,7 @@ from typing import Any, Type, TypeVar
 
 from redb.base import BaseDocument
 
-from .fields import CompoundIndice, PyMongoOperations
+from .fields import CompoundIndex, PyMongoOperations
 from .results import (
     BulkWriteResult,
     DeleteManyResult,
@@ -35,9 +35,9 @@ class Collection(ABC):
         pass
 
     @abstractmethod
-    def create_indice(
+    def create_index(
         self,
-        indice: CompoundIndice,
+        index: CompoundIndex,
     ) -> bool:
         pass
 
