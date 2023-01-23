@@ -37,12 +37,12 @@ class MongoCollection(Collection):
 
         name = index.name
         if name is None:
-            name = "_".join([field.get_joined_attrs("_") for field in index.fields])
+            name = "_".join([field.join_attrs("_") for field in index.fields])
             name = f"unique_{name}" if index.unique else name
             name = f"{index.direction.name.lower()}_{name}_index"
         try:
             self.__collection.create_index(
-                [field.get_joined_attrs() for field in index.fields],
+                [field.join_attrs() for field in index.fields],
                 name=name,
                 unique=index.unique,
             )

@@ -84,18 +84,23 @@ class ClassField:
     def resolve(self, obj: T) -> T | None:
         for attr_name in self.attr_names:
             if not obj:
-                return None
+                return obj
+            if isinstance(obj, dict):
+                get_attribute = lambda attr_name: obj[attr_name]
+            else:
+                get_attribute = lambda attr_name: getattr(obj, attr_name)
+
             if attr_name.endswith("[0]"):
                 # If the attribute is iterable, we get its firts object
-                obj = getattr(obj, attr_name[: attr_name.rindex("[0]")])
+                obj = get_attribute(attr_name[: attr_name.rindex("[0]")])
                 obj = obj[0]
             else:
                 # Otherwise just get it
-                obj = getattr(obj, attr_name)
+                obj = get_attribute(attr_name)
 
         return obj
 
-    def get_joined_attrs(self, char: str = ".") -> str:
+    def join_attrs(self, char: str = ".") -> str:
         return char.join(self.attr_names).replace("[0]", "")
 
     def __getattribute__(self, name: str) -> Any:
@@ -104,7 +109,7 @@ class ClassField:
             "base_class",
             "attr_names",
             "resolve",
-            "get_joined_attrs",
+            "join_attrs",
         }:
             return super().__getattribute__(name)
 

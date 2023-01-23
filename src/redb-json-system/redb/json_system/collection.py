@@ -226,7 +226,7 @@ class JSONCollection(Collection):
 
         original_content.update(update)
         if cls is dict:
-            new_id = BaseDocument().get_dict_hash(data=original_content)
+            new_id = BaseDocument().get_dict_hash(data=original_content, use_data_fields=True)
         else:
             new_id = cls.get_hash(data=original_content)
 
@@ -274,7 +274,7 @@ class JSONCollection(Collection):
 
             original_content.update(update)
             if cls is dict:
-                new_id = BaseDocument().get_dict_hash(data=original_content)
+                new_id = BaseDocument().get_dict_hash(data=original_content, use_data_fields=True)
             else:
                 new_id = cls.get_hash(data=original_content)
 

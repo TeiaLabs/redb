@@ -1,5 +1,5 @@
 import hashlib
-from typing import Any, ClassVar, Type
+from typing import Any, Callable, ClassVar, Type
 
 from pydantic import BaseModel
 from pydantic.main import ModelMetaclass
@@ -119,35 +119,30 @@ class BaseDocument(BaseModel, metaclass=DocumentMetaclass):
         data: dict[str, Any] | None = None,
     ) -> list[tuple[str, Any]]:
         if data:
-            get_attribute = lambda attr_name: data[attr_name]
+            if isinstance(fields[0], str):
+                transform = lambda field: (field, data[field])
+            else:
+                transform = lambda field: (field.join_attrs(), field.resolve(data))
         else:
-            get_attribute = lambda attr_name: getattr(self, attr_name)
+            transform = lambda field: (field.join_attrs(), field.resolve(self))
 
-        if isinstance(fields[0], str):
-            key_val_tuples = [(field, str(get_attribute(field))) for field in fields]
-        else:
-            key_val_tuples = [
-                (field.alias, str(get_attribute(field.alias).get_hash()))
-                if isinstance(field, BaseDocument)
-                else (field.alias, str(get_attribute(field.alias)))
-                for field in fields
-            ]
+        key_val_tuples = [transform(field) for field in fields]
         return key_val_tuples
 
     @staticmethod
     def _assemble_hash_string(fields: list[tuple[str, Any]]) -> str:
         return "|".join([str(val) for _, val in fields])
 
-    def get_hash(self, data: dict[str, Any] | None = None) -> str:
-        fields = self.get_hashable_fields()
-        if not fields:
-            raise ValueError("No hashable fields found.")
-        key_val_tuples = self._get_key_value_tuples_for_hash(fields, data)
-        string = self._assemble_hash_string(key_val_tuples)
-        return self.hash_function(string)
+    def get_hash(
+        self,
+        data: dict[str, Any] | None = None,
+        user_data_fields: bool = False,
+    ) -> str:
+        if user_data_fields:
+            fields = list(data.keys())
+        else:
+            fields = self.get_hashable_fields()
 
-    def get_dict_hash(self, data: dict[str, Any]) -> str:
-        fields = list(data.keys())
         if not fields:
             raise ValueError("No hashable fields found.")
         key_val_tuples = self._get_key_value_tuples_for_hash(fields, data)
