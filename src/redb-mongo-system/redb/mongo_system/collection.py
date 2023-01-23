@@ -1,4 +1,4 @@
-from typing import Type
+from typing import Any, Type
 
 from pymongo.collection import Collection as PymongoCollection
 
@@ -89,12 +89,12 @@ class MongoCollection(Collection):
         cls: ReturnType,
         key: str,
         filter: OptionalJson = None,
-    ) -> list[ReturnType]:
-        result = self.__collection.distinct(
+    ) -> list[Any]:
+        results = self.__collection.distinct(
             key=key,
             filter=filter,
         )
-        return cls(**result)
+        return results
 
     def count_documents(
         self,
