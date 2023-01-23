@@ -1,6 +1,7 @@
 import hashlib
 from typing import Any, ClassVar, Type
 
+from pydantic import BaseModel
 from pydantic.main import ModelMetaclass
 
 from redb.interface.fields import ClassField, CompoundIndex, Index
