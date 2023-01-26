@@ -1,3 +1,5 @@
+[logo](https://github.com/TeiaLabs/redb/resources/images/redb.png)
+
 # redb
 
 Vector-focused research database.
