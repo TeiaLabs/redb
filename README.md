@@ -1,4 +1,4 @@
-[logo](https://github.com/TeiaLabs/redb/resources/images/redb.png)
+[logo](https://github.com/TeiaLabs/redb/tree/master/resources/images/redb.png)
 
 # redb
 
