@@ -17,7 +17,7 @@ class Instance(Document):
     content_embedding: Optional[list[Embedding]]
     content: str
     data_type: Optional[str] = "text"
-    file_id: str
+    file_id: Optional[str]
     kb_name: Optional[str]
     query: Optional[str]
     query_embedding: Optional[list[Embedding]] = []
