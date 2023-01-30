@@ -89,11 +89,18 @@ class MongoCollection(Collection):
         cls: ReturnType,
         key: str,
         filter: OptionalJson = None,
-    ) -> list[Any]:
-        results = self.__collection.distinct(
-            key=key,
+        fields: dict[str, bool] | None = None,
+        sort: dict[tuple[str, str | int]] | None = None,
+        skip: int = 0,
+        limit: int = 0,
+    ) -> list[ReturnType]:
+        results = self.__collection.find(
             filter=filter,
-        )
+            projection=fields,
+            sort=sort,
+            skip=skip,
+            limit=limit,
+        ).distinct(key=key)
         return results
 
     def count_documents(

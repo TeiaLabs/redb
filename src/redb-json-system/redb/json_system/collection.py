@@ -113,8 +113,23 @@ class JSONCollection(Collection):
         cls: ReturnType,
         key: str,
         filter: OptionalJson = None,
+        fields: dict[str, bool] | None = None,
+        sort: dict[tuple[str, str | int]] | None = None,
+        skip: int = 0,
+        limit: int = 0,
     ) -> list[ReturnType]:
-        docs = self.find(cls, return_cls=dict, filter=filter)
+        if key not in fields:
+            fields[key] = True
+
+        docs = self.find(
+            cls,
+            return_cls=dict,
+            filter=filter,
+            fields=fields,
+            sort=sort,
+            skip=skip,
+            limit=limit,
+        )
         computed_values = set()
         out = []
         for doc in docs:
@@ -227,7 +242,9 @@ class JSONCollection(Collection):
         if "id" in update:
             new_id = update["id"]
         elif cls is dict:
-            new_id = BaseDocument().get_hash(data=original_content, use_data_fields=True)
+            new_id = BaseDocument().get_hash(
+                data=original_content, use_data_fields=True
+            )
         else:
             new_id = cls.get_hash(data=original_content)
 
@@ -277,7 +294,9 @@ class JSONCollection(Collection):
             if "id" in update:
                 new_id = update["id"]
             elif cls is dict:
-                new_id = BaseDocument().get_dict_hash(data=original_content, use_data_fields=True)
+                new_id = BaseDocument().get_dict_hash(
+                    data=original_content, use_data_fields=True
+                )
             else:
                 new_id = cls.get_hash(data=original_content)
 
