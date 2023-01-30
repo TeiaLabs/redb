@@ -1,8 +1,9 @@
-![logo](https://raw.githubusercontent.com/TeiaLabs/redb/master/resources/images/redb.png?token=GHSAT0AAAAAAB5JT5ULS6M6WR4GFNDWIMS6Y6SYKWQ)
-
 # redb
 
 Vector-focused research database.
+
+
+<img src="resources/images/redb.png" width="256">
 
 # Installation
 
