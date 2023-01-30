@@ -1,8 +1,9 @@
-![logo](resources/images/redb.png)
-
 # redb
 
 Vector-focused research database.
+
+
+<img src="resources/images/redb.png" width="256">
 
 # Installation
 
