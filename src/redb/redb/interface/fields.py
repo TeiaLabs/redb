@@ -137,6 +137,9 @@ class ClassField:
         self.attr_names[-1] = f"{self.attr_names[-1]}[0]"
         return self
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.attr_names})"
+
 
 def _get_unwrapped_annotation(annotation: T) -> T:
     annotation = _unwrap_optional(annotation)
