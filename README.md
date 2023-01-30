@@ -1,4 +1,4 @@
-![logo](https://raw.githubusercontent.com/TeiaLabs/redb/master/resources/images/redb.png?token=GHSAT0AAAAAAB5JT5ULS6M6WR4GFNDWIMS6Y6SYKWQ)
+![logo](resources/images.png)
 
 # redb
 
