@@ -17,6 +17,7 @@ class Instance(Document):
     content_embedding: Optional[list[Embedding]]
     content: str
     data_type: Optional[str] = "text"
+    file_id: str
     kb_name: Optional[str]
     query: Optional[str]
     query_embedding: Optional[list[Embedding]] = []
@@ -57,7 +58,9 @@ class Instance(Document):
 
     @classmethod
     def get_kb_names(cls) -> set:
-        return set(cls.distinct(key="kb_name"))
+        instances = cls.distinct(key="kb_name")
+        kb_names = set([instance.kb_name for instance in instances])
+        return kb_names
 
     @classmethod
     def get_model_instances(cls, model_type, model_name):
