@@ -2,30 +2,40 @@
 
 Vector-focused research database.
 
+<img src="resources/images/redb.png" align="center" width="256">
 
-<img src="resources/images/redb.png" width="256">
+## Dev setup
 
-# Installation
+```bash
+pip install \
+    -e ./src/redb \
+    -e ./src/redb-json-system/ \
+    -e ./src/redb-migo-system/ \
+    -e ./src/redb-mongo-system/ \
+    -e ./src/redb-teia-schema/
+```
+
+## Install
 
 To install redb with all optionals:
 
-```python
-pip install redb[all]
+```bash
+
+pip install ./src/redb[all]
 ```
 
 To install redb with the systems:
 
-```python
+```bash
 pip install redb[systems]
 ```
 
 To install redb with json:
 
-```python
+```bash
 pip install redb[json]
 ```
 
+## Usage
 
-# Usage
-
-Please check the resources/examples for more information
+Please check the resources/examples for more information.
