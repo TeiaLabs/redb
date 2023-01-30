@@ -3,7 +3,7 @@ from typing import Optional
 import pandas as pd
 from pydantic import BaseModel
 
-from redb import Document
+from redb.core import Document
 from redb.interface.fields import ClassField, CompoundIndex, Index
 
 
@@ -18,8 +18,8 @@ class Instance(Document):
     content: str
     data_type: Optional[str] = "text"
     kb_name: Optional[str]
-    query_embedding: Optional[list[Embedding]] = []
     query: Optional[str]
+    query_embedding: Optional[list[Embedding]] = []
     url: Optional[str]  # TODO: this should be a set/list
 
     @classmethod

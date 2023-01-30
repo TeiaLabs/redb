@@ -1,7 +1,14 @@
 from __future__ import annotations
 
-from redb import ClassField, CompoundIndex, Document, Field, Index, RedB
-from redb.base import BaseDocument
+from redb.core import (
+    BaseDocument,
+    ClassField,
+    CompoundIndex,
+    Document,
+    Field,
+    Index,
+    RedB,
+)
 
 
 class Dog(Document):

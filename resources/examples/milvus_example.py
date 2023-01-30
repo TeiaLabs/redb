@@ -2,8 +2,13 @@ from __future__ import annotations
 
 import dotenv
 
-from redb import Document, Field, MigoConfig, RedB
-from redb.base import BaseDocument
+from redb.core import (
+    BaseDocument,
+    Document,
+    Field,
+    MigoConfig,
+    RedB,
+)
 
 dotenv.load_dotenv()
 

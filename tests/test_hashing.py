@@ -1,5 +1,4 @@
-from redb import ClassField, Document, RedB
-from redb.base import BaseDocument
+from redb.core import BaseDocument, ClassField, Document, RedB
 from redb.interface.configs import MongoConfig
 from redb.interface.fields import CompoundIndex, Direction, Field, Index
 

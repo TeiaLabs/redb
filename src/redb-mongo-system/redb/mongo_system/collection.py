@@ -2,7 +2,7 @@ from typing import Any, Type
 
 from pymongo.collection import Collection as PymongoCollection
 
-from redb import Document
+from redb.core import Document
 from redb.interface.collection import Collection, Json, OptionalJson, ReturnType
 from redb.interface.fields import CompoundIndex, Direction, PyMongoOperations
 from redb.interface.results import (

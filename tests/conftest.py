@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from redb import RedB
+from redb.core import RedB
 from redb.interface.configs import JSONConfig
 
 

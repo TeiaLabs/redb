@@ -7,7 +7,7 @@ from migo.collection import Document as MigoDocument
 from migo.collection import Field as MigoField
 from migo.collection import Filter as MigoFilter
 
-from redb import Document
+from redb.core import Document
 from redb.interface.collection import Collection, Json, OptionalJson, ReturnType
 from redb.interface.fields import CompoundIndex, Direction, PyMongoOperations
 from redb.interface.results import (

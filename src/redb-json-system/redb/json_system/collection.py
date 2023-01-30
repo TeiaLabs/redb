@@ -2,8 +2,7 @@ import json
 from pathlib import Path
 from typing import Type
 
-from redb import Document
-from redb.base import BaseDocument
+from redb.core import BaseDocument, Document
 from redb.interface.collection import Collection, Json, OptionalJson, ReturnType
 from redb.interface.fields import CompoundIndex, PyMongoOperations
 from redb.interface.results import (

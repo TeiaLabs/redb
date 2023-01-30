@@ -5,8 +5,15 @@ from typing import Optional
 
 import dotenv
 
-from redb import ClassField, CompoundIndex, Document, Index, MongoConfig, RedB
-from redb.base import BaseDocument
+from redb.core import (
+    BaseDocument,
+    ClassField,
+    CompoundIndex,
+    Document,
+    Index,
+    MongoConfig,
+    RedB,
+)
 from redb.interface.fields import Direction
 
 dotenv.load_dotenv()

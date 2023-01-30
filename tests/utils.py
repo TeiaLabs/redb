@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from redb import Document
+from redb.core import Document
 
 
 class Embedding(Document):
