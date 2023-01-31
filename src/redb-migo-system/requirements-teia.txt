@@ -1,1 +1,1 @@
-migo @ https://github.com/TeiaLabs/migo.git
+migo @ git+https://github.com/TeiaLabs/migo.git@master
