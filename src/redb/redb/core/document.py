@@ -45,6 +45,9 @@ class Document(BaseDocument):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+    class Config:
+        json_encoders = {datetime: lambda d: d.isoformat()}
+
     def __init__(self, **data: Any) -> None:
         calculate_hash = False
         if "id" not in data:
@@ -60,10 +63,7 @@ class Document(BaseDocument):
         out = super().dict(*args, **kwargs)
         if not keep_id:
             out["id"] = self.get_hash(kwargs)
-
-        out["created_at"] = str(out["created_at"])
-        out["updated_at"] = str(out["updated_at"])
-        return out
+        return _apply_encoders(out, self.__config__.json_encoders)
 
     @classmethod
     def create_indexes(cls: Type["Document"]) -> None:
@@ -153,6 +153,8 @@ class Document(BaseDocument):
         )
 
     def insert_one(data: DocumentData) -> InsertOneResult:
+        _validate_fields(data.__class__, data)
+
         collection = Document._get_collection(data)
         data = _format_document_data(data)
         return collection.insert_one(
@@ -180,6 +182,8 @@ class Document(BaseDocument):
         cls: Type["Document"],
         data: list[DocumentData],
     ) -> InsertManyResult:
+        [_validate_fields(cls, val) for val in data]
+
         collection = Document._get_collection(cls)
         data = [_format_document_data(val) for val in data]
         return collection.insert_many(
@@ -191,7 +195,11 @@ class Document(BaseDocument):
         filter: DocumentData,
         replacement: DocumentData,
         upsert: bool = False,
+        allow_new_fields: bool = False,
     ) -> ReplaceOneResult:
+        if not allow_new_fields:
+            _validate_fields(filter.__class__, replacement)
+
         collection = Document._get_collection(filter)
         filter = _format_document_data(filter)
         replacement = _format_document_data(replacement)
@@ -206,7 +214,11 @@ class Document(BaseDocument):
         filter: DocumentData,
         update: DocumentData,
         upsert: bool = False,
+        allow_new_fields: bool = False,
     ) -> UpdateOneResult:
+        if not allow_new_fields:
+            _validate_fields(filter.__class__, update)
+
         collection = Document._get_collection(filter)
         filter = _format_document_data(filter)
         update = _format_document_data(update)
@@ -223,7 +235,11 @@ class Document(BaseDocument):
         filter: DocumentData,
         update: DocumentData,
         upsert: bool = False,
+        allow_new_fields: bool = False,
     ) -> UpdateManyResult:
+        if not allow_new_fields:
+            _validate_fields(cls, update)
+
         collection = Document._get_collection(cls)
         filter = _format_document_data(filter)
         update = _format_document_data(update)
@@ -253,6 +269,38 @@ class Document(BaseDocument):
             cls=cls,
             filter=filter,
         )
+
+
+def _apply_encoders(obj, encoders):
+    obj_type = type(obj)
+    if obj_type == list:
+        obj = [_apply_encoders(val, encoders) for val in obj]
+    elif obj_type == set:
+        obj = {_apply_encoders(val, encoders) for val in obj}
+    elif obj_type == tuple:
+        obj = (_apply_encoders(val, encoders) for val in obj)
+    elif obj_type == dict:
+        obj = {
+            _apply_encoders(key, encoders): _apply_encoders(val, encoders)
+            for key, val in obj.items()
+        }
+    elif obj_type in encoders:
+        encoding = encoders[obj_type]
+        obj = encoding(obj) if callable(encoding) else encoding
+    return obj
+
+
+def _validate_fields(cls: Type[DocumentData], data: DocumentData) -> None:
+    if data is None:
+        return
+
+    if not isinstance(cls, BaseDocument):
+        return
+
+    class_fields = cls.__fields__
+    for key in data:
+        if key not in class_fields:
+            raise ValueError(f"Key {key} is not present in the original document")
 
 
 def _get_return_cls(
