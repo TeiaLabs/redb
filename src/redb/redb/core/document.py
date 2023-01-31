@@ -46,7 +46,7 @@ class Document(BaseDocument):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:
-        json_encoders = {datetime: lambda d: d.timestamp()}
+        json_encoders = {datetime: lambda d: d.isoformat()}
 
     def __init__(self, **data: Any) -> None:
         calculate_hash = False
