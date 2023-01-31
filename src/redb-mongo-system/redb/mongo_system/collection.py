@@ -32,17 +32,15 @@ class MongoCollection(Collection):
         self,
         index: CompoundIndex,
     ) -> bool:
-        if index.direction is None:
-            index.direction = Direction.ASCENDING
-
         name = index.name
         if name is None:
             name = "_".join([field.join_attrs("_") for field in index.fields])
             name = f"unique_{name}" if index.unique else name
             name = f"{index.direction.name.lower()}_{name}_index"
         try:
+            keys = [(field.join_attrs(), index.direction) for field in index.fields]
             self.__collection.create_index(
-                [field.join_attrs() for field in index.fields],
+                keys=keys,
                 name=name,
                 unique=index.unique,
             )

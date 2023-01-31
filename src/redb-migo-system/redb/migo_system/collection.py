@@ -6,10 +6,34 @@ from migo.collection import Collection as MigoDriverCollection
 from migo.collection import Document as MigoDocument
 from migo.collection import Field as MigoField
 from migo.collection import Filter as MigoFilter
+from migo.utils import (
+    AnnoyIndex,
+    BINFlatIndex,
+    BINIVFIndex,
+    DISKANNIndex,
+    FlatIndex,
+    HNSWINdex,
+)
+from migo.utils import Index as MigoIndex
+from migo.utils import (
+    IVFFlatIndex,
+    IVFIndex,
+    IVFPQIndex,
+    IVFSQ8Index,
+    MilvusBinaryIndex,
+    MilvusFloatingIndex,
+    MongoGeoIndex,
+    MongoIndex,
+)
 
 from redb.core import Document
 from redb.interface.collection import Collection, Json, OptionalJson, ReturnType
-from redb.interface.fields import CompoundIndex, Direction, PyMongoOperations
+from redb.interface.fields import (
+    ClassField,
+    CompoundIndex,
+    Direction,
+    PyMongoOperations,
+)
 from redb.interface.results import (
     BulkWriteResult,
     DeleteManyResult,
@@ -22,6 +46,54 @@ from redb.interface.results import (
 )
 
 T = TypeVar("T", bound=Type[MigoDocument | MigoFilter])
+
+
+def _is_milvus_field(field: ClassField) -> bool:
+    return (
+        hasattr(field.model_field, "vector_type")
+        and field.model_field.vector_type is not None
+    )
+
+
+def _build_milvus_index_type(params: dict):
+    if params["index_type"] == "FLAT":
+        index_type = FlatIndex()
+    elif params["index_type"] == "IVF_FLAT":
+        index_type = IVFFlatIndex(nlist=params["nlist"])
+    elif params["index_type"] == "IVF_SQ8":
+        index_type = IVFSQ8Index(nlist=params["nlist"])
+    elif params["index_type"] == "IVF_PQ":
+        index_type = IVFPQIndex(
+            nlist=params["nlist"],
+            m=params["m"],
+            nbits=params["nbits"],
+        )
+    elif params["index_type"] == "HNSW":
+        index_type = HNSWINdex(
+            M=params["M"],
+            efConstruction=params["efCOnstruction"],
+        )
+    elif params["index_type"] == "ANNOY":
+        index_type = AnnoyIndex(n_trees=params["n_trees"])
+    elif params["index_type"] == "DISKANN*":
+        index_type = DISKANNIndex()
+    elif params["index_type"] == "BIN_FLAT":
+        index_type = BINFlatIndex
+    elif params["index_type"] == "BIN_IVF_FLAT":
+        index_type = BINIVFIndex(nlist=params["nlist"])
+    else:
+        raise ValueError(f'Unknown index type: {params["index_type"]}')
+
+    return index_type
+
+
+def _build_index_name(index: CompoundIndex, fields: list[ClassField]) -> str:
+    if index.name is None:
+        index.name = "_".join([field.join_attrs("_") for field in fields])
+        index.name = f"unique_{index.name}" if index.unique else index.name
+        index.name = f"{index.direction.name.lower()}_{index.name}"
+
+    return index.name
 
 
 @lru_cache(maxsize=128)
@@ -37,7 +109,7 @@ def _build_migo_data(
     milvus_data = {}
     for name, field in cls.__fields__.items():
         if name in data:
-            if hasattr(field, "vector_type") and field.vector_type is not None:
+            if _is_milvus_field(field):
                 milvus_data[name] = data[name]
             else:
                 mongo_data[name] = data[name]
@@ -62,12 +134,74 @@ def _build_migo_fields(
     migo_fields = []
     for name, field in cls.__fields__.items():
         if name in fields:
-            if hasattr(field, "vector_type") and field.vector_type is not None:
+            if _is_milvus_field(field):
                 migo_fields.append(MigoField(milvus_field=name))
             else:
                 migo_fields.append(MigoField(mongo_field=name))
 
     return migo_fields
+
+
+def _build_mongo_index(index: CompoundIndex) -> MongoIndex | MongoGeoIndex | None:
+    mongo_fields: list[ClassField] = []
+    for field in index.fields:
+        if not _is_milvus_field(field):
+            mongo_fields.append(field)
+
+    if not mongo_fields:
+        return None
+
+    name = _build_index_name(index, mongo_fields)
+    mongo_index = dict(
+        key=[(field.join_attrs(), index.direction) for field in mongo_fields],
+        name=name,
+        unique=index.unique,
+        type=index.direction,
+        sparse=index.extras.get("sparse", False),
+        expiration_secs=index.extras.get("expiration_secs", None),
+        hidden=index.extras.get("hidden", None),
+    )
+
+    if index.direction in {Direction.GEO2D, Direction.GEOSPHERE}:
+        mongo_index = MongoGeoIndex(
+            bucket_size=index.extras.get("bucket_size", None),
+            min=index.extras.get("min", None),
+            max=index.extras.get("max", None),
+            **mongo_index,
+        )
+    else:
+        mongo_index = MongoIndex(**mongo_index)
+
+    return mongo_index
+
+
+def _build_milvus_indexes(
+    index: CompoundIndex,
+) -> list[MilvusBinaryIndex | MilvusFloatingIndex]:
+    milvus_fields: list[ClassField] = []
+    for field in index.fields:
+        if _is_milvus_field(field):
+            milvus_fields.append(field)
+
+    if not milvus_fields:
+        return []
+
+    milvus_indexes = []
+    for milvus_field in milvus_fields:
+        name = _build_index_name(index, milvus_fields)
+        index_type = _build_milvus_index_type(index.extras)
+        milvus_index = dict(
+            key=milvus_field.join_attrs(),
+            name=name,
+            metric_type=index.extras["metric_type"],
+            index_type=index_type,
+        )
+        if type(index_type) in {BINFlatIndex, BINIVFIndex}:
+            milvus_indexes.append(MilvusBinaryIndex(**milvus_index))
+        else:
+            milvus_indexes.append(MilvusFloatingIndex(**milvus_index))
+
+    return milvus_indexes
 
 
 class MigoCollection(Collection):
@@ -85,20 +219,11 @@ class MigoCollection(Collection):
         self,
         index: CompoundIndex,
     ) -> bool:
-        if index.direction is None:
-            index.direction = Direction.ASCENDING
-
-        name = index.name
-        if name is None:
-            name = "_".join([field.join_attrs("_") for field in index.fields])
-            name = f"unique_{name}" if index.unique else name
-            name = f"{index.direction.name.lower()}_{name}"
-
+        mongo_index = _build_mongo_index(index)
+        milvus_indexes = _build_milvus_indexes(index)
         try:
-            self.__collection.create_index(
-                [field.join_attrs() for field in index.fields],
-                name=name,
-                unique=index.unique,
+            self.__collection.create_indexes(
+                [MigoIndex(mongo_index=mongo_index, milvus_indexes=milvus_indexes)]
             )
             return True
         except:
