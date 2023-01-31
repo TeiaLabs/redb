@@ -45,6 +45,9 @@ class Document(BaseDocument):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+    class Config:
+        json_encoders = {datetime: lambda d: d.timestamp()}
+
     def __init__(self, **data: Any) -> None:
         calculate_hash = False
         if "id" not in data:
@@ -60,10 +63,7 @@ class Document(BaseDocument):
         out = super().dict(*args, **kwargs)
         if not keep_id:
             out["id"] = self.get_hash(kwargs)
-
-        out["created_at"] = str(out["created_at"])
-        out["updated_at"] = str(out["updated_at"])
-        return out
+        return _apply_encoders(out, self.__config__.json_encoders)
 
     @classmethod
     def create_indexes(cls: Type["Document"]) -> None:
@@ -269,6 +269,25 @@ class Document(BaseDocument):
             cls=cls,
             filter=filter,
         )
+
+
+def _apply_encoders(obj, encoders):
+    obj_type = type(obj)
+    if obj_type == list:
+        obj = [_apply_encoders(val, encoders) for val in obj]
+    elif obj_type == set:
+        obj = {_apply_encoders(val, encoders) for val in obj}
+    elif obj_type == tuple:
+        obj = (_apply_encoders(val, encoders) for val in obj)
+    elif obj_type == dict:
+        obj = {
+            _apply_encoders(key, encoders): _apply_encoders(val, encoders)
+            for key, val in obj.items()
+        }
+    elif obj_type in encoders:
+        encoding = encoders[obj_type]
+        obj = encoding(obj) if callable(encoding) else encoding
+    return obj
 
 
 def _validate_fields(cls: Type[DocumentData], data: DocumentData) -> None:

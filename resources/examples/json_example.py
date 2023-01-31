@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from redb.core import (
     BaseDocument,
     ClassField,
@@ -31,9 +33,13 @@ class SubSubClassMember(BaseDocument):
 
 
 class Embedding(Document):
+    class Config:
+        json_encoders = {float: lambda _: ""}
+
     kb_name: str
     model: str
     text: str
+    a: dict[str, list[dict[float, list[datetime]]]]
     vector: list[float] = Field(vector_type="FLOAT", dimensions=1)
     source_url: str
 
@@ -59,7 +65,9 @@ def main():
         text="Some data.",
         vector=[1, 2, 0.1],
         source_url="www",
+        a={"test": [{10: [datetime.utcnow()]}]},
     )
+    print(d.dict())
     print(d.model)
     try:
         print(Embedding.delete_many(filter=d))
