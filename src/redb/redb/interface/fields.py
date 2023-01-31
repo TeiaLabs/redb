@@ -51,7 +51,7 @@ class Index:
     field: "ClassField"
     name: str | None = None
     unique: bool = False
-    direction: Direction | None = None
+    direction: Direction = Direction.ASCENDING
 
 
 @dataclass
@@ -59,7 +59,7 @@ class CompoundIndex:
     fields: list["ClassField"]
     name: str | None = None
     unique: bool = False
-    direction: Direction | None = None
+    direction: Direction = Direction.ASCENDING
 
 
 class Field(FieldInfo):

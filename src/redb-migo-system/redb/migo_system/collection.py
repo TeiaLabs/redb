@@ -85,9 +85,6 @@ class MigoCollection(Collection):
         self,
         index: CompoundIndex,
     ) -> bool:
-        if index.direction is None:
-            index.direction = Direction.ASCENDING
-
         name = index.name
         if name is None:
             name = "_".join([field.join_attrs("_") for field in index.fields])
