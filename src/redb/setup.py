@@ -57,7 +57,7 @@ with open("README.md") as f:
     long_description = f.read()
 
 setuptools.setup(
-    name="redb",
+    name="redb_core",
     version="1.0.1",
     author="Teia Labs",
     author_email="contato@teialabs.com",
