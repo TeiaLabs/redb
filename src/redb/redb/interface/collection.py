@@ -71,10 +71,6 @@ class Collection(ABC):
         cls: ReturnType,
         key: str,
         filter: OptionalJson = None,
-        fields: dict[str, bool] | None = None,
-        sort: dict[tuple[str, str | int]] | None = None,
-        skip: int = 0,
-        limit: int = 0,
     ) -> list[ReturnType]:
         pass
 

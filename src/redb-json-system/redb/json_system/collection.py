@@ -113,33 +113,20 @@ class JSONCollection(Collection):
         cls: ReturnType,
         key: str,
         filter: OptionalJson = None,
-        fields: dict[str, bool] | None = None,
-        sort: dict[tuple[str, str | int]] | None = None,
-        skip: int = 0,
-        limit: int = 0,
     ) -> list[ReturnType]:
-        if key not in fields:
-            fields[key] = True
-
         docs = self.find(
             cls,
             return_cls=dict,
             filter=filter,
-            fields=fields,
-            sort=sort,
-            skip=skip,
-            limit=limit,
         )
         computed_values = set()
-        out = []
         for doc in docs:
             if doc[key] in computed_values:
                 continue
 
             computed_values.add(doc[key])
-            out.append(cls(**doc))
 
-        return out
+        return list(computed_values)
 
     def count_documents(
         self,

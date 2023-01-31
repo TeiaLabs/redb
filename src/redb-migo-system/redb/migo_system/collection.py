@@ -142,19 +142,12 @@ class MigoCollection(Collection):
         cls: ReturnType,
         key: str,
         filter: OptionalJson = None,
-        fields: dict[str, bool] | None = None,
-        sort: dict[tuple[str, str | int]] | None = None,
-        skip: int = 0,
-        limit: int = 0,
     ) -> list[ReturnType]:
-        result = self.__collection.distinct(
+        results = self.__collection.distinct(
             key=key,
             filter=filter,
-            fields=fields,
-            sort=sort,
-            limit=limit,
         )
-        return cls(**result)
+        return results
 
     def count_documents(
         self,
