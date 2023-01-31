@@ -38,8 +38,9 @@ class MongoCollection(Collection):
             name = f"unique_{name}" if index.unique else name
             name = f"{index.direction.name.lower()}_{name}_index"
         try:
+            keys = [(field.join_attrs(), index.direction) for field in index.fields]
             self.__collection.create_index(
-                [field.join_attrs() for field in index.fields],
+                keys=keys,
                 name=name,
                 unique=index.unique,
             )
