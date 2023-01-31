@@ -38,9 +38,7 @@ class File(Document):
 
     @classmethod
     def get_organization_ids(cls) -> set:
-        instances = cls.distinct(key="organization_id")
-        orgs = set([instance.organization_id for instance in instances])
-        return orgs
+        return set(cls.distinct(key="organization_id"))
 
     @classmethod
     def get_file_instances(cls, file_id: str) -> list[Instance]:
