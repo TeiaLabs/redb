@@ -32,6 +32,10 @@ PyMongoOperations = TypeVar(
 class Direction(Enum):
     ASCENDING = pymongo.ASCENDING
     DESCENDING = pymongo.DESCENDING
+    GEO2D = pymongo.GEO2D
+    GEOSPHERE = pymongo.GEOSPHERE
+    HASHED = pymongo.HASHED
+    TEXT = pymongo.TEXT
 
 
 class Column(BaseModel):
@@ -52,6 +56,7 @@ class Index:
     name: str | None = None
     unique: bool = False
     direction: Direction = Direction.ASCENDING
+    extras: dict | None = None
 
 
 @dataclass
@@ -60,6 +65,7 @@ class CompoundIndex:
     name: str | None = None
     unique: bool = False
     direction: Direction = Direction.ASCENDING
+    extras: dict | None = None
 
 
 class Field(FieldInfo):
