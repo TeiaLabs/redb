@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Type, TypeVar
 
-from redb.core.base import BaseDocument
+from redb.core import BaseDocument
 
 from .fields import CompoundIndex, PyMongoOperations
 from .results import (

@@ -20,7 +20,3 @@ def test_simple_case():
     hashable_fields = obj.get_hashable_fields()
     key_val_tuples = obj._get_key_value_tuples_for_hash(hashable_fields)
     assert key_val_tuples == [("attr1", "test"), ("cat.name", "wisk")]
-
-
-
-test_simple_case()
