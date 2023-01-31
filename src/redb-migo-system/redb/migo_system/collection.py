@@ -111,29 +111,15 @@ class MigoCollection(Collection):
         filter: OptionalJson = None,
         fields: dict[str, bool] | None = None,
         sort: dict[tuple[str, str | int]] | None = None,
-        _: int = 0,
+        skip: int = 0,
         limit: int = 0,
     ) -> list[ReturnType]:
-        formatted_fields = fields
-        if fields is not None:
-            if isinstance(fields[0], str):
-                formatted_fields = {field: True for field in fields}
-            else:
-                formatted_fields = {field.name: field.include for field in fields}
-
-        formatted_sort = sort
-        if sort is not None:
-            if isinstance(sort, list):
-                formatted_sort = [(field.name, field.direction) for field in sort]
-            else:
-                formatted_sort = [(sort.name, sort.direction)]
-
         migo_filter = _build_migo_data(cls, data=filter, out=MigoFilter)
-        migo_fields = _build_migo_fields(cls, formatted_fields)
+        migo_fields = _build_migo_fields(cls, fields)
         results = self.__collection.find_many(
             filter=migo_filter,
-            sort=formatted_sort,
             fields=migo_fields,
+            sort=sort,
             limit=limit,
         )
         return [return_cls(**result) for result in results]
@@ -144,17 +130,10 @@ class MigoCollection(Collection):
         return_cls: ReturnType,
         filter: OptionalJson = None,
         fields: dict[str, bool] | None = None,
-        _: int = 0,
+        skip: int = 0,
     ) -> ReturnType:
-        formatted_fields = fields
-        if fields is not None:
-            if isinstance(fields[0], str):
-                formatted_fields = {field: True for field in fields}
-            else:
-                formatted_fields = {field.name: field.include for field in fields}
-
         migo_filter = _build_migo_data(cls, data=filter, out=MigoFilter)
-        migo_fields = _build_migo_fields(cls, formatted_fields)
+        migo_fields = _build_migo_fields(cls, fields)
         results = self.__collection.find_one(filter=migo_filter, fields=migo_fields)
         return [return_cls(**result) for result in results]
 
@@ -164,9 +143,11 @@ class MigoCollection(Collection):
         key: str,
         filter: OptionalJson = None,
     ) -> list[ReturnType]:
-        migo_filter = _build_migo_data(cls, data=filter, out=MigoFilter)
-        result = self.__collection.distinct(key=key, filter=migo_filter)
-        return cls(**result)
+        results = self.__collection.distinct(
+            key=key,
+            filter=filter,
+        )
+        return results
 
     def count_documents(
         self,

@@ -114,17 +114,19 @@ class JSONCollection(Collection):
         key: str,
         filter: OptionalJson = None,
     ) -> list[ReturnType]:
-        docs = self.find(cls, return_cls=dict, filter=filter)
+        docs = self.find(
+            cls,
+            return_cls=dict,
+            filter=filter,
+        )
         computed_values = set()
-        out = []
         for doc in docs:
             if doc[key] in computed_values:
                 continue
 
             computed_values.add(doc[key])
-            out.append(cls(**doc))
 
-        return out
+        return list(computed_values)
 
     def count_documents(
         self,
@@ -227,7 +229,9 @@ class JSONCollection(Collection):
         if "id" in update:
             new_id = update["id"]
         elif cls is dict:
-            new_id = BaseDocument().get_hash(data=original_content, use_data_fields=True)
+            new_id = BaseDocument().get_hash(
+                data=original_content, use_data_fields=True
+            )
         else:
             new_id = cls.get_hash(data=original_content)
 
@@ -277,7 +281,9 @@ class JSONCollection(Collection):
             if "id" in update:
                 new_id = update["id"]
             elif cls is dict:
-                new_id = BaseDocument().get_dict_hash(data=original_content, use_data_fields=True)
+                new_id = BaseDocument().get_dict_hash(
+                    data=original_content, use_data_fields=True
+                )
             else:
                 new_id = cls.get_hash(data=original_content)
 
