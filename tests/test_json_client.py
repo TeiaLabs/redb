@@ -37,7 +37,7 @@ def test_find_by_id(collection_path: Path):
 
 def test_insert_vectors(collection_path: Path):
     data = dict(
-        id=["a", "b", "c"],
+        _id=["a", "b", "c"],
         kb_name=["KB5", "KB6", "KB7"],
         model=["ai", "ai", "ai"],
         text=["Some data 5", "Some data 6", "Some data 7"],
@@ -48,7 +48,7 @@ def test_insert_vectors(collection_path: Path):
     embeddings = [
         Embedding(**read_json(val)) for val in collection_path.glob("*.json")
     ]
-    assert sorted(e.id for e in embeddings) == data["id"]
+    assert sorted(e.id for e in embeddings) == data["_id"]
     embeddings.sort(key=lambda embedding: embedding.kb_name)
     for i in range(len(embeddings)):
         original = Embedding(
