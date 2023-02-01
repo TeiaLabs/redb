@@ -59,10 +59,10 @@ class Document(BaseDocument):
             data["id"] = self.get_hash(data)
         super().__init__(**data)
 
-    def dict(self, keep_id: bool = True, *args, **kwargs) -> dict:
+    def dict(self, *args, **kwargs) -> dict:
+        if "by_alias" not in kwargs:
+            kwargs["by_alias"] = True
         out = super().dict(*args, **kwargs)
-        if not keep_id:
-            out["id"] = self.get_hash(kwargs)
         return _apply_encoders(out, self.__config__.json_encoders)
 
     @classmethod
