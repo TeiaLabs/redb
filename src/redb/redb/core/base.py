@@ -153,14 +153,13 @@ class BaseDocument(BaseModel, metaclass=DocumentMetaclass):
         return self.hash_function(string)
 
     def update_kwargs(self, kwargs):
-        for key in self.__fields__:
-            if key not in kwargs:
-                field = self.__fields__[key]
+        for field in self.__fields__.values():
+            if field.alias not in kwargs:
                 if field.required:
                     raise ValueError(
-                        f"{key} is missing for document {self.__class__.__name__}"
+                        f"{field.alias} is missing for document {self.__class__.__name__}"
                     )
-                kwargs[key] = field.get_default()
+                kwargs[field.alias] = field.get_default()
 
         return kwargs
 
