@@ -41,7 +41,7 @@ SortColumns = TypeVar(
 
 
 class Document(BaseDocument):
-    id: str
+    id: str = Field(alias="_id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -50,19 +50,21 @@ class Document(BaseDocument):
 
     def __init__(self, **data: Any) -> None:
         calculate_hash = False
-        if "id" not in data:
-            data["id"] = None
+        if "id" in data:
+            data["_id"] = data.pop("id")
+        if "_id" not in data:
+            data["_id"] = None
             calculate_hash = True
 
         data = self.update_kwargs(data)
         if calculate_hash:
-            data["id"] = self.get_hash(data)
+            data["_id"] = self.get_hash(data)
         super().__init__(**data)
 
-    def dict(self, keep_id: bool = True, *args, **kwargs) -> dict:
+    def dict(self, *args, **kwargs) -> dict:
+        if "by_alias" not in kwargs:
+            kwargs["by_alias"] = True
         out = super().dict(*args, **kwargs)
-        if not keep_id:
-            out["id"] = self.get_hash(kwargs)
         return _apply_encoders(out, self.__config__.json_encoders)
 
     @classmethod

@@ -36,19 +36,25 @@ class RedB:
     ) -> None:
         if backend is None and isinstance(config, dict):
             raise ValueError("Cannot determine client type from backend and config")
-        elif backend == "json" or check_config(config, JSONConfig):
+        elif backend == "json" or (
+            backend is None and check_config(config, JSONConfig)
+        ):
             from redb.json_system import JSONClient
 
             cls._client = JSONClient(config)
             cls._client_name = "json"
 
-        elif backend == "mongo" or check_config(config, MongoConfig):
+        elif backend == "mongo" or (
+            backend is None and check_config(config, MongoConfig)
+        ):
             from redb.mongo_system import MongoClient
 
             cls._client = MongoClient(config)
             cls._client_name = "mongo"
 
-        elif backend == "migo" and check_config(config, MigoConfig):
+        elif backend == "migo" and (
+            backend is None and check_config(config, MigoConfig)
+        ):
             from redb.migo_system import MigoClient
 
             cls._client = MigoClient(config)
