@@ -154,13 +154,17 @@ class Document(BaseDocument):
             operations=operations,
         )
 
-    def insert_one(data: DocumentData) -> InsertOneResult:
-        _validate_fields(data.__class__, data)
+    @classmethod
+    def insert_one(
+        cls: Type["Document"],
+        data: DocumentData,
+    ) -> InsertOneResult:
+        _validate_fields(cls, data)
 
-        collection = Document._get_collection(data)
+        collection = Document._get_collection(cls)
         data = _format_document_data(data)
         return collection.insert_one(
-            cls=data.__class__,
+            cls=cls,
             data=data,
         )
 
@@ -193,7 +197,9 @@ class Document(BaseDocument):
             data=data,
         )
 
+    @classmethod
     def replace_one(
+        cls: Type["Document"],
         filter: DocumentData,
         replacement: DocumentData,
         upsert: bool = False,
@@ -202,30 +208,32 @@ class Document(BaseDocument):
         if not allow_new_fields:
             _validate_fields(filter.__class__, replacement)
 
-        collection = Document._get_collection(filter)
+        collection = Document._get_collection(cls)
         filter = _format_document_data(filter)
         replacement = _format_document_data(replacement)
         return collection.replace_one(
-            cls=filter.__class__,
+            cls=cls,
             filter=filter,
             replacement=replacement,
             upsert=upsert,
         )
 
+    @classmethod
     def update_one(
+        cls: Type["Document"],
         filter: DocumentData,
         update: DocumentData,
         upsert: bool = False,
         allow_new_fields: bool = False,
     ) -> UpdateOneResult:
         if not allow_new_fields:
-            _validate_fields(filter.__class__, update)
+            _validate_fields(cls, update)
 
-        collection = Document._get_collection(filter)
+        collection = Document._get_collection(cls)
         filter = _format_document_data(filter)
         update = _format_document_data(update)
         return collection.update_one(
-            cls=filter.__class__,
+            cls=cls,
             filter=filter,
             update=update,
             upsert=upsert,
@@ -252,11 +260,15 @@ class Document(BaseDocument):
             upsert=upsert,
         )
 
-    def delete_one(filter: DocumentData) -> DeleteOneResult:
-        collection = Document._get_collection(filter)
+    @classmethod
+    def delete_one(
+        cls: Type["Document"],
+        filter: DocumentData,
+    ) -> DeleteOneResult:
+        collection = Document._get_collection(cls)
         filter = _format_document_data(filter)
         return collection.delete_one(
-            cls=filter.__class__,
+            cls=cls,
             filter=filter,
         )
 
