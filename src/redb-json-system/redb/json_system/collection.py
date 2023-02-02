@@ -45,8 +45,8 @@ class JSONCollection(Collection):
         limit: int = 0,
     ) -> list[ReturnType]:
         transform = lambda file_path: json.load(open(file_path))
-        if filter is not None and "id" in filter:
-            file_path = self.__collection / f"{filter['id']}.json"
+        if filter is not None and "_id" in filter:
+            file_path = self.__collection / f"{filter['_id']}.json"
             if file_path.is_file() and not file_path.is_symlink():
                 return [return_cls(**transform(file_path))]
 
@@ -214,11 +214,11 @@ class JSONCollection(Collection):
             if not upsert:
                 raise ValueError(f"Document not found")
 
-            self.insert_one(cls, data=update)
+            result = self.insert_one(cls, data=update)
             return UpdateOneResult(
                 matched_count=1,
                 modified_count=1,
-                upserted_id=update["_id"],
+                upserted_id=result.inserted_id,
             )
 
         original_path = self.__collection / Path(f"{doc['_id']}.json")
@@ -228,12 +228,8 @@ class JSONCollection(Collection):
         original_content.update(update)
         if "_id" in update:
             new_id = update["_id"]
-        elif cls is dict:
-            new_id = BaseDocument().get_hash(
-                data=original_content, use_data_fields=True
-            )
         else:
-            new_id = cls.get_hash(data=original_content)
+            raise ValueError("Missing '_id' for update document")
 
         upserted = False
         if doc["_id"] != new_id:
@@ -269,17 +265,17 @@ class JSONCollection(Collection):
             return UpdateManyResult(
                 matched_count=1,
                 modified_count=1,
-                upserted_id=update["id"],
+                upserted_id=update["_id"],
             )
 
         for doc in docs:
-            original_path = self.__collection / Path(f"{doc['id']}.json")
+            original_path = self.__collection / Path(f"{doc['_id']}.json")
             with open(original_path, "r") as f:
                 original_content: dict = json.load(f)
 
             original_content.update(update)
-            if "id" in update:
-                new_id = update["id"]
+            if "_id" in update:
+                new_id = update["_id"]
             elif cls is dict:
                 new_id = BaseDocument().get_dict_hash(
                     data=original_content, use_data_fields=True
@@ -287,12 +283,12 @@ class JSONCollection(Collection):
             else:
                 new_id = cls.get_hash(data=original_content)
 
-            if doc["id"] != new_id:
+            if doc["_id"] != new_id:
                 # Since the ID has changed, we need to remove the old one
                 original_path.unlink()
                 upserted_ids.append(new_id)
 
-            original_content["id"] = new_id
+            original_content["_id"] = new_id
             new_path = self.__collection / Path(f"{new_id}.json")
             with open(new_path, "w") as f:
                 json.dump(original_content, f, indent=4)
@@ -323,7 +319,7 @@ class JSONCollection(Collection):
     ) -> DeleteManyResult:
         docs = self.find(cls, return_cls=dict, filter=filter)
         for doc in docs:
-            file = self.__collection / f"{doc['id']}.json"
+            file = self.__collection / f"{doc['_id']}.json"
             file.unlink()
 
         return DeleteManyResult(deleted_count=len(docs))
