@@ -170,6 +170,16 @@ class Document(BaseDocument):
             operations=operations,
         )
 
+    def insert(self: "Document") -> InsertOneResult:
+        _validate_fields(self.__class__, self)
+
+        collection = Document._get_collection(self.__class__)
+        data = _format_document_data(self)
+        return collection.insert_one(
+            cls=self.__class__,
+            data=data,
+        )
+
     @classmethod
     def insert_one(
         cls: Type["Document"],
