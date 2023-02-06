@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from redb.core import Document
 from redb.interface.fields import ClassField, CompoundIndex, Index
+
 from .instance import Instance
 
 
@@ -42,4 +43,4 @@ class File(Document):
 
     @classmethod
     def get_file_instances(cls, file_id: str) -> list[Instance]:
-        return Instance.find({"file_id": file_id})
+        return Instance.find_many({"file_id": file_id})

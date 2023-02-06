@@ -75,8 +75,42 @@ class Document(BaseDocument):
             index = _format_index(index)
             collection.create_index(index)
 
-    @classmethod
     def find(
+        self: "Document",
+        fields: IncludeColumns = None,
+        skip: int = 0,
+    ) -> "Document":
+        collection = Document._get_collection(self.__class__)
+        return_cls = _get_return_cls(self.__class__, fields)
+        filter = _format_document_data(self)
+        fields = _format_fields(fields)
+        return collection.find_one(
+            cls=self.__class__,
+            return_cls=return_cls,
+            filter=filter,
+            skip=skip,
+        )
+
+    @classmethod
+    def find_one(
+        cls: Type["Document"],
+        filter: OptionalDocumentData = None,
+        fields: IncludeColumns = None,
+        skip: int = 0,
+    ) -> "Document":
+        collection = Document._get_collection(cls)
+        return_cls = _get_return_cls(cls, fields)
+        filter = _format_document_data(filter)
+        fields = _format_fields(fields)
+        return collection.find_one(
+            cls=cls,
+            return_cls=return_cls,
+            filter=filter,
+            skip=skip,
+        )
+
+    @classmethod
+    def find_many(
         cls: Type["Document"],
         filter: OptionalDocumentData = None,
         fields: IncludeColumns = None,
@@ -97,24 +131,6 @@ class Document(BaseDocument):
             sort=sort,
             skip=skip,
             limit=limit,
-        )
-
-    @classmethod
-    def find_one(
-        cls: Type["Document"],
-        filter: OptionalDocumentData = None,
-        fields: IncludeColumns = None,
-        skip: int = 0,
-    ) -> "Document":
-        collection = Document._get_collection(cls)
-        return_cls = _get_return_cls(cls, fields)
-        filter = _format_document_data(filter)
-        fields = _format_fields(fields)
-        return collection.find_one(
-            cls=cls,
-            return_cls=return_cls,
-            filter=filter,
-            skip=skip,
         )
 
     @classmethod
