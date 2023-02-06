@@ -263,6 +263,25 @@ class Document(BaseDocument):
             upsert=upsert,
         )
 
+    def update(
+        self: "Document",
+        update: DocumentData,
+        upsert: bool = False,
+        allow_new_fields: bool = False,
+    ) -> UpdateOneResult:
+        if not allow_new_fields:
+            _validate_fields(self.__class__, update)
+
+        collection = Document._get_collection(self.__class__)
+        filter = _format_document_data(self)
+        update = _format_document_data(update)
+        return collection.update_one(
+            cls=self.__class__,
+            filter=filter,
+            update=update,
+            upsert=upsert,
+        )
+
     @classmethod
     def update_one(
         cls: Type["Document"],
