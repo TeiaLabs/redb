@@ -324,6 +324,14 @@ class Document(BaseDocument):
             upsert=upsert,
         )
 
+    def delete(self: "Document") -> DeleteOneResult:
+        collection = Document._get_collection(self.__class__)
+        filter = _format_document_data(self)
+        return collection.delete_one(
+            cls=self.__class__,
+            filter=filter,
+        )
+
     @classmethod
     def delete_one(
         cls: Type["Document"],
