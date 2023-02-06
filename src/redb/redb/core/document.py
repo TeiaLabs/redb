@@ -75,8 +75,42 @@ class Document(BaseDocument):
             index = _format_index(index)
             collection.create_index(index)
 
-    @classmethod
     def find(
+        self: "Document",
+        fields: IncludeColumns = None,
+        skip: int = 0,
+    ) -> "Document":
+        collection = Document._get_collection(self.__class__)
+        return_cls = _get_return_cls(self.__class__, fields)
+        filter = _format_document_data(self)
+        fields = _format_fields(fields)
+        return collection.find_one(
+            cls=self.__class__,
+            return_cls=return_cls,
+            filter=filter,
+            skip=skip,
+        )
+
+    @classmethod
+    def find_one(
+        cls: Type["Document"],
+        filter: OptionalDocumentData = None,
+        fields: IncludeColumns = None,
+        skip: int = 0,
+    ) -> "Document":
+        collection = Document._get_collection(cls)
+        return_cls = _get_return_cls(cls, fields)
+        filter = _format_document_data(filter)
+        fields = _format_fields(fields)
+        return collection.find_one(
+            cls=cls,
+            return_cls=return_cls,
+            filter=filter,
+            skip=skip,
+        )
+
+    @classmethod
+    def find_many(
         cls: Type["Document"],
         filter: OptionalDocumentData = None,
         fields: IncludeColumns = None,
@@ -97,24 +131,6 @@ class Document(BaseDocument):
             sort=sort,
             skip=skip,
             limit=limit,
-        )
-
-    @classmethod
-    def find_one(
-        cls: Type["Document"],
-        filter: OptionalDocumentData = None,
-        fields: IncludeColumns = None,
-        skip: int = 0,
-    ) -> "Document":
-        collection = Document._get_collection(cls)
-        return_cls = _get_return_cls(cls, fields)
-        filter = _format_document_data(filter)
-        fields = _format_fields(fields)
-        return collection.find_one(
-            cls=cls,
-            return_cls=return_cls,
-            filter=filter,
-            skip=skip,
         )
 
     @classmethod
@@ -152,6 +168,16 @@ class Document(BaseDocument):
         return collection.bulk_write(
             cls=cls,
             operations=operations,
+        )
+
+    def insert(self: "Document") -> InsertOneResult:
+        _validate_fields(self.__class__, self)
+
+        collection = Document._get_collection(self.__class__)
+        data = _format_document_data(self)
+        return collection.insert_one(
+            cls=self.__class__,
+            data=data,
         )
 
     @classmethod
@@ -197,6 +223,25 @@ class Document(BaseDocument):
             data=data,
         )
 
+    def replace(
+        self: "Document",
+        replacement: DocumentData,
+        upsert: bool = False,
+        allow_new_fields: bool = False,
+    ) -> ReplaceOneResult:
+        if not allow_new_fields:
+            _validate_fields(self.__class__, replacement)
+
+        collection = Document._get_collection(self.__class__)
+        filter = _format_document_data(self)
+        replacement = _format_document_data(replacement)
+        return collection.replace_one(
+            cls=self.__class__,
+            filter=filter,
+            replacement=replacement,
+            upsert=upsert,
+        )
+
     @classmethod
     def replace_one(
         cls: Type["Document"],
@@ -215,6 +260,25 @@ class Document(BaseDocument):
             cls=cls,
             filter=filter,
             replacement=replacement,
+            upsert=upsert,
+        )
+
+    def update(
+        self: "Document",
+        update: DocumentData,
+        upsert: bool = False,
+        allow_new_fields: bool = False,
+    ) -> UpdateOneResult:
+        if not allow_new_fields:
+            _validate_fields(self.__class__, update)
+
+        collection = Document._get_collection(self.__class__)
+        filter = _format_document_data(self)
+        update = _format_document_data(update)
+        return collection.update_one(
+            cls=self.__class__,
+            filter=filter,
+            update=update,
             upsert=upsert,
         )
 
@@ -258,6 +322,14 @@ class Document(BaseDocument):
             filter=filter,
             update=update,
             upsert=upsert,
+        )
+
+    def delete(self: "Document") -> DeleteOneResult:
+        collection = Document._get_collection(self.__class__)
+        filter = _format_document_data(self)
+        return collection.delete_one(
+            cls=self.__class__,
+            filter=filter,
         )
 
     @classmethod

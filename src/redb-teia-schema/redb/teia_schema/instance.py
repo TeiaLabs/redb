@@ -54,7 +54,7 @@ class Instance(Document):
 
     @classmethod
     def get_kb_instances(cls, kb_name: str) -> list[object]:
-        return cls.find({"kb_name": kb_name})
+        return cls.find_many({"kb_name": kb_name})
 
     @classmethod
     def get_kb_names(cls) -> set:
@@ -65,10 +65,12 @@ class Instance(Document):
 
     @classmethod
     def get_model_instances(cls, model_type, model_name):
-        return cls.find({
-            "content_embedding.model_type": model_type,
-            "content_embedding.model_name": model_name,
-        })
+        return cls.find_many(
+            {
+                "content_embedding.model_type": model_type,
+                "content_embedding.model_name": model_name,
+            }
+        )
 
     @classmethod
     def instances_to_dataframe(
@@ -110,8 +112,6 @@ class Instance(Document):
 
     @classmethod
     def insert_dataframe(cls, dataframe: pd.DataFrame) -> list:
-        instances = [
-            cls.from_row(row[1]) for row in dataframe.iterrows()
-        ]
+        instances = [cls.from_row(row[1]) for row in dataframe.iterrows()]
 
         return cls.insert_many(instances)
