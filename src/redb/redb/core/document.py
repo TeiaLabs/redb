@@ -223,6 +223,25 @@ class Document(BaseDocument):
             data=data,
         )
 
+    def replace(
+        self: "Document",
+        replacement: DocumentData,
+        upsert: bool = False,
+        allow_new_fields: bool = False,
+    ) -> ReplaceOneResult:
+        if not allow_new_fields:
+            _validate_fields(self.__class__, replacement)
+
+        collection = Document._get_collection(self.__class__)
+        filter = _format_document_data(self)
+        replacement = _format_document_data(replacement)
+        return collection.replace_one(
+            cls=self.__class__,
+            filter=filter,
+            replacement=replacement,
+            upsert=upsert,
+        )
+
     @classmethod
     def replace_one(
         cls: Type["Document"],
