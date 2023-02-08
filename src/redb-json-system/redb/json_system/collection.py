@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Type
+from typing import Any, Type
 
 from redb.core import BaseDocument, Document
 from redb.interface.collection import Collection, Json, OptionalJson, ReturnType
@@ -113,7 +113,7 @@ class JSONCollection(Collection):
         cls: ReturnType,
         key: str,
         filter: OptionalJson = None,
-    ) -> list[ReturnType]:
+    ) -> list[Any]:
         docs = self.find(
             cls,
             return_cls=dict,

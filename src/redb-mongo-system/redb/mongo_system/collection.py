@@ -87,7 +87,7 @@ class MongoCollection(Collection):
         cls: ReturnType,
         key: str,
         filter: OptionalJson = None,
-    ) -> list[ReturnType]:
+    ) -> list[Any]:
         results = self.__collection.distinct(key=key, filter=filter)
         return results
 

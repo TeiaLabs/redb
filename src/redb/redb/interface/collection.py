@@ -71,7 +71,7 @@ class Collection(ABC):
         cls: ReturnType,
         key: str,
         filter: OptionalJson = None,
-    ) -> list[ReturnType]:
+    ) -> list[Any]:
         pass
 
     @abstractmethod
