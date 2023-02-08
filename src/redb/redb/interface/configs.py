@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, TypeVar
 
 
 @dataclass
@@ -23,3 +23,14 @@ class MongoConfig:
     database_uri: str
     default_database: str | None = None
     driver_kwargs: dict = field(default_factory=dict)
+
+
+CONFIGS = JSONConfig | MigoConfig | MongoConfig
+CONFIG_TYPE = TypeVar("CONFIG_TYPE", JSONConfig, MigoConfig, MongoConfig, dict)
+
+
+def check_config(
+    config: CONFIG_TYPE,
+    base_class: CONFIGS,
+) -> bool:
+    return isinstance(config, base_class) or isinstance(config, dict)
