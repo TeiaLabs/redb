@@ -24,7 +24,7 @@ from .base import BaseDocument
 
 DocumentData = TypeVar(
     "DocumentData",
-    bound="Document" | Dict[str, Any] | None,
+    bound="Document" | Dict[str, Any],
 )
 OptionalDocumentData = TypeVar(
     "OptionalDocumentData",
