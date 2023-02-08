@@ -18,7 +18,7 @@ def db_path(client_path):
 
 @pytest.fixture(scope="session")
 def collection_path(db_path):
-    return db_path / "Embedding"
+    return db_path / "embedding"
 
 
 @pytest.fixture(autouse=True, scope="session")
