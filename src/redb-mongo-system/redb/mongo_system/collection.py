@@ -155,7 +155,7 @@ class MongoCollection(Collection):
     ) -> UpdateOneResult:
         result = self.__collection.update_one(
             filter=filter,
-            update=update,
+            update={"$set": update},
             upsert=upsert,
         )
         return UpdateOneResult(
@@ -173,7 +173,7 @@ class MongoCollection(Collection):
     ) -> UpdateManyResult:
         result = self.__collection.update_many(
             filter=filter,
-            update=update,
+            update={"$set": update},
             upsert=upsert,
         )
         return UpdateManyResult(
