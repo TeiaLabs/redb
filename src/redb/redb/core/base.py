@@ -35,15 +35,7 @@ class BaseDocument(BaseModel, metaclass=DocumentMetaclass):
     def _get_driver_collection(
         instance_or_class: Type["BaseDocument"] | "BaseDocument",
     ) -> Any:
-        if isinstance(instance_or_class, type):
-            collection_name = instance_or_class.__name__
-        else:
-            collection_name = (
-                instance_or_class.__class__.__name__
-                if not hasattr(instance_or_class, "_collection_name")
-                else object.__getattribute__(instance_or_class, "_collection_name")
-            )
-
+        collection_name = instance_or_class.collection_name()
         database_name = instance_or_class.__database_name__
 
         client = RedB.get_client()
