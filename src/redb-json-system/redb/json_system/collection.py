@@ -220,7 +220,7 @@ class JSONCollection(Collection):
                 modified_count=1,
                 upserted_id=result.inserted_id,
             )
-
+        update = update.pop(next(iter(update.keys())))
         original_path = self.__collection / Path(f"{doc['_id']}.json")
         with open(original_path, "r") as f:
             original_content: dict = json.load(f)
