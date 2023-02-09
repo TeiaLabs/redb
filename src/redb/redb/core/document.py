@@ -112,6 +112,7 @@ class Document(BaseDocument):
             return_cls=return_cls,
             filter=filter,
             skip=skip,
+            fields=fields,
         )
 
     @classmethod

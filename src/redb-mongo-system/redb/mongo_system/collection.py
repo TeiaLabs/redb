@@ -74,10 +74,12 @@ class MongoCollection(Collection):
         cls: Type[Document],
         return_cls: ReturnType,
         filter: OptionalJson = None,
+        fields: dict[str, bool] | None = None,
         skip: int = 0,
     ) -> ReturnType:
         result = self.__collection.find_one(
             filter=filter,
+            projection=fields,
             skip=skip,
         )
         return return_cls(**result)
