@@ -267,6 +267,7 @@ class Document(BaseDocument):
         self: "Document",
         update: DocumentData,
         upsert: bool = False,
+        operator: str | None = "$set",
         allow_new_fields: bool = False,
     ) -> UpdateOneResult:
         if not allow_new_fields:
@@ -275,6 +276,9 @@ class Document(BaseDocument):
         collection = Document._get_collection(self.__class__)
         filter = _format_document_data(self)
         update = _format_document_data(update)
+        if operator is not None:
+            update = {operator: update}
+
         return collection.update_one(
             cls=self.__class__,
             filter=filter,
@@ -288,6 +292,7 @@ class Document(BaseDocument):
         filter: DocumentData,
         update: DocumentData,
         upsert: bool = False,
+        operator: str | None = "$set",
         allow_new_fields: bool = False,
     ) -> UpdateOneResult:
         if not allow_new_fields:
@@ -296,6 +301,9 @@ class Document(BaseDocument):
         collection = Document._get_collection(cls)
         filter = _format_document_data(filter)
         update = _format_document_data(update)
+        if operator is not None:
+            update = {operator: update}
+
         return collection.update_one(
             cls=cls,
             filter=filter,
@@ -309,6 +317,7 @@ class Document(BaseDocument):
         filter: DocumentData,
         update: DocumentData,
         upsert: bool = False,
+        operator: str | None = "$set",
         allow_new_fields: bool = False,
     ) -> UpdateManyResult:
         if not allow_new_fields:
@@ -317,6 +326,9 @@ class Document(BaseDocument):
         collection = Document._get_collection(cls)
         filter = _format_document_data(filter)
         update = _format_document_data(update)
+        if operator is not None:
+            update = {operator: update}
+
         return collection.update_many(
             cls=cls,
             filter=filter,
