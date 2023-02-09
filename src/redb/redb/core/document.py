@@ -4,6 +4,7 @@ from typing import Any, Dict, Type, TypeVar
 from redb.interface.fields import (
     CompoundIndex,
     Field,
+    ObjectId, DBRef,
     IncludeColumn,
     Index,
     PyMongoOperations,
@@ -46,7 +47,11 @@ class Document(BaseDocument):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:
-        json_encoders = {datetime: lambda d: d.isoformat()}
+        json_encoders = {
+            datetime: lambda d: d.isoformat(),
+            DBRef: lambda ref: dict(ref.as_doc()),
+            ObjectId: str
+        }
 
     def __init__(self, **data: Any) -> None:
         calculate_hash = False
