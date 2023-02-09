@@ -3,6 +3,8 @@ from pathlib import Path
 
 import pytest
 
+# from redb.core.transaction import transaction, MongoConfig
+
 from .utils import Embedding, read_json, remove_document
 
 
@@ -14,6 +16,12 @@ def test_insert_one(collection_path: Path):
         vector=[1, 2],
         source_url="www",
     )
+
+    # Ignored while we do not have a Mongo instance to run agains
+    # with transaction(collection_class=Embedding, config=MongoConfig(database_uri="mongodb://localhost:27017/", default_database="teia"), database_name="another") as embedding:
+    #     embedding.insert_one(data=d)
+    #     assert not (collection_path / f"{d.id}.json").is_file()
+
     Embedding.insert_one(d)
     assert (collection_path / f"{d.id}.json").is_file()
     json_path = collection_path / f"{d.id}.json"

@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Type, TypeVar
+from typing import Any, Type, TypeVar
 
 from migo.collection import BatchDocument
 from migo.collection import Collection as MigoDriverCollection
@@ -267,7 +267,7 @@ class MigoCollection(Collection):
         cls: ReturnType,
         key: str,
         filter: OptionalJson = None,
-    ) -> list[ReturnType]:
+    ) -> list[Any]:
         results = self.__collection.distinct(
             key=key,
             filter=filter,

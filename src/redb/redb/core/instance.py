@@ -1,13 +1,12 @@
 from typing import Literal
 
-from redb.interface.configs import JSONConfig, MigoConfig, MongoConfig
-
-
-def check_config(
-    config,
-    base_class,
-) -> bool:
-    return isinstance(config, base_class) or isinstance(config, dict)
+from redb.interface.configs import (
+    CONFIG_TYPE,
+    JSONConfig,
+    MigoConfig,
+    MongoConfig,
+    check_config,
+)
 
 
 class RedB:
@@ -31,7 +30,7 @@ class RedB:
     @classmethod
     def setup(
         cls,
-        config,
+        config: CONFIG_TYPE,
         backend: Literal["json", "mongo"] | None = None,
     ) -> None:
         if backend is None and isinstance(config, dict):
