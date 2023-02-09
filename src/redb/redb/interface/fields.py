@@ -3,6 +3,8 @@ from enum import Enum
 from typing import Any, ForwardRef, TypeVar, Union
 
 import pymongo
+from bson import DBRef as BsonDBRef
+from bson import ObjectId as BsonObjectId
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo, ModelField
 from pymongo.operations import (
@@ -173,3 +175,90 @@ def _get_type_from_annotation(annotation: T, base_class: BaseModel) -> BaseModel
             base_class.update_forward_refs()
         return annotation.__forward_value__
     return annotation
+
+
+
+class ObjectId(BsonObjectId):
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, v) -> "ObjectId":
+        if not BsonObjectId.is_valid(v):
+            raise ValueError("Invalid ObjectId.")
+        return ObjectId(v)
+
+    @classmethod
+    def __modify_schema__(cls, field_schema) -> str:
+        field_schema.update(type="string")
+
+    def __str__(self) -> str:
+        return super().__str__()
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}('{str(self)}')"
+
+
+class DBRefField(BaseModel):
+    id: ObjectId
+    collection:str
+    database: str | None = None
+
+    class Config:
+        json_encoders = {
+            ObjectId: str,
+        }
+
+    def dict(self, *_, **__) -> dict:
+        return {
+            "$id": self.id,
+            "$ref": self.collection,
+            "$db": self.database
+        }
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}('{self.dict()}')"
+
+class BsonDBRefField(BaseModel):
+    id: ObjectId = Field(alias="$id")
+    ref: str = Field(alias="$ref")
+    db: str | None = Field(None, alias="$db")
+
+
+class DBRef(BsonDBRef):
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, v):
+        field = v
+        if isinstance(v, BsonDBRef):
+            field = DBRefField(
+                id=v.id,
+                collection=v.collection,
+                database=v.database,
+            )
+        elif isinstance(field, dict):
+            if "$id" in field:
+                tmp = BsonDBRefField(**field)
+                field = DBRefField(
+                    id=tmp.id,
+                    collection=tmp.ref,
+                    database=tmp.db,
+                )
+            else:
+                field = DBRefField(**v)
+
+        if not isinstance(field, DBRefField):
+            raise ValueError(f"Cannot construct PyDBField from value: {v}")
+
+        return field
+
+    @classmethod
+    def __modify_schema__(cls, _):
+        return DBRefField
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}('{dict(self.as_doc())}')"
