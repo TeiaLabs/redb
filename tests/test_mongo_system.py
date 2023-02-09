@@ -92,4 +92,17 @@ class TestmongoSystem:
         assert upsert_result.modified_count == 0
 
     def test_delete_one(self):
-        pass
+        svetlana = RussianDog(
+            name="Svetlana",
+            age=2,
+            breed="Siberian Husky",
+            color="Gray",
+            is_good_boy=True,
+        )
+        svetlana_id = RussianDog.insert_one(svetlana)
+        svetlana_from_db = RussianDog.find_one({"_id": svetlana_id.inserted_id})
+        assert svetlana_from_db == svetlana
+
+        RussianDog.delete_one(svetlana)
+        with pytest.raises(TypeError):
+            svetlana_from_db = RussianDog.find_one({"_id": svetlana_id.inserted_id})
