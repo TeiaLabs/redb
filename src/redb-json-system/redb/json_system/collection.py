@@ -104,9 +104,7 @@ class JSONCollection(Collection):
             skip=skip,
             limit=1,
         )
-        if captures:
-            return captures[0]
-        return None
+        return return_cls(**captures[0])
 
     def distinct(
         self,
