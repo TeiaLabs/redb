@@ -1,41 +1,24 @@
 # redb
 
-Vector-focused research database.
+Object-document mapper.
+Like an ORM, but for NoSQL.
+Several vector-focused operations out of the box.
 
 <img src="resources/images/redb.png" align="center" width="256">
 
 ## Dev setup
 
 ```bash
-pip install \
-    -e ./src/redb \
-    -e ./src/redb-json-system/ \
-    -e ./src/redb-migo-system/ \
-    -e ./src/redb-mongo-system/ \
-    -e ./src/redb-teia-schema/
+git clone git@github.com:TeiaLabs/redb.git
+pip install -e ./redb
 ```
 
 ## Install
 
-To install redb with all optionals:
-
 ```bash
-
-pip install ./src/redb[all]
-```
-
-To install redb with the systems:
-
-```bash
-pip install redb[systems]
-```
-
-To install redb with json:
-
-```bash
-pip install redb[json]
+pip install redb-orm
 ```
 
 ## Usage
 
-Please check the resources/examples for more information.
+Please check the [./resources/examples](./resources/examples) for more information.
