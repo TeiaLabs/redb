@@ -106,3 +106,25 @@ class TestmongoSystem:
         RussianDog.delete_one(svetlana)
         with pytest.raises(TypeError):
             svetlana_from_db = RussianDog.find_one({"_id": svetlana_id.inserted_id})
+
+    def test_insert_many(self):
+        dog = RussianDog(
+            name="dog", age=5, breed="Siberian Husky", color="Gray", is_good_boy=True
+        )
+        dogdog = RussianDog(
+            name="dogdog",
+            age=6,
+            breed="Siberian Husky",
+            color="Gray",
+            is_good_boy=False,
+        )
+        ids = RussianDog.insert_many([dog, dogdog])
+        print(ids.inserted_ids)
+        dogs = RussianDog.find_many({"_id": {"$in": ids.inserted_ids}})
+        dogs = sorted(dogs, key=lambda x: x.name)
+        assert dogs == [dog, dogdog]
+        RussianDog.delete_many({"_id": {"$in": ids.inserted_ids}})
+        dict_ids = RussianDog.insert_many([dog.dict(), dogdog.dict()])
+        dict_dogs = RussianDog.find_many({"_id": {"$in": dict_ids.inserted_ids}})
+        dict_dogs = sorted(dict_dogs, key=lambda x: x.name)
+        assert dict_dogs == [dog.dict(), dogdog.dict()]
