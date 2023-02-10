@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from redb.core import RedB
+from redb.interface.fields import Direction, SortColumn
 from redb.interface.configs import MongoConfig
 from .utils import Embedding, RussianDog
 
@@ -128,3 +129,30 @@ class TestmongoSystem:
         dict_dogs = RussianDog.find_many({"_id": {"$in": dict_ids.inserted_ids}})
         dict_dogs = sorted(dict_dogs, key=lambda x: x.name)
         assert dict_dogs == [dog.dict(), dogdog.dict()]
+
+    def test_find_many(self):
+        natasha = RussianDog(
+            name="Natasha",
+            age=5,
+            breed="Siberian Husky",
+            color="Gray",
+            is_good_boy=True,
+        )
+        oksana = RussianDog(
+            name="Oksana",
+            age=6,
+            breed="Siberian Husky",
+            color="Gray",
+            is_good_boy=False,
+        )
+        ids = RussianDog.insert_many([natasha, oksana])
+        dogs = RussianDog.find_many({"_id": {"$in": ids.inserted_ids}})
+        dogs = sorted(dogs, key=lambda x: x.name)
+        assert dogs == [natasha, oksana]
+        # fields
+        dog_ages = RussianDog.find_many(filter={"_id": {"$in": ids.inserted_ids}},fields=["age"])
+        dog_ages = sorted(dog_ages, key=lambda x: x["age"])
+        assert dog_ages[0]["age"] == 5 and dog_ages[1]["age"] == 6
+        # sorted
+        sorted_dogs = RussianDog.find_many(filter={"_id": {"$in": ids.inserted_ids}}, sort=SortColumn(name="name", direction=Direction.ASCENDING))
+        assert sorted_dogs == [natasha, oksana]
