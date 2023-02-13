@@ -1,5 +1,7 @@
 from datetime import datetime
+from functools import singledispatch
 from typing import Any, Dict, Type, TypeVar
+from types import NoneType
 
 from redb.interface.fields import (
     CompoundIndex,
@@ -420,18 +422,18 @@ def _get_return_cls(
     return return_type
 
 
-def _format_fields(fields: IncludeColumns) -> dict[str, bool]:
-    formatted_fields = fields
+def _format_fields(fields: IncludeColumns) -> dict[str, bool] | None:
     if fields is not None:
         if isinstance(fields[0], str):
             formatted_fields = {field: True for field in fields}
         else:
             formatted_fields = {field.name: field.include for field in fields}
-
+    else:
+        formatted_fields = None
     return formatted_fields
 
 
-def _format_sort(sort: SortColumns) -> dict[tuple[str, str | int]]:
+def _format_sort(sort: SortColumns) -> list[tuple[str, str | int]]:
     formatted_sort = sort
     if sort is not None:
         if isinstance(sort, list):

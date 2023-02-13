@@ -4,7 +4,7 @@ from pymongo.collection import Collection as PymongoCollection
 
 from redb.core import Document
 from redb.interface.collection import Collection, Json, OptionalJson, ReturnType
-from redb.interface.fields import CompoundIndex, Direction, PyMongoOperations
+from redb.interface.fields import CompoundIndex, PyMongoOperations
 from redb.interface.results import (
     BulkWriteResult,
     DeleteManyResult,
@@ -38,7 +38,7 @@ class MongoCollection(Collection):
             name = f"unique_{name}" if index.unique else name
             name = f"{index.direction.name.lower()}_{name}_index"
         try:
-            keys = [(field.join_attrs(), index.direction) for field in index.fields]
+            keys = [(field.join_attrs(), index.direction.value) for field in index.fields]
             self.__collection.create_index(
                 keys=keys,
                 name=name,
@@ -54,7 +54,7 @@ class MongoCollection(Collection):
         return_cls: ReturnType,
         filter: OptionalJson = None,
         fields: dict[str, bool] | None = None,
-        sort: dict[tuple[str, str | int]] | None = None,
+        sort: list[tuple[str, str | int]] | None = None,
         skip: int = 0,
         limit: int = 0,
     ) -> list[ReturnType]:
@@ -82,7 +82,7 @@ class MongoCollection(Collection):
             projection=fields,
             skip=skip,
         )
-        return return_cls(**result)
+        return return_cls(**result)  # TODO handle None
 
     def distinct(
         self,
