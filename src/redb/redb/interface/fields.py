@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, ForwardRef, TypeVar, Union
+from typing import Any, ForwardRef, TypeVar, Union, Literal
 
 import pymongo
 from bson import DBRef as BsonDBRef
@@ -38,6 +38,25 @@ class Direction(Enum):
     GEOSPHERE = pymongo.GEOSPHERE
     HASHED = pymongo.HASHED
     TEXT = pymongo.TEXT
+
+    @classmethod
+    def from_string(
+        cls, query: Literal["asc", "desc", "2d", "sphere", "hashed", "text"]
+    ) -> "Direction":
+        if query == "asc":
+            return cls.ASCENDING
+        elif query == "desc":
+            return cls.DESCENDING
+        elif query == "2d":
+            return cls.GEO2D
+        elif query == "sphere":
+            return cls.GEOSPHERE
+        elif query == "hashed":
+            return cls.HASHED
+        elif query == "text":
+            return cls.TEXT
+        else:
+           raise ValueError(f"Invalid sort order: {query}.")
 
 
 class Column(BaseModel):
@@ -201,7 +220,7 @@ class ObjectId(BsonObjectId):
 
 
 class DBRefField(BaseModel):
-    id: ObjectId
+    id: str
     collection:str
     database: str | None = None
 
@@ -221,7 +240,7 @@ class DBRefField(BaseModel):
         return f"{self.__class__.__name__}('{self.dict()}')"
 
 class BsonDBRefField(BaseModel):
-    id: ObjectId = Field(alias="$id")
+    id: str = Field(alias="$id")
     ref: str = Field(alias="$ref")
     db: str | None = Field(None, alias="$db")
 
