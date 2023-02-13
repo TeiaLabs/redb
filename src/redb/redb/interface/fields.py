@@ -196,7 +196,6 @@ def _get_type_from_annotation(annotation: T, base_class: BaseModel) -> BaseModel
     return annotation
 
 
-
 class ObjectId(BsonObjectId):
     @classmethod
     def __get_validators__(cls):
@@ -220,7 +219,7 @@ class ObjectId(BsonObjectId):
 
 
 class DBRefField(BaseModel):
-    id: str
+    id: Any
     collection:str
     database: str | None = None
 
@@ -239,13 +238,16 @@ class DBRefField(BaseModel):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}('{self.dict()}')"
 
+
 class BsonDBRefField(BaseModel):
-    id: str = Field(alias="$id")
+    id: Any = Field(alias="$id")
     ref: str = Field(alias="$ref")
     db: str | None = Field(None, alias="$db")
 
 
 class DBRef(BsonDBRef):
+    """Warning: does not work with openapi schema because of $ref."""
+
     @classmethod
     def __get_validators__(cls):
         yield cls.validate

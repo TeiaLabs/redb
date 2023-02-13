@@ -4,7 +4,8 @@ from typing import Any, Dict, Type, TypeVar
 from redb.interface.fields import (
     CompoundIndex,
     Field,
-    ObjectId, DBRef,
+    ObjectId,
+    DBRef,
     IncludeColumn,
     Index,
     PyMongoOperations,
@@ -50,7 +51,7 @@ class Document(BaseDocument):
         json_encoders = {
             datetime: lambda d: d.isoformat(),
             DBRef: lambda ref: dict(ref.as_doc()),
-            ObjectId: str
+            ObjectId: str,
         }
 
     def __init__(self, **data: Any) -> None:
@@ -433,9 +434,9 @@ def _format_sort(sort: SortColumns) -> dict[tuple[str, str | int]]:
     formatted_sort = sort
     if sort is not None:
         if isinstance(sort, list):
-            formatted_sort = [(field.name, field.direction) for field in sort]
+            formatted_sort = [(field.name, field.direction.value) for field in sort]
         else:
-            formatted_sort = [(sort.name, sort.direction)]
+            formatted_sort = [(sort.name, sort.direction.value)]
 
     return formatted_sort
 
