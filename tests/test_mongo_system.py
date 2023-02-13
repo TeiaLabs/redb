@@ -1,14 +1,15 @@
+import os
 from pathlib import Path
 
+import dotenv
 import pytest
-import os
 
 from redb.core import RedB
 from redb.interface.fields import Direction, SortColumn
 from redb.interface.configs import MongoConfig
 from .utils import Embedding, RussianDog
 
-
+dotenv.load_dotenv()
 class TestmongoSystem:
     @pytest.fixture()
     def client_path(self):
@@ -24,6 +25,9 @@ class TestmongoSystem:
 
     @pytest.fixture(scope="class", autouse=True)
     def clean_db(self, client):
+        RussianDog.delete_many({})
+        Embedding.delete_many({})
+        yield
         RussianDog.delete_many({})
         Embedding.delete_many({})
 
