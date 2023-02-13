@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, ForwardRef, TypeVar, Union, Literal
+from types import UnionType
+from typing import Any, ForwardRef, Literal, TypeVar, Union
 
 import pymongo
 from bson import DBRef as BsonDBRef
@@ -56,7 +57,7 @@ class Direction(Enum):
         elif query == "text":
             return cls.TEXT
         else:
-           raise ValueError(f"Invalid sort order: {query}.")
+            raise ValueError(f"Invalid sort order: {query}.")
 
 
 class Column(BaseModel):
@@ -143,7 +144,7 @@ class ClassField:
             return super().__getattribute__(name)
 
         try:
-            annotation = _get_unwrapped_annotation(self.model_field.annotation)
+            annotation = _get_unwrapped_annotation(self.model_field.outer_type_)
             base_class = _get_type_from_annotation(annotation, self.base_class)
 
             if not hasattr(base_class, "__fields__"):
@@ -171,6 +172,7 @@ class ClassField:
 def _get_unwrapped_annotation(annotation: T) -> T:
     annotation = _unwrap_optional(annotation)
     annotation = _unwrap_iterable(annotation)
+    annotation = _unwrap_union(annotation)
     return annotation
 
 
@@ -184,6 +186,12 @@ def _unwrap_iterable(annotation: T) -> T:
     if hasattr(annotation, "__args__"):
         if annotation.__origin__ not in {list, set}:
             raise ValueError("Are you trying to outsmart me!? HA HA")
+        return annotation.__args__[0]
+    return annotation
+
+
+def _unwrap_union(annotation: T) -> T:
+    if hasattr(annotation, "__args__") and annotation.__class__ is UnionType:
         return annotation.__args__[0]
     return annotation
 
@@ -229,11 +237,7 @@ class DBRefField(BaseModel):
         }
 
     def dict(self, *_, **__) -> dict:
-        return {
-            "$id": self.id,
-            "$ref": self.collection,
-            "$db": self.database
-        }
+        return {"$id": self.id, "$ref": self.collection, "$db": self.database}
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}('{self.dict()}')"
