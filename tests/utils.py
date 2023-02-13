@@ -28,6 +28,10 @@ class Embedding(Document):
             assert a[a_key] == b[a_key]
         return True
 
+    @classmethod
+    def get_hashable_fields(cls):
+        return [cls.kb_name, cls.model, cls.text, cls.vector, cls.source_url]
+
 class RussianDog(Document):
     name: str
     age: int
