@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+import os
 
 from redb.core import RedB
 from redb.interface.fields import Direction, SortColumn
@@ -17,12 +18,13 @@ class TestmongoSystem:
     def client(self):
         RedB.setup(
             MongoConfig(
-                database_uri="mongodb://localhost:27017/redb-tests",
+                database_uri=os.environ["MONGO_URI"],
             )
         )
 
     @pytest.fixture(scope="class", autouse=True)
     def clean_db(self, client):
+        RussianDog.delete_many({})
         Embedding.delete_many({})
 
     def test_insert_one(self):
@@ -150,9 +152,14 @@ class TestmongoSystem:
         dogs = sorted(dogs, key=lambda x: x.name)
         assert dogs == [natasha, oksana]
         # fields
-        dog_ages = RussianDog.find_many(filter={"_id": {"$in": ids.inserted_ids}},fields=["age"])
+        dog_ages = RussianDog.find_many(
+            filter={"_id": {"$in": ids.inserted_ids}}, fields=["age"]
+        )
         dog_ages = sorted(dog_ages, key=lambda x: x["age"])
         assert dog_ages[0]["age"] == 5 and dog_ages[1]["age"] == 6
         # sorted
-        sorted_dogs = RussianDog.find_many(filter={"_id": {"$in": ids.inserted_ids}}, sort=SortColumn(name="name", direction=Direction.ASCENDING))
+        sorted_dogs = RussianDog.find_many(
+            filter={"_id": {"$in": ids.inserted_ids}},
+            sort=SortColumn(name="name", direction=Direction.ASCENDING),
+        )
         assert sorted_dogs == [natasha, oksana]
