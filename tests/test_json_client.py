@@ -8,8 +8,9 @@ import pytest
 from .utils import Embedding, read_json, remove_document
 
 
-def test_insert_one(collection_path: Path):
-    d = Embedding(
+@pytest.fixture
+def embedding():
+    return Embedding(
         kb_name="KB",
         model="ai",
         text="Some data.",
@@ -17,30 +18,26 @@ def test_insert_one(collection_path: Path):
         source_url="www",
     )
 
+
+def test_insert_one(collection_path: Path, embedding: Embedding):
     # Ignored while we do not have a Mongo instance to run agains
     # with transaction(collection_class=Embedding, config=MongoConfig(database_uri="mongodb://localhost:27017/", default_database="teia"), database_name="another") as embedding:
     #     embedding.insert_one(data=d)
     #     assert not (collection_path / f"{d.id}.json").is_file()
-
-    Embedding.insert_one(d)
-    assert (collection_path / f"{d.id}.json").is_file()
-    json_path = collection_path / f"{d.id}.json"
+    Embedding.insert_one(embedding)
+    assert (collection_path / f"{embedding.id}.json").is_file()
+    json_path = collection_path / f"{embedding.id}.json"
     other = read_json(json_path)
-    remove_document(collection_path, d.id)
-    assert other == d
+    remove_document(collection_path, embedding.id)
+    assert other == embedding
 
 
-def test_find_by_id(collection_path: Path):
-    d = Embedding(
-        kb_name="KB",
-        model="ai",
-        text="Some data.",
-        source_url="www",
-    )
-    Embedding.insert_one(d)
-    found_instance = Embedding.find_one(d)
-    remove_document(collection_path, d.id)
-    assert found_instance == d
+def test_find_by_id(collection_path: Path, embedding: Embedding):
+    Embedding.insert_one(embedding)
+    print(embedding)
+    found_instance = Embedding.find_one(filter=dict(_id=embedding.id))
+    remove_document(collection_path, embedding.id)
+    assert found_instance == embedding
 
 
 def test_insert_vectors(collection_path: Path):
@@ -74,31 +71,19 @@ def test_insert_vectors(collection_path: Path):
         assert original == other
 
 
-def test_count_documents(collection_path: Path):
+def test_count_documents(collection_path: Path, embedding: Embedding):
     doc_count = Embedding.count_documents()
     assert doc_count == 0
-    d = Embedding(
-        kb_name="KB",
-        model="ai",
-        text="Some data.",
-        vector=[1, 2],
-        source_url="www",
-    )
-    Embedding.insert_one(d)
+    Embedding.insert_one(embedding)
     doc_count = Embedding.count_documents()
-    assert doc_count == 1
-    remove_document(collection_path, d.id)
+    try:
+        assert doc_count == 1
+    finally:
+        remove_document(collection_path, embedding.id)
 
 
-def test_replace_one(collection_path: Path):
-    d = Embedding(
-        kb_name="KB",
-        model="ai",
-        text="Some data.",
-        vector=[1, 2],
-        source_url="www",
-    )
-    Embedding.insert_one(d)
+def test_replace_one(collection_path: Path, embedding: Embedding):
+    Embedding.insert_one(embedding)
     replacement = Embedding(
         kb_name="KB_REPLACED",
         model="replaced",
@@ -106,38 +91,24 @@ def test_replace_one(collection_path: Path):
         vector=[114, 101, 112, 108, 97, 99, 101, 100],
         source_url="www.replaced",
     )
-    Embedding.replace_one(d, replacement)
+    Embedding.replace_one(embedding, replacement)
     other = read_json(collection_path / f"{replacement.id}.json")
     remove_document(collection_path, replacement.id)
     assert replacement == other
 
 
-def test_update_one(collection_path: Path):
-    d = Embedding(
-        kb_name="KB",
-        model="ai",
-        text="Some data.",
-        vector=[1, 2],
-        source_url="www",
-    )
-    Embedding.insert_one(d)
-    Embedding.update_one(d, update={"_id": d.id, "kb_name": "KB_UPDATED"})
-    expected = d.dict()
+def test_update_one(collection_path: Path, embedding: Embedding):
+    Embedding.insert_one(embedding)
+    Embedding.update_one(embedding, update={"_id": embedding.id, "kb_name": "KB_UPDATED"})
+    expected = embedding.dict()
     expected["kb_name"] = "KB_UPDATED"
-    other = read_json(collection_path / f"{d.id}.json")
-    remove_document(collection_path, d.id)
+    other = read_json(collection_path / f"{embedding.id}.json")
+    remove_document(collection_path, embedding.id)
     assert expected == other
 
 
-def test_delete_one(collection_path: Path):
-    d = Embedding(
-        kb_name="KB",
-        model="ai",
-        text="Some data.",
-        vector=[1, 2],
-        source_url="www",
-    )
-    Embedding.insert_one(d)
-    Embedding.delete_one(d)
+def test_delete_one(collection_path: Path, embedding: Embedding):
+    Embedding.insert_one(embedding)
+    Embedding.delete_one(embedding)
     with pytest.raises(AssertionError):
-        assert (collection_path / f"{d.id}.json").is_file()
+        assert (collection_path / f"{embedding.id}.json").is_file()
