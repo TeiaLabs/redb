@@ -1,15 +1,13 @@
 from datetime import datetime
-from functools import singledispatch
 from typing import Any, Dict, Type, TypeVar
-from types import NoneType
 
 from redb.interface.fields import (
     CompoundIndex,
-    Field,
-    ObjectId,
     DBRef,
+    Field,
     IncludeColumn,
     Index,
+    ObjectId,
     PyMongoOperations,
     SortColumn,
 )
@@ -55,6 +53,7 @@ class Document(BaseDocument):
             DBRef: lambda ref: dict(ref.as_doc()),
             ObjectId: str,
         }
+        smart_union = True
 
     def __init__(self, **data: Any) -> None:
         calculate_hash = False
