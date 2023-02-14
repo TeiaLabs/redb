@@ -40,6 +40,9 @@ class CollectionWrapper:
         self.__collection = collection
         self.__collection_class = collection_class
 
+    def _get_driver_collection(self) -> Any:
+        return self.__collection
+
     def find_one(
         self,
         filter: OptionalDocumentData = None,
