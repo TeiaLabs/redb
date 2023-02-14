@@ -240,12 +240,13 @@ class transaction:
         else:
             database = client.get_database(db_name)
 
-        if Document in collection.__mro__:
+        
+        if isinstance(collection, str):
+            self.__collection = database.get_collection(collection)
+        else:
             collection_name = collection.collection_name()
             driver_collection = database.get_collection(collection_name)
             self.__collection = CollectionWrapper(driver_collection, collection)
-        else:
-            self.__collection = database.get_collection(collection)
 
     def __enter__(self) -> Collection | CollectionWrapper:
         return self.__collection
@@ -257,10 +258,8 @@ class transaction:
         return type is None
 
 
-def get_client(backend: str, config: CONFIG_TYPE):
-    if backend is None and isinstance(config, dict):
-        raise ValueError("Cannot determine client type from backend and config")
-    elif backend == "json" or (backend is None and check_config(config, JSONConfig)):
+def get_client(backend: str | None, config: CONFIG_TYPE):
+    if backend == "json" or (backend is None and check_config(config, JSONConfig)):
         from redb.json_system import JSONClient
 
         return True, JSONClient(config)
