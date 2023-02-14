@@ -64,6 +64,14 @@ def test_equal_objects_equal_hash():
     assert obj1_hash == obj2_hash
 
 
+def test_objects_only_different_by_non_hashable_fields():
+    obj1 = Kitten(name="Fluffy", is_bad_kitten=False, mom=Cat(name="Whiskers"))
+    obj1_hash = obj1.get_hash()
+    obj2 = Kitten(name="Fluffy", is_bad_kitten=True, mom=Cat(name="Whiskers"))
+    obj2_hash = obj2.get_hash()
+    assert obj1_hash == obj2_hash
+
+
 def test_different_objects_different_hash():
     obj1 = Kitten(name="Fluffy", is_bad_kitten=False, mom=Cat(name="Whiskers"))
     obj1_hash = obj1.get_hash()
