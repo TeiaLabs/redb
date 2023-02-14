@@ -8,6 +8,7 @@ from redb.core.document import (
     SortColumns,
     _format_document_data,
     _format_fields,
+    _format_index,
     _format_sort,
     _get_return_cls,
     _validate_fields,
@@ -42,6 +43,12 @@ class CollectionWrapper:
 
     def _get_driver_collection(self) -> Any:
         return self.__collection._get_driver_collection()
+
+    def create_indexes(self) -> None:
+        indexes = self.__collection_class.get_indexes()
+        for index in indexes:
+            index = _format_index(index)
+            self.__collection.create_index(index)
 
     def find_one(
         self,
@@ -240,7 +247,6 @@ class transaction:
         else:
             database = client.get_database(db_name)
 
-        
         if isinstance(collection, str):
             self.__collection = database.get_collection(collection)
         else:
