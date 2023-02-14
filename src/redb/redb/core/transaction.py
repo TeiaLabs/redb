@@ -41,7 +41,7 @@ class CollectionWrapper:
         self.__collection_class = collection_class
 
     def _get_driver_collection(self) -> Any:
-        return self.__collection
+        return self.__collection._get_driver_collection()
 
     def find_one(
         self,
@@ -232,7 +232,7 @@ class transaction:
         else:
             database = client.get_database(db_name)
 
-        if isinstance(collection, Document):
+        if Document in collection.__mro__:
             collection_name = collection.collection_name()
             driver_collection = database.get_collection(collection_name)
             self.__collection = CollectionWrapper(driver_collection, collection)
