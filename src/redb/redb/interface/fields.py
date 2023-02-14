@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 from types import UnionType
-from typing import Any, ForwardRef, Literal, TypeVar, Union
+from typing import Any, ForwardRef, Literal, TypeVar, Union, _UnionGenericAlias
 
 import pymongo
 from bson import DBRef as BsonDBRef
@@ -191,7 +191,10 @@ def _unwrap_iterable(annotation: T) -> T:
 
 
 def _unwrap_union(annotation: T) -> T:
-    if hasattr(annotation, "__args__") and annotation.__class__ is UnionType:
+    if hasattr(annotation, "__args__") and annotation.__class__ in {
+        UnionType,
+        _UnionGenericAlias,
+    }:
         return annotation.__args__[0]
     return annotation
 
@@ -228,7 +231,7 @@ class ObjectId(BsonObjectId):
 
 class DBRefField(BaseModel):
     id: Any
-    collection:str
+    collection: str
     database: str | None = None
 
     class Config:
