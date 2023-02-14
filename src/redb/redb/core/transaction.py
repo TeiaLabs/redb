@@ -216,11 +216,10 @@ class CollectionWrapper:
 class transaction:
     def __init__(
         self,
+        collection: str | Document,
         backend: str | None = None,
         config: CONFIG_TYPE | None = None,
-        database_name: str | None = None,
-        collection_name: str | None = None,
-        collection_class: Document | None = None,
+        db_name: str | None = None,
     ):
         new_client, client = get_client(backend, config)
         if new_client:
@@ -228,21 +227,17 @@ class transaction:
         else:
             self.__client = None
 
-        if database_name is None:
+        if db_name is None:
             database = client.get_default_database()
         else:
-            database = client.get_database(database_name)
+            database = client.get_database(db_name)
 
-        if collection_name is None:
-            if collection_class is None:
-                msg = "Neither collection_name nor collection_class provided."
-                raise ValueError(msg)
-
-            collection_name = collection_class.collection_name()
+        if isinstance(collection, Document):
+            collection_name = collection.collection_name()
             driver_collection = database.get_collection(collection_name)
-            self.__collection = CollectionWrapper(driver_collection, collection_class)
+            self.__collection = CollectionWrapper(driver_collection, collection)
         else:
-            self.__collection = database.get_collection(collection_name)
+            self.__collection = database.get_collection(collection)
 
     def __enter__(self) -> Collection | CollectionWrapper:
         return self.__collection
