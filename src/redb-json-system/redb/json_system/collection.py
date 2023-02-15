@@ -308,7 +308,7 @@ class JSONCollection(Collection):
 
         file = self.__collection / f"{doc['_id']}.json"
         file.unlink()
-        return DeleteOneResult()
+        return DeleteOneResult(deleted_count=1)
 
     def delete_many(
         self,

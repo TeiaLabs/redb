@@ -31,7 +31,7 @@ class ReplaceOneResult(UpdateOneResult):
 
 @dataclass
 class DeleteOneResult:
-    deleted_count: int = 1
+    deleted_count: int
 
 
 @dataclass

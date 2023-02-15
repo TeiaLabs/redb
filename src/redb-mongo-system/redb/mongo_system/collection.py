@@ -38,7 +38,9 @@ class MongoCollection(Collection):
             name = f"unique_{name}" if index.unique else name
             name = f"{index.direction.name.lower()}_{name}_index"
         try:
-            keys = [(field.join_attrs(), index.direction.value) for field in index.fields]
+            keys = [
+                (field.join_attrs(), index.direction.value) for field in index.fields
+            ]
             self.__collection.create_index(
                 keys=keys,
                 name=name,
@@ -189,8 +191,8 @@ class MongoCollection(Collection):
         cls: Type[Document],
         filter: Json,
     ) -> DeleteOneResult:
-        self.__collection.delete_one(filter=filter)
-        return DeleteOneResult()
+        res = self.__collection.delete_one(filter=filter)
+        return DeleteOneResult(deleted_count=res.deleted_count)
 
     def delete_many(
         self,
