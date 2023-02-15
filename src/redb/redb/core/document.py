@@ -447,7 +447,7 @@ def _format_document_data(data: OptionalDocumentData):
     if data is None:
         return None
     if isinstance(data, Document):
-        return data.dict(by_alias=True, exclude_unset=True)
+        return data.dict(by_alias=True)
     return data
 
 
