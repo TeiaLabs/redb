@@ -231,3 +231,29 @@ class TestmongoSystem:
         assert update_allow_result.modified_count == 2
         assert allow_dogs[0] == katerina
         assert allow_dogs[1] == oleg
+
+    def test_delete_many(self):
+        viktor = RussianDog(
+            name="Viktor",
+            age=13,
+            breed="Siberian Husky",
+            color="White",
+            is_good_boy=True,
+        )
+        alek = RussianDog(
+            name="Alek",
+            age=13,
+            breed="Siberian Husky",
+            color="White",
+            is_good_boy=True,
+        )
+        ids = RussianDog.insert_many([viktor, alek])
+        dogs = RussianDog.find_many({"_id": {"$in": ids.inserted_ids}})
+        dogs = sorted(dogs, key=lambda x: x.name)
+        assert [alek, viktor] == dogs
+
+        RussianDog.delete_many(filter={"age": 13})
+        with pytest.raises(TypeError):
+            RussianDog.find_one({"_id": ids.inserted_ids[0]})
+        with pytest.raises(TypeError):
+            RussianDog.find_one({"_id": ids.inserted_ids[1]})
