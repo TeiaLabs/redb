@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Optional
 
 from redb.core import Document
 
@@ -32,12 +33,14 @@ class Embedding(Document):
     def get_hashable_fields(cls):
         return [cls.kb_name, cls.model, cls.text, cls.vector, cls.source_url]
 
+
 class RussianDog(Document):
     name: str
     age: int
     breed: str
     color: str
     is_good_boy: bool
+    is_pet: Optional[bool] = None
 
     def __eq__(self, other: "RussianDog") -> bool:
         if isinstance(other, RussianDog):
@@ -65,4 +68,3 @@ def remove_document(collection_path: Path, hash: str):
 def read_json(path: Path):
     with open(path, "r") as f:
         return json.load(f)
-

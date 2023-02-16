@@ -10,6 +10,8 @@ from redb.interface.configs import MongoConfig
 from .utils import Embedding, RussianDog
 
 dotenv.load_dotenv()
+
+
 class TestmongoSystem:
     @pytest.fixture()
     def client_path(self):
@@ -167,3 +169,65 @@ class TestmongoSystem:
             sort=SortColumn(name="name", direction=Direction.ASCENDING),
         )
         assert sorted_dogs == [natasha, oksana]
+
+    def test_update_many(self):
+        oleg = RussianDog(
+            name="Oleg",
+            age=10,
+            breed="Siberian Husky",
+            color="Blue",
+            is_good_boy=True,
+        )
+        katerina = RussianDog(
+            name="Katerina",
+            age=5,
+            breed="Siberian Husky",
+            color="Blue",
+            is_good_boy=True,
+        )
+        # upadate
+        ids = RussianDog.insert_many([oleg, katerina])
+        update_result = RussianDog.update_many(
+            filter={"color": "Blue"}, update={"color": "Red"}
+        )
+        katerina.color = "Red"
+        oleg.color = "Red"
+        dogs = RussianDog.find_many({"_id": {"$in": ids.inserted_ids}})
+        dogs = sorted(dogs, key=lambda x: x.age)
+        assert update_result.matched_count == 2
+        assert update_result.modified_count == 2
+        assert dogs == [katerina, oleg]
+
+        # upsert
+        romeo = RussianDog(
+            name="Romeo",
+            age=7,
+            breed="Dachshund",
+            color="Brown",
+            is_good_boy=True,
+        )
+        upsert_result = RussianDog.update_many(
+            filter=romeo,
+            update={"color": "Black"},
+            upsert=True,
+        )
+        romeo.color = "Black"
+
+        upseted_dog = RussianDog.find_one(filter={"_id": upsert_result.upserted_id})
+        assert upsert_result.matched_count == 0
+        assert upsert_result.modified_count == 0
+        assert upseted_dog == romeo
+
+        # allow new fields
+        update_allow_result = RussianDog.update_many(
+            filter={"color": "Red"}, update={"is_pet": True}, allow_new_fields=True
+        )
+        allow_dogs = RussianDog.find_many({"_id": {"$in": ids.inserted_ids}})
+        allow_dogs = sorted(allow_dogs, key=lambda x: x.age)
+        katerina.is_pet = True
+        oleg.is_pet = True
+
+        assert update_allow_result.matched_count == 2
+        assert update_allow_result.modified_count == 2
+        assert allow_dogs[0] == katerina
+        assert allow_dogs[1] == oleg
