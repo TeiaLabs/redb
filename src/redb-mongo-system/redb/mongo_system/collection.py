@@ -15,6 +15,7 @@ from redb.interface.results import (
     UpdateManyResult,
     UpdateOneResult,
 )
+from redb.interface.errors import DocumentNotFound
 
 
 class MongoCollection(Collection):
@@ -84,7 +85,10 @@ class MongoCollection(Collection):
             projection=fields,
             skip=skip,
         )
-        return return_cls(**result)  # TODO handle None
+        if not result:
+            m = f"Document not found with filters {filter} in collection {self.__collection.name}."
+            raise DocumentNotFound(m)
+        return return_cls(**result)
 
     def distinct(
         self,
