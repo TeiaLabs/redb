@@ -7,6 +7,7 @@ import pytest
 from redb.core import RedB
 from redb.interface.fields import Direction, SortColumn
 from redb.interface.configs import MongoConfig
+from redb.interface.errors import DocumentNotFound
 from .utils import Embedding, RussianDog
 
 dotenv.load_dotenv()
@@ -113,7 +114,7 @@ class TestmongoSystem:
         assert svetlana_from_db == svetlana
 
         RussianDog.delete_one(svetlana)
-        with pytest.raises(TypeError):
+        with pytest.raises(DocumentNotFound):
             svetlana_from_db = RussianDog.find_one({"_id": svetlana_id.inserted_id})
 
     def test_insert_many(self):
@@ -253,7 +254,7 @@ class TestmongoSystem:
         assert [alek, viktor] == dogs
 
         RussianDog.delete_many(filter={"age": 13})
-        with pytest.raises(TypeError):
+        with pytest.raises(DocumentNotFound):
             RussianDog.find_one({"_id": ids.inserted_ids[0]})
-        with pytest.raises(TypeError):
+        with pytest.raises(DocumentNotFound):
             RussianDog.find_one({"_id": ids.inserted_ids[1]})
