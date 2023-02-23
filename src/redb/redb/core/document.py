@@ -422,13 +422,17 @@ def _get_return_cls(
 
 
 def _format_fields(fields: IncludeColumns) -> dict[str, bool] | None:
-    if fields is not None:
-        if isinstance(fields[0], str):
-            formatted_fields = {field: True for field in fields}
-        else:
-            formatted_fields = {field.name: field.include for field in fields}
+    if fields is None:
+        return None
+
+    if isinstance(fields[0], str):
+        formatted_fields = {field: True for field in fields}
     else:
-        formatted_fields = None
+        formatted_fields = {field.name: field.include for field in fields}
+
+    if "_id" not in formatted_fields:
+        formatted_fields["_id"] = False
+
     return formatted_fields
 
 
