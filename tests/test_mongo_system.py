@@ -58,7 +58,6 @@ class TestmongoSystem:
         vladmir_from_db = RussianDog.find_one({"_id": vladmir_id.inserted_id})
         vladmir_breed = RussianDog.find_one(vladmir, fields=["breed"])
         assert vladmir_breed == {
-            "_id": vladmir_id.inserted_id,
             "breed": "Siberian Husky",
         }
         assert vladmir == vladmir_from_db
