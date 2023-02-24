@@ -5,20 +5,6 @@ from pathlib import Path
 
 import setuptools
 
-if os.environ.get("REDB_LOCAL"):
-    # For local development only
-    root = Path(__file__).parent.parent.absolute().as_posix()
-    print(root)
-    BASE_URL = f"file://localhost/{root}"
-else:
-    BASE_URL = "git+ssh://git@github.com/TeiaLabs/redb.git#subdirectory=src"
-
-systems = {
-    "json": f"redb_json_system @ {BASE_URL}/redb-json-system",
-    "mongo": f"redb_mongo_system @ {BASE_URL}/redb-mongo-system",
-    "migo": f"redb_migo_system @ {BASE_URL}/redb-migo-system",
-}
-
 
 def read_multiline_as_list(file_path: Path | str) -> list[str]:
     with open(file_path) as req_file:
@@ -38,14 +24,8 @@ def get_optional_requirements() -> dict[str, list[str]]:
 
 
 requirements = read_multiline_as_list("requirements.txt")
-# requirements.append(f"redb_interface @ {BASE_URL}/redb-interface")
 
 opt_requirements = get_optional_requirements()
-opt_requirements["schema"] = [f"redb_teia_schema @ {BASE_URL}/redb-teia-schema"]
-opt_requirements["json"] = [systems["json"]]
-opt_requirements["mongo"] = [systems["mongo"]]
-opt_requirements["migo"] = [systems["migo"]]
-opt_requirements["systems"] = list(systems.values())
 opt_requirements["all"] = [
     value
     for key, values in opt_requirements.items()
@@ -58,10 +38,10 @@ with open("README.md") as f:
 
 setuptools.setup(
     name="redb",
-    version="1.0.1",
+    version="1.0.3",
     author="Teia Labs",
     author_email="contato@teialabs.com",
-    description="",
+    description="A python ODM for JSON, Mongo, and Mongo+Milvus.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/teialabs/redb",

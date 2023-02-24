@@ -26,13 +26,12 @@ jobs:
           cache-dependency-path: |
             src/redb*/requirements.txt
       - name: Setup pip and pytest
+        working-directory: ./redb/
         run: |
           python -m pip install --upgrade pip
-          pip install ./src/redb
-          pip install ./src/redb-json-system
-          pip install ./src/redb-mongo-system
-          pip install ./src/redb-teia-schema
+          pip install ./
       - name: Install and test `redb`.
+        working-directory: ./redb/
         run: |
           pip install -r requirements-test.txt
           pytest ./tests/ --tb=no
