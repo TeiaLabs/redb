@@ -26,6 +26,6 @@ jobs:
       - name: Publish.
         uses: pypa/gh-action-pypi-publish@v1.6.4
         with:
-          working-directory: ./redb/
+          packages_dir: ./redb/dist/
           password: ${{ secrets.PYPI_API_TOKEN }}
           print_hash: true
