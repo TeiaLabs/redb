@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, Type, TypeVar, TypeAlias
+from typing import Any, Dict, Type, TypeVar, TypeAlias, Union
 
 from redb.interface.fields import (
     CompoundIndex,
@@ -24,9 +24,9 @@ from redb.interface.results import (
 
 from .base import BaseDocument
 
-DocumentData: TypeAlias = "Document" | Dict[str, Any]
+DocumentData: TypeAlias = Union["Document", Dict[str, Any]]
 IncludeColumns: TypeAlias = list[IncludeColumn] | list[str] | None
-OptionalDocumentData: TypeAlias = "Document" | dict[str, Any] | None
+OptionalDocumentData: TypeAlias = Union["Document", dict[str, Any], None]
 SortColumns: TypeAlias = list[SortColumn] | SortColumn | None
 T = TypeVar("T", bound="Document")
 
