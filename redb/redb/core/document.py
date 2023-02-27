@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, Type, TypeVar
+from typing import Any, Dict, Type, TypeVar, TypeAlias
 
 from redb.interface.fields import (
     CompoundIndex,
@@ -24,22 +24,11 @@ from redb.interface.results import (
 
 from .base import BaseDocument
 
-DocumentData = TypeVar(
-    "DocumentData",
-    bound="Document" | Dict[str, Any],
-)
-OptionalDocumentData = TypeVar(
-    "OptionalDocumentData",
-    bound="Document" | Dict[str, Any] | None,
-)
-IncludeColumns = TypeVar(
-    "IncludeColumns",
-    bound=list[IncludeColumn] | list[str] | None,
-)
-SortColumns = TypeVar(
-    "SortColumns",
-    bound=list[SortColumn] | SortColumn | None,
-)
+DocumentData: TypeAlias = "Document" | Dict[str, Any]
+IncludeColumns: TypeAlias = list[IncludeColumn] | list[str] | None
+OptionalDocumentData: TypeAlias = "Document" | dict[str, Any] | None
+SortColumns: TypeAlias = list[SortColumn] | SortColumn | None
+T = TypeVar("T", bound="Document")
 
 
 class Document(BaseDocument):
@@ -75,7 +64,7 @@ class Document(BaseDocument):
         return _apply_encoders(out, self.__config__.json_encoders)
 
     @classmethod
-    def create_indexes(cls: Type["Document"]) -> None:
+    def create_indexes(cls: Type[T]) -> None:
         collection = Document._get_collection(cls)
         indexes = cls.get_indexes()
         for index in indexes:
@@ -83,28 +72,29 @@ class Document(BaseDocument):
             collection.create_index(index)
 
     def find(
-        self: "Document",
+        self: T,
         fields: IncludeColumns = None,
         skip: int = 0,
-    ) -> "Document":
+    ) -> T:
         collection = Document._get_collection(self.__class__)
         return_cls = _get_return_cls(self.__class__, fields)
         filter = _format_document_data(self)
-        fields = _format_fields(fields)
+        chosen_fields = _format_fields(fields)
         return collection.find_one(
             cls=self.__class__,
             return_cls=return_cls,
             filter=filter,
             skip=skip,
+            fields=chosen_fields,
         )
 
     @classmethod
     def find_one(
-        cls: Type["Document"],
+        cls: Type[T],
         filter: OptionalDocumentData = None,
         fields: IncludeColumns = None,
         skip: int = 0,
-    ) -> "Document":
+    ) -> T:
         collection = Document._get_collection(cls)
         return_cls = _get_return_cls(cls, fields)
         filter = _format_document_data(filter)
@@ -119,13 +109,13 @@ class Document(BaseDocument):
 
     @classmethod
     def find_many(
-        cls: Type["Document"],
+        cls: Type[T],
         filter: OptionalDocumentData = None,
         fields: IncludeColumns = None,
         sort: SortColumns = None,
         skip: int = 0,
         limit: int = 0,
-    ) -> list["Document"]:
+    ) -> list[T]:
         collection = Document._get_collection(cls)
         return_cls = _get_return_cls(cls, fields)
         filter = _format_document_data(filter)
@@ -143,10 +133,10 @@ class Document(BaseDocument):
 
     @classmethod
     def distinct(
-        cls: Type["Document"],
+        cls: Type[T],
         key: str,
         filter: OptionalDocumentData = None,
-    ) -> list["Document"]:
+    ) -> list[T]:
         collection = Document._get_collection(cls)
         filter = _format_document_data(filter)
         return collection.distinct(
@@ -157,7 +147,7 @@ class Document(BaseDocument):
 
     @classmethod
     def count_documents(
-        cls: Type["Document"],
+        cls: Type[T],
         filter: OptionalDocumentData = None,
     ) -> int:
         collection = Document._get_collection(cls)
@@ -169,7 +159,7 @@ class Document(BaseDocument):
 
     @classmethod
     def bulk_write(
-        cls: Type["Document"],
+        cls: Type[T],
         operations: list[PyMongoOperations],
     ) -> BulkWriteResult:
         collection = Document._get_collection(cls)
@@ -178,7 +168,7 @@ class Document(BaseDocument):
             operations=operations,
         )
 
-    def insert(self: "Document") -> InsertOneResult:
+    def insert(self: T) -> InsertOneResult:
         collection = Document._get_collection(self.__class__)
         data = _format_document_data(self)
         return collection.insert_one(
@@ -188,7 +178,7 @@ class Document(BaseDocument):
 
     @classmethod
     def insert_one(
-        cls: Type["Document"],
+        cls: Type[T],
         data: DocumentData,
     ) -> InsertOneResult:
         _validate_fields(cls, data)
@@ -202,7 +192,7 @@ class Document(BaseDocument):
 
     @classmethod
     def insert_vectors(
-        cls: Type["Document"],
+        cls: Type[T],
         data: Dict[str, list[Any]],
     ) -> InsertManyResult:
         collection = Document._get_collection(cls)
@@ -217,7 +207,7 @@ class Document(BaseDocument):
 
     @classmethod
     def insert_many(
-        cls: Type["Document"],
+        cls: Type[T],
         data: list[DocumentData],
     ) -> InsertManyResult:
         [_validate_fields(cls, val) for val in data]
@@ -230,7 +220,7 @@ class Document(BaseDocument):
         )
 
     def replace(
-        self: "Document",
+        self: T,
         replacement: DocumentData,
         upsert: bool = False,
         allow_new_fields: bool = False,
@@ -250,7 +240,7 @@ class Document(BaseDocument):
 
     @classmethod
     def replace_one(
-        cls: Type["Document"],
+        cls: Type[T],
         filter: DocumentData,
         replacement: DocumentData,
         upsert: bool = False,
@@ -270,7 +260,7 @@ class Document(BaseDocument):
         )
 
     def update(
-        self: "Document",
+        self: T,
         update: DocumentData,
         upsert: bool = False,
         operator: str | None = "$set",
@@ -294,7 +284,7 @@ class Document(BaseDocument):
 
     @classmethod
     def update_one(
-        cls: Type["Document"],
+        cls: Type[T],
         filter: DocumentData,
         update: DocumentData,
         upsert: bool = False,
@@ -319,7 +309,7 @@ class Document(BaseDocument):
 
     @classmethod
     def update_many(
-        cls: Type["Document"],
+        cls: Type[T],
         filter: DocumentData,
         update: DocumentData,
         upsert: bool = False,
@@ -342,7 +332,7 @@ class Document(BaseDocument):
             upsert=upsert,
         )
 
-    def delete(self: "Document") -> DeleteOneResult:
+    def delete(self: T) -> DeleteOneResult:
         collection = Document._get_collection(self.__class__)
         filter = _format_document_data(self)
         return collection.delete_one(
@@ -352,7 +342,7 @@ class Document(BaseDocument):
 
     @classmethod
     def delete_one(
-        cls: Type["Document"],
+        cls: Type[T],
         filter: DocumentData,
     ) -> DeleteOneResult:
         collection = Document._get_collection(cls)
@@ -364,7 +354,7 @@ class Document(BaseDocument):
 
     @classmethod
     def delete_many(
-        cls: Type["Document"],
+        cls: Type[T],
         filter: DocumentData,
     ) -> DeleteManyResult:
         collection = Document._get_collection(cls)

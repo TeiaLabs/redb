@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, TypeVar
+from typing import Any
 
 
 @dataclass
@@ -26,7 +26,7 @@ class MongoConfig:
 
 
 CONFIGS = JSONConfig | MigoConfig | MongoConfig
-CONFIG_TYPE = TypeVar("CONFIG_TYPE", JSONConfig, MigoConfig, MongoConfig, dict)
+CONFIG_TYPE = JSONConfig |  MigoConfig | MongoConfig | dict
 
 
 def check_config(

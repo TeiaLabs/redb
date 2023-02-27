@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Type, TypeVar
+from typing import Any, Type, TypeAlias
 
 from redb.core import BaseDocument
 
@@ -15,18 +15,9 @@ from .results import (
     UpdateOneResult,
 )
 
-Json = TypeVar(
-    "Json",
-    bound=dict[str, Any],
-)
-OptionalJson = TypeVar(
-    "OptionalJson",
-    bound=dict[str, Any] | None,
-)
-ReturnType = TypeVar(
-    "ReturnType",
-    bound=Type[BaseDocument | dict],
-)
+Json: TypeAlias = dict[str, Any]
+OptionalJson: TypeAlias = dict[str, Any] | None
+ReturnType: TypeAlias = BaseDocument | dict
 
 
 class Collection(ABC):
@@ -45,10 +36,10 @@ class Collection(ABC):
     def find(
         self,
         cls: Type[BaseDocument],
-        return_cls: ReturnType,
+        return_cls: Type[ReturnType],
         filter: OptionalJson = None,
         fields: dict[str, bool] | None = None,
-        sort: dict[tuple[str, str | int]] | None = None,
+        sort: list[tuple[str, str | int]] | None = None,
         skip: int = 0,
         limit: int = 0,
     ) -> list[ReturnType]:
@@ -58,7 +49,7 @@ class Collection(ABC):
     def find_one(
         self,
         cls: Type[BaseDocument],
-        return_cls: ReturnType,
+        return_cls: Type[ReturnType],
         filter: OptionalJson = None,
         fields: dict[str, bool] | None = None,
         skip: int = 0,

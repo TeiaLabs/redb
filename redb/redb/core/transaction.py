@@ -57,13 +57,14 @@ class CollectionWrapper:
         skip: int = 0,
     ) -> "Document":
         return_cls = _get_return_cls(self.__collection_class, fields)
-        filter = _format_document_data(filter)
-        fields = _format_fields(fields)
+        filters = _format_document_data(filter)
+        chosen_fields = _format_fields(fields)
         return self.__collection.find_one(
             cls=self.__collection_class,
             return_cls=return_cls,
-            filter=filter,
+            filter=filters,
             skip=skip,
+            fields=chosen_fields,
         )
 
     def find_many(
