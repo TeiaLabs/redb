@@ -37,10 +37,10 @@ class JSONCollection(Collection):
     def find(
         self,
         cls: Type[Document],
-        return_cls: ReturnType,
+        return_cls: Type[ReturnType],
         filter: OptionalJson = None,
         fields: dict[str, bool] | None = None,
-        sort: dict[tuple[str, str | int]] | None = None,
+        sort: list[tuple[str, str | int]] | None = None,
         skip: int = 0,
         limit: int = 0,
     ) -> list[ReturnType]:
@@ -91,7 +91,7 @@ class JSONCollection(Collection):
     def find_one(
         self,
         cls: Type[Document],
-        return_cls: ReturnType,
+        return_cls: Type[ReturnType],
         fields: dict[str, bool] | None = None,
         filter: OptionalJson = None,
         skip: int = 0,
@@ -108,7 +108,7 @@ class JSONCollection(Collection):
 
     def distinct(
         self,
-        cls: ReturnType,
+        cls: Type[ReturnType],
         key: str,
         filter: OptionalJson = None,
     ) -> list[Any]:

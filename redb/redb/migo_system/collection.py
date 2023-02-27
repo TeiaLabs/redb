@@ -235,7 +235,7 @@ class MigoCollection(Collection):
         return_cls: ReturnType,
         filter: OptionalJson = None,
         fields: dict[str, bool] | None = None,
-        sort: dict[tuple[str, str | int]] | None = None,
+        sort: list[tuple[str, str | int]] | None = None,
         skip: int = 0,
         limit: int = 0,
     ) -> list[ReturnType]:
