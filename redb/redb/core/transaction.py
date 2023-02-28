@@ -1,4 +1,5 @@
-from typing import Any, Dict, TypeVar
+import contextlib
+from typing import Any, ContextManager, Dict, TypeVar, overload
 
 from redb.core.document import (
     Document,
@@ -229,40 +230,52 @@ class CollectionWrapper:
         )
 
 
-class transaction:
-    def __init__(
-        self,
-        collection: str | Document,
-        backend: str | None = None,
-        config: CONFIG_TYPE | None = None,
-        db_name: str | None = None,
-    ):
-        new_client, client = get_client(backend, config)
-        if new_client:
-            self.__client = client
-        else:
-            self.__client = None
+@overload
+def transaction(
+    collection: Document,
+    backend: str | None = None,
+    config: CONFIG_TYPE | None = None,
+    db_name: str | None = None,
+) -> ContextManager[None]:
+    pass
 
-        if db_name is None:
-            database = client.get_default_database()
-        else:
-            database = client.get_database(db_name)
+@overload
+def transaction(
+    collection: str,
+    backend: str | None = None,
+    config: CONFIG_TYPE | None = None,
+    db_name: str | None = None,
+) -> ContextManager[int]:
+    pass
 
-        if isinstance(collection, str):
-            self.__collection = database.get_collection(collection)
-        else:
-            collection_name = collection.collection_name()
-            driver_collection = database.get_collection(collection_name)
-            self.__collection = CollectionWrapper(driver_collection, collection)
 
-    def __enter__(self) -> Collection | CollectionWrapper:
-        return self.__collection
+@contextlib.contextmanager
+def transaction(
+    collection: Document | str,
+    backend: str | None = None,
+    config: CONFIG_TYPE | None = None,
+    db_name: str | None = None,
+) -> int | None:
+    new_client, client = get_client(backend, config)
+    if new_client:
+        __client = client
+    else:
+        __client = None
 
-    def __exit__(self, type, *_):
-        if self.__client is not None:
-            self.__client.close()
+    if db_name is None:
+        database = client.get_default_database()
+    else:
+        database = client.get_database(db_name)
 
-        return type is None
+    if isinstance(collection, str):
+        __collection = database.get_collection(collection)
+    else:
+        collection_name = collection.collection_name()
+        driver_collection = database.get_collection(collection_name)
+        __collection = CollectionWrapper(driver_collection, collection)
+    yield __collection
+    if __client is not None:
+        __client.close()
 
 
 def get_client(backend: str | None, config: CONFIG_TYPE):
