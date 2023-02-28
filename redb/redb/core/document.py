@@ -136,7 +136,7 @@ class Document(BaseDocument):
         cls: Type[T],
         key: str,
         filter: OptionalDocumentData = None,
-    ) -> list[T]:
+    ) -> list[Any]:
         collection = Document._get_collection(cls)
         filter = _format_document_data(filter)
         return collection.distinct(
