@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import setuptools
@@ -38,14 +37,14 @@ with open("README.md") as f:
 
 setuptools.setup(
     name="redb-odm",
-    version="1.0.3",
+    version="1.0.4",
     author="Teia Labs",
     author_email="contato@teialabs.com",
     description="A python ODM for JSON, Mongo, and Mongo+Milvus.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/teialabs/redb",
-    packages=setuptools.find_namespace_packages(),
+    packages=setuptools.find_namespace_packages(exclude=["tests"]),
     keywords="database milvus mongo json interface",
     python_requires=">=3.10",
     install_requires=requirements,
