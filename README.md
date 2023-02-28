@@ -22,3 +22,10 @@ pip install redb-orm
 ## Usage
 
 Please check the [./resources/examples](./resources/examples) for more information.
+
+## Deploy
+
+```bash
+git tag -a v0.0.1 -m "v0.0.1"
+git push --tags
+```
