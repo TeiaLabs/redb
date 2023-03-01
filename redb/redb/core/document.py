@@ -426,14 +426,13 @@ def _format_fields(fields: IncludeColumns) -> dict[str, bool] | None:
     return formatted_fields
 
 
-def _format_sort(sort: SortColumns) -> list[tuple[str, str | int]]:
-    formatted_sort = sort
-    if sort is not None:
-        if isinstance(sort, list):
-            formatted_sort = [(field.name, field.direction.value) for field in sort]
-        else:
-            formatted_sort = [(sort.name, sort.direction.value)]
-
+def _format_sort(sort: SortColumns) -> list[tuple[str, str | int]] | None:
+    if sort is None:
+        return sort
+    if isinstance(sort, list):
+        formatted_sort = [(field.name, field.direction.value) for field in sort]
+    else:
+        formatted_sort = [(sort.name, sort.direction.value)]
     return formatted_sort
 
 
