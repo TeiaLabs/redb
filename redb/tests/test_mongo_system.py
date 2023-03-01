@@ -22,7 +22,7 @@ class TestmongoSystem:
     def client(self):
         RedB.setup(
             MongoConfig(
-                database_uri=os.environ["MONGO_URI"],
+                database_uri=os.environ["MONGODB_URI"],
             )
         )
 
