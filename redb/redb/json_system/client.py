@@ -16,7 +16,7 @@ class JSONClient(Client):
         database_default_path = json_config.default_database_folder_path
         if database_default_path is None:
             self.__default_database = JSONDatabase(
-                next(self.__client_folder_path.glob("*"))
+                self.__client_folder_path / Path("default-database")
             )
         else:
             self.__default_database = JSONDatabase(
