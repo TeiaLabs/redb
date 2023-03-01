@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, Type, TypeVar, TypeAlias, Union
 
+from redb.interface.errors import CannotUpdateIdentifyingField
 from redb.interface.fields import (
     CompoundIndex,
     DBRef,
@@ -260,7 +261,7 @@ class Document(BaseDocument):
         )
 
     def update(
-        self: T,
+        self,
         update: DocumentData,
         upsert: bool = False,
         operator: str | None = "$set",
@@ -284,7 +285,7 @@ class Document(BaseDocument):
 
     @classmethod
     def update_one(
-        cls: Type[T],
+        cls,
         filter: DocumentData,
         update: DocumentData,
         upsert: bool = False,
@@ -293,19 +294,23 @@ class Document(BaseDocument):
     ) -> UpdateOneResult:
         if not allow_new_fields:
             _validate_fields(cls, update)
-
         collection = Document._get_collection(cls)
-        filter = _format_document_data(filter)
-        update = _format_document_data(update)
+        filters = _format_document_data(filter)
+        update_data = _format_document_data(update)
+        hashable_field_attr_names = set(x.model_field.name for x in cls.get_hashable_fields())
+        for field in update_data.keys():
+            if field in hashable_field_attr_names:
+                m = f"Cannot update hashable field {field} on {cls.__name__}"
+                raise CannotUpdateIdentifyingField(m)
         if operator is not None:
-            update = {operator: update}
-
-        return collection.update_one(
+            update_data = {operator: update_data}
+        result = collection.update_one(
             cls=cls,
-            filter=filter,
-            update=update,
+            filter=filters,
+            update=update_data,
             upsert=upsert,
         )
+        return result
 
     @classmethod
     def update_many(
@@ -436,9 +441,9 @@ def _format_sort(sort: SortColumns) -> list[tuple[str, str | int]] | None:
     return formatted_sort
 
 
-def _format_document_data(data: OptionalDocumentData):
+def _format_document_data(data: OptionalDocumentData) -> dict[str, Any]:
     if data is None:
-        return None
+        return {}
     if isinstance(data, Document):
         return data.dict(by_alias=True)
     return data
