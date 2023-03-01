@@ -1,8 +1,7 @@
 from ..core import Document
 from ..interface.errors import DocumentNotFound
 from ..core.document import IncludeColumns, OptionalDocumentData
-from ..interface.fields import IncludeColumn
-import functools
+from ..interface.fields import ClassField, IncludeColumn
 
 from typing import Type, TypeVar
 
@@ -14,14 +13,19 @@ class SoftDeletinDoc(Document):
     is_deleted: bool = False
 
     @classmethod
-    def soft_delete_one(cls, identifier):
-        result = cls.update_one(dict(_id=identifier), dict(is_deleted=True))
+    def get_hashable_fields(cls) -> list[ClassField]:
+        all_fields = super().get_hashable_fields()
+        return list(filter(lambda x: x.model_field.name != "is_deleted", all_fields))
+
+    @classmethod
+    def soft_delete_one(cls, filters):
+        result = cls.update_one(filters, dict(is_deleted=True))
         if not result.matched_count:
             raise DocumentNotFound
 
     @classmethod
-    def soft_undelete_one(cls, identifier):
-        result = cls.update_one(dict(_id=identifier), dict(is_deleted=False))
+    def soft_undelete_one(cls, filters):
+        result = cls.update_one(filters, dict(is_deleted=False))
         if not result.matched_count:
             raise DocumentNotFound
 
@@ -45,9 +49,9 @@ class SoftDeletinDoc(Document):
         skip: int = 0,
     ) -> T:
         if filter is None:
-            filters = {}
+            filter = {}
         elif isinstance(filter, dict) and "is_deleted" not in filter:
-            filter["is_deleted"] = False
+            filter |= {"is_deleted": False}
         # if it were an instance of Document, it would either
         # already be using the default value
         # or the user would have set his own. Either way, it's ok.

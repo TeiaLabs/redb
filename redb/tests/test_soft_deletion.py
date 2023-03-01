@@ -1,15 +1,49 @@
+import os
+
 import pytest
 from redb.behaviors import SoftDeletinDoc
 from redb.interface.errors import DocumentNotFound
-
+from redb.interface.fields import ClassField
+from redb.core import RedB
+from redb.interface.configs import MongoConfig
 
 class Cat(SoftDeletinDoc):
     name: str
 
+    @classmethod
+    def get_hashable_fields(cls) -> list[ClassField]:
+        return [cls.name]  # type: ignore
+
+
+@pytest.fixture(scope="module", autouse=True)
+def client():
+    RedB.setup(
+        MongoConfig(
+            database_uri=os.environ["MONGODB_URI"],
+        )
+    )
+
 
 def test_soft_deletion():
     obj = Cat(name="Fluffy")
-    obj.insert()
-    Cat.soft_delete_one(obj.id)
-    with pytest.raises(DocumentNotFound):
-        Cat.find_one(dict(_id=obj.id))
+    filters = dict(_id=obj.id)
+    try:
+        obj.insert()
+        Cat.soft_delete_one(filters)
+        with pytest.raises(DocumentNotFound):
+            Cat.find_one(filters)
+    finally:
+        Cat.delete_one(filters)
+    raise
+
+
+# def test_soft_undeletion():
+#     obj = Cat(name="Fluffy")
+#     filters = dict(_id=obj.id)
+#     obj.insert()
+#     Cat.soft_delete_one(filters)
+#     with pytest.raises(DocumentNotFound):
+#         Cat.find_one(filters)
+#     Cat.soft_undelete_one(filters)
+#     cat = Cat.find_one(filters)
+#     print(cat.__class__)

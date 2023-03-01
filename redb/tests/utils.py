@@ -42,6 +42,11 @@ class RussianDog(Document):
     is_good_boy: bool
     is_pet: Optional[bool] = None
 
+    @classmethod
+    def get_hashable_fields(cls):
+        return [cls.name, cls.breed]
+
+
     def __eq__(self, other: "RussianDog") -> bool:
         if isinstance(other, RussianDog):
             b = other.dict()
