@@ -34,7 +34,6 @@ def test_insert_one(collection_path: Path, embedding: Embedding):
 
 def test_find_by_id(collection_path: Path, embedding: Embedding):
     Embedding.insert_one(embedding)
-    print(embedding)
     found_instance = Embedding.find_one(filter=dict(_id=embedding.id))
     remove_document(collection_path, embedding.id)
     assert found_instance == embedding
@@ -55,6 +54,7 @@ def test_insert_vectors(collection_path: Path):
     embeddings.sort(key=lambda embedding: embedding.kb_name)
     for i in range(len(embeddings)):
         original = Embedding(
+            id=data["_id"][i],
             kb_name=data["kb_name"][i],
             model=data["model"][i],
             text=data["text"][i],
@@ -63,8 +63,6 @@ def test_insert_vectors(collection_path: Path):
         )
         other = embeddings[i]
         remove_document(collection_path, other.id)
-        # The ids were swapped because the content changed, changing the hash, changing the id itself
-        original.id = other.id
         # Make both timestamps be the same because they are being generated on object instantiation
         original.created_at = other.created_at
         original.updated_at = other.updated_at
@@ -99,9 +97,9 @@ def test_replace_one(collection_path: Path, embedding: Embedding):
 
 def test_update_one(collection_path: Path, embedding: Embedding):
     Embedding.insert_one(embedding)
-    Embedding.update_one(embedding, update={"_id": embedding.id, "kb_name": "KB_UPDATED"})
+    Embedding.update_one(embedding, update={"vector": [1, 2, 3]})
     expected = embedding.dict()
-    expected["kb_name"] = "KB_UPDATED"
+    expected["vector"] = [1, 2, 3]
     other = read_json(collection_path / f"{embedding.id}.json")
     remove_document(collection_path, embedding.id)
     assert expected == other

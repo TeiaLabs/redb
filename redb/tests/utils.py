@@ -31,7 +31,7 @@ class Embedding(Document):
 
     @classmethod
     def get_hashable_fields(cls):
-        return [cls.kb_name, cls.model, cls.text, cls.vector, cls.source_url]
+        return [cls.kb_name, cls.model, cls.text, cls.source_url]
 
 
 class RussianDog(Document):
