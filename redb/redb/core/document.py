@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, Type, TypeVar, TypeAlias, Union
+from typing import Any, Dict, Type, TypeAlias, TypeVar, Union
 
 from redb.interface.errors import CannotUpdateIdentifyingField
 from redb.interface.fields import (
