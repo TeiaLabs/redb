@@ -16,7 +16,7 @@ pip install -e ./redb
 ## Install
 
 ```bash
-pip install redb-orm
+pip install redb-odm
 ```
 
 ## Usage
