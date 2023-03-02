@@ -1,8 +1,9 @@
 import hashlib
 from typing import Any, Callable, ClassVar, Type
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from pydantic.main import ModelMetaclass
+from typing_extensions import dataclass_transform
 
 from redb.interface.fields import ClassField, CompoundIndex, Index
 
@@ -12,7 +13,7 @@ IMPORT_ERROR_MSG = (
     "%s does not seem to be installed, maybe you forgot to `pip install redb[%s]`"
 )
 
-
+@dataclass_transform(kw_only_default=True, field_specifiers=(Field,))
 class DocumentMetaclass(ModelMetaclass):
     def __getattribute__(cls_or_self, name: str) -> Any:
         try:

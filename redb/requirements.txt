@@ -1,2 +1,3 @@
 pydantic
 pymongo
+typing_extensions
