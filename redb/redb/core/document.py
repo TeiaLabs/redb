@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, Type, TypeAlias, TypeVar, Union
+from typing import Any, Dict, Type, TypeAlias, TypeVar, Union, cast
 
 from redb.interface.errors import CannotUpdateIdentifyingField
 from redb.interface.fields import (
@@ -78,15 +78,15 @@ class Document(BaseDocument):
         skip: int = 0,
     ) -> T:
         collection = Document._get_collection(self.__class__)
-        return_cls = _get_return_cls(self.__class__, fields)
         filter = _format_document_data(self)
-        chosen_fields = _format_fields(fields)
+        formatted_fields = _format_fields(fields)
+        return_cls = _get_return_cls(self.__class__, fields)
         return collection.find_one(
             cls=self.__class__,
             return_cls=return_cls,
             filter=filter,
             skip=skip,
-            fields=chosen_fields,
+            fields=formatted_fields,
         )
 
     @classmethod
@@ -97,15 +97,15 @@ class Document(BaseDocument):
         skip: int = 0,
     ) -> T:
         collection = Document._get_collection(cls)
-        return_cls = _get_return_cls(cls, fields)
         filter = _format_document_data(filter)
-        fields = _format_fields(fields)
+        formatted_fields = _format_fields(fields)
+        return_cls = _get_return_cls(cls, formatted_fields)
         return collection.find_one(
             cls=cls,
             return_cls=return_cls,
             filter=filter,
             skip=skip,
-            fields=fields,
+            fields=formatted_fields,
         )
 
     @classmethod
@@ -118,15 +118,15 @@ class Document(BaseDocument):
         limit: int = 0,
     ) -> list[T]:
         collection = Document._get_collection(cls)
-        return_cls = _get_return_cls(cls, fields)
         filter = _format_document_data(filter)
-        fields = _format_fields(fields)
+        formatted_fields = _format_fields(fields)
+        return_cls = _get_return_cls(cls, formatted_fields)
         sort = _format_sort(sort)
         return collection.find(
             cls=cls,
             return_cls=return_cls,
             filter=filter,
-            fields=fields,
+            fields=formatted_fields,
             sort=sort,
             skip=skip,
             limit=limit,
@@ -404,30 +404,42 @@ def _validate_fields(cls: Type[DocumentData], data: DocumentData) -> None:
 
 def _get_return_cls(
     cls: Type[Document],
-    fields: IncludeColumns = None,
+    fields: dict[str, bool] | None = None,
 ) -> Type[Document | dict]:
     if not fields:
         return cls
-
     return_type = cls
-    if not all(v.required and k in fields for k, v in cls.__fields__.items()):
-        return_type = dict
-
+    selected_fields = {k for k, v in fields.items() if v}
+    unselected_fields = {k for k, v in fields.items() if not v}
+    for v in cls.__fields__.values():
+        if not v.required:
+            continue
+        if v.alias == "_id":
+            continue
+        if unselected_fields and v.alias in unselected_fields:
+            return_type = dict
+            break
+        if selected_fields and v.alias not in selected_fields:
+            return_type = dict
+            break
     return return_type
 
 
 def _format_fields(fields: IncludeColumns) -> dict[str, bool] | None:
     if fields is None:
         return None
-
-    if isinstance(fields[0], str):
+    if all(isinstance(f, str) for f in fields):
+        fields = cast(list[str], fields)
         formatted_fields = {field: True for field in fields}
     else:
+        fields = cast(list[IncludeColumn], fields)
         formatted_fields = {field.name: field.include for field in fields}
-
-    if "_id" not in formatted_fields:
-        formatted_fields["_id"] = False
-
+    if any(v for v in formatted_fields.values()):
+        # if you're choosing which fields you want, we'll pass _id = False
+        # otherwise (if you're only choosing which ones you don't want),
+        # we'll let it be included by default.
+        if "_id" not in formatted_fields:
+            formatted_fields["_id"] = False
     return formatted_fields
 
 

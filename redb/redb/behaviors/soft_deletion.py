@@ -49,13 +49,15 @@ class SoftDeletinDoc(Document):
         skip: int = 0,
     ) -> T:
         if filter is None:
-            filter = {}
+            filters = {}
         elif isinstance(filter, dict) and "is_deleted" not in filter:
-            filter |= {"is_deleted": False}
+            filters = filter | {"is_deleted": False}
+        else:
+            filters = filter
         # if it were an instance of Document, it would either
         # already be using the default value
         # or the user would have set his own. Either way, it's ok.
         if fields is None:
             fields = [IncludeColumn(name="is_deleted", include=False)]
         # if it's a list of strings or a list of include columns, it's fine.
-        return super().find_one(filter, fields, skip)
+        return super().find_one(filters, fields, skip)

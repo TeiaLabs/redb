@@ -34,16 +34,19 @@ def test_soft_deletion():
             Cat.find_one(filters)
     finally:
         Cat.delete_one(filters)
-    raise
 
 
-# def test_soft_undeletion():
-#     obj = Cat(name="Fluffy")
-#     filters = dict(_id=obj.id)
-#     obj.insert()
-#     Cat.soft_delete_one(filters)
-#     with pytest.raises(DocumentNotFound):
-#         Cat.find_one(filters)
-#     Cat.soft_undelete_one(filters)
-#     cat = Cat.find_one(filters)
-#     print(cat.__class__)
+def test_soft_undeletion():
+    obj = Cat(name="Fluffy")
+    filters = dict(_id=obj.id)
+    try:
+        obj.insert()
+        Cat.soft_delete_one(filters)
+        with pytest.raises(DocumentNotFound):
+            Cat.find_one(filters)
+        Cat.soft_undelete_one(filters)
+        cat = Cat.find_one(filters)
+        assert cat == obj
+    finally:
+        Cat.delete_one(filters)
+
