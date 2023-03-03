@@ -1,4 +1,5 @@
 import os
+from operator import attrgetter
 
 import pytest
 from redb.behaviors import SoftDeletinDoc
@@ -50,3 +51,18 @@ def test_soft_undeletion():
     finally:
         Cat.delete_one(filters)
 
+
+def test_soft_delete_then_undelete_many():
+    objs = [Cat(name="Fluffy"), Cat(name="Whiskers")]
+    filters = {"_id": {"$in": [o.id for o in objs]}}
+    try:
+        Cat.insert_many(objs)
+        Cat.soft_delete_many(filters)
+        found_objs = Cat.find_many(filters)
+        assert len(found_objs) == 0
+        Cat.soft_undelete_many(filters)
+        found_objs = Cat.find_many(filters)
+        found_objs = sorted(found_objs, key=attrgetter("name"))
+        assert objs == found_objs
+    finally:
+        Cat.delete_many(filters)

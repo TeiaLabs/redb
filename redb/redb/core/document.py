@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, Type, TypeAlias, TypeVar, Union, cast
+from typing import Any, Dict, Type, TypeAlias, TypeVar, Union, Sequence, cast
 
 from redb.interface.errors import CannotUpdateIdentifyingField
 from redb.interface.fields import (
@@ -33,9 +33,9 @@ T = TypeVar("T", bound="Document")
 
 
 class Document(BaseDocument):
-    id: str = Field(alias="_id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    id: str = Field(alias="_id")  # type: ignore
+    created_at: datetime = Field(default_factory=datetime.utcnow)  # type: ignore
+    updated_at: datetime = Field(default_factory=datetime.utcnow)  # type: ignore
 
     class Config:
         json_encoders = {
@@ -121,13 +121,13 @@ class Document(BaseDocument):
         filter = _format_document_data(filter)
         formatted_fields = _format_fields(fields)
         return_cls = _get_return_cls(cls, formatted_fields)
-        sort = _format_sort(sort)
+        sort_order = _format_sort(sort)
         return collection.find(
             cls=cls,
             return_cls=return_cls,
             filter=filter,
             fields=formatted_fields,
-            sort=sort,
+            sort=sort_order,
             skip=skip,
             limit=limit,
         )
@@ -209,16 +209,17 @@ class Document(BaseDocument):
     @classmethod
     def insert_many(
         cls: Type[T],
-        data: list[DocumentData],
+        data: Sequence[DocumentData],
     ) -> InsertManyResult:
-        [_validate_fields(cls, val) for val in data]
-
+        for val in data:
+            _validate_fields(cls, val)
         collection = Document._get_collection(cls)
         data = [_format_document_data(val) for val in data]
-        return collection.insert_many(
+        result = collection.insert_many(
             cls=cls,
             data=data,
         )
+        return result
 
     def replace(
         self: T,
@@ -297,7 +298,9 @@ class Document(BaseDocument):
         collection = Document._get_collection(cls)
         filters = _format_document_data(filter)
         update_data = _format_document_data(update)
-        hashable_field_attr_names = set(x.model_field.name for x in cls.get_hashable_fields())
+        hashable_field_attr_names = set(
+            x.model_field.name for x in cls.get_hashable_fields()
+        )
         for field in update_data.keys():
             if field in hashable_field_attr_names:
                 m = f"Cannot update hashable field {field} on {cls.__name__}"
