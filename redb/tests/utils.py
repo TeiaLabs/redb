@@ -31,7 +31,7 @@ class Embedding(Document):
 
     @classmethod
     def get_hashable_fields(cls):
-        return [cls.kb_name, cls.model, cls.text, cls.vector, cls.source_url]
+        return [cls.kb_name, cls.model, cls.text, cls.source_url]
 
 
 class RussianDog(Document):
@@ -41,6 +41,11 @@ class RussianDog(Document):
     color: str
     is_good_boy: bool
     is_pet: Optional[bool] = None
+
+    @classmethod
+    def get_hashable_fields(cls):
+        return [cls.name, cls.breed]
+
 
     def __eq__(self, other: "RussianDog") -> bool:
         if isinstance(other, RussianDog):

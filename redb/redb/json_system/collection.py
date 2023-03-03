@@ -1,8 +1,10 @@
 import json
+import sys
 from pathlib import Path
 from typing import Any, Type
 
 from redb.core import BaseDocument, Document
+from redb.interface.errors import DocumentNotFound
 from redb.interface.collection import Collection, Json, OptionalJson, ReturnType
 from redb.interface.fields import CompoundIndex, PyMongoOperations
 from redb.interface.results import (
@@ -47,6 +49,8 @@ class JSONCollection(Collection):
         transform = lambda file_path: json.load(open(file_path))
         if filter is not None and "_id" in filter:
             file_path = self.__collection / f"{filter['_id']}.json"
+            if len(filter) > 1:
+                print("JSON backend does not support filtering yet.", file=sys.stderr)
             if file_path.is_file() and not file_path.is_symlink():
                 return [return_cls(**transform(file_path))]
 
@@ -207,43 +211,25 @@ class JSONCollection(Collection):
         update: Json,
         upsert: bool = False,
     ) -> UpdateOneResult:
-        doc = self.find_one(cls, return_cls=dict, filter=filter)
-        update = update.pop(next(iter(update.keys())))
+        doc: dict = self.find_one(cls, return_cls=dict, filter=filter)
+        update = update.pop(next(iter(update.keys())))  # { $set: {...} }
         if doc is None:
             if not upsert:
-                raise ValueError(f"Document not found")
-
+                raise DocumentNotFound
             result = self.insert_one(cls, data=update)
             return UpdateOneResult(
                 matched_count=1,
                 modified_count=1,
                 upserted_id=result.inserted_id,
             )
-        original_path = self.__collection / Path(f"{doc['_id']}.json")
-        with open(original_path, "r") as f:
-            original_content: dict = json.load(f)
-
-        original_content.update(update)
-        if "_id" in update:
-            new_id = update["_id"]
-        else:
-            raise ValueError("Missing '_id' for update document")
-
-        upserted = False
-        if doc["_id"] != new_id:
-            # Since the ID has changed, we need to remove the old one
-            original_path.unlink()
-            upserted = True
-
-        original_content["_id"] = new_id
-        new_path = self.__collection / Path(f"{new_id}.json")
-        with open(new_path, "w") as f:
-            json.dump(original_content, f, indent=4)
-
+        doc_path = self.__collection / Path(f"{doc['_id']}.json")
+        updated_content = doc | update
+        with open(doc_path, "w") as f:
+            json.dump(updated_content, f, indent=2)
         return UpdateOneResult(
             matched_count=1,
             modified_count=1,
-            upserted_id=new_id if upserted else None,
+            upserted_id=None,
         )
 
     def update_many(

@@ -1,6 +1,7 @@
 from datetime import datetime
-from typing import Any, Dict, Type, TypeVar, TypeAlias, Union
+from typing import Any, Dict, Type, TypeAlias, TypeVar, Union, Sequence, cast
 
+from redb.interface.errors import CannotUpdateIdentifyingField
 from redb.interface.fields import (
     CompoundIndex,
     DBRef,
@@ -32,9 +33,9 @@ T = TypeVar("T", bound="Document")
 
 
 class Document(BaseDocument):
-    id: str = Field(alias="_id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    id: str = Field(alias="_id")  # type: ignore
+    created_at: datetime = Field(default_factory=datetime.utcnow)  # type: ignore
+    updated_at: datetime = Field(default_factory=datetime.utcnow)  # type: ignore
 
     class Config:
         json_encoders = {
@@ -77,15 +78,15 @@ class Document(BaseDocument):
         skip: int = 0,
     ) -> T:
         collection = Document._get_collection(self.__class__)
-        return_cls = _get_return_cls(self.__class__, fields)
         filter = _format_document_data(self)
-        chosen_fields = _format_fields(fields)
+        formatted_fields = _format_fields(fields)
+        return_cls = _get_return_cls(self.__class__, fields)
         return collection.find_one(
             cls=self.__class__,
             return_cls=return_cls,
             filter=filter,
             skip=skip,
-            fields=chosen_fields,
+            fields=formatted_fields,
         )
 
     @classmethod
@@ -96,15 +97,15 @@ class Document(BaseDocument):
         skip: int = 0,
     ) -> T:
         collection = Document._get_collection(cls)
-        return_cls = _get_return_cls(cls, fields)
         filter = _format_document_data(filter)
-        fields = _format_fields(fields)
+        formatted_fields = _format_fields(fields)
+        return_cls = _get_return_cls(cls, formatted_fields)
         return collection.find_one(
             cls=cls,
             return_cls=return_cls,
             filter=filter,
             skip=skip,
-            fields=fields,
+            fields=formatted_fields,
         )
 
     @classmethod
@@ -117,16 +118,16 @@ class Document(BaseDocument):
         limit: int = 0,
     ) -> list[T]:
         collection = Document._get_collection(cls)
-        return_cls = _get_return_cls(cls, fields)
         filter = _format_document_data(filter)
-        fields = _format_fields(fields)
-        sort = _format_sort(sort)
+        formatted_fields = _format_fields(fields)
+        return_cls = _get_return_cls(cls, formatted_fields)
+        sort_order = _format_sort(sort)
         return collection.find(
             cls=cls,
             return_cls=return_cls,
             filter=filter,
-            fields=fields,
-            sort=sort,
+            fields=formatted_fields,
+            sort=sort_order,
             skip=skip,
             limit=limit,
         )
@@ -208,16 +209,17 @@ class Document(BaseDocument):
     @classmethod
     def insert_many(
         cls: Type[T],
-        data: list[DocumentData],
+        data: Sequence[DocumentData],
     ) -> InsertManyResult:
-        [_validate_fields(cls, val) for val in data]
-
+        for val in data:
+            _validate_fields(cls, val)
         collection = Document._get_collection(cls)
         data = [_format_document_data(val) for val in data]
-        return collection.insert_many(
+        result = collection.insert_many(
             cls=cls,
             data=data,
         )
+        return result
 
     def replace(
         self: T,
@@ -260,7 +262,7 @@ class Document(BaseDocument):
         )
 
     def update(
-        self: T,
+        self,
         update: DocumentData,
         upsert: bool = False,
         operator: str | None = "$set",
@@ -284,7 +286,7 @@ class Document(BaseDocument):
 
     @classmethod
     def update_one(
-        cls: Type[T],
+        cls,
         filter: DocumentData,
         update: DocumentData,
         upsert: bool = False,
@@ -293,19 +295,25 @@ class Document(BaseDocument):
     ) -> UpdateOneResult:
         if not allow_new_fields:
             _validate_fields(cls, update)
-
         collection = Document._get_collection(cls)
-        filter = _format_document_data(filter)
-        update = _format_document_data(update)
+        filters = _format_document_data(filter)
+        update_data = _format_document_data(update)
+        hashable_field_attr_names = set(
+            x.model_field.name for x in cls.get_hashable_fields()
+        )
+        for field in update_data.keys():
+            if field in hashable_field_attr_names:
+                m = f"Cannot update hashable field {field} on {cls.__name__}"
+                raise CannotUpdateIdentifyingField(m)
         if operator is not None:
-            update = {operator: update}
-
-        return collection.update_one(
+            update_data = {operator: update_data}
+        result = collection.update_one(
             cls=cls,
-            filter=filter,
-            update=update,
+            filter=filters,
+            update=update_data,
             upsert=upsert,
         )
+        return result
 
     @classmethod
     def update_many(
@@ -399,47 +407,58 @@ def _validate_fields(cls: Type[DocumentData], data: DocumentData) -> None:
 
 def _get_return_cls(
     cls: Type[Document],
-    fields: IncludeColumns = None,
+    fields: dict[str, bool] | None = None,
 ) -> Type[Document | dict]:
     if not fields:
         return cls
-
     return_type = cls
-    if not all(v.required and k in fields for k, v in cls.__fields__.items()):
-        return_type = dict
-
+    selected_fields = {k for k, v in fields.items() if v}
+    unselected_fields = {k for k, v in fields.items() if not v}
+    for v in cls.__fields__.values():
+        if not v.required:
+            continue
+        if v.alias == "_id":
+            continue
+        if unselected_fields and v.alias in unselected_fields:
+            return_type = dict
+            break
+        if selected_fields and v.alias not in selected_fields:
+            return_type = dict
+            break
     return return_type
 
 
 def _format_fields(fields: IncludeColumns) -> dict[str, bool] | None:
     if fields is None:
         return None
-
-    if isinstance(fields[0], str):
+    if all(isinstance(f, str) for f in fields):
+        fields = cast(list[str], fields)
         formatted_fields = {field: True for field in fields}
     else:
+        fields = cast(list[IncludeColumn], fields)
         formatted_fields = {field.name: field.include for field in fields}
-
-    if "_id" not in formatted_fields:
-        formatted_fields["_id"] = False
-
+    if any(v for v in formatted_fields.values()):
+        # if you're choosing which fields you want, we'll pass _id = False
+        # otherwise (if you're only choosing which ones you don't want),
+        # we'll let it be included by default.
+        if "_id" not in formatted_fields:
+            formatted_fields["_id"] = False
     return formatted_fields
 
 
-def _format_sort(sort: SortColumns) -> list[tuple[str, str | int]]:
-    formatted_sort = sort
-    if sort is not None:
-        if isinstance(sort, list):
-            formatted_sort = [(field.name, field.direction.value) for field in sort]
-        else:
-            formatted_sort = [(sort.name, sort.direction.value)]
-
+def _format_sort(sort: SortColumns) -> list[tuple[str, str | int]] | None:
+    if sort is None:
+        return sort
+    if isinstance(sort, list):
+        formatted_sort = [(field.name, field.direction.value) for field in sort]
+    else:
+        formatted_sort = [(sort.name, sort.direction.value)]
     return formatted_sort
 
 
-def _format_document_data(data: OptionalDocumentData):
+def _format_document_data(data: OptionalDocumentData) -> dict[str, Any]:
     if data is None:
-        return None
+        return {}
     if isinstance(data, Document):
         return data.dict(by_alias=True)
     return data

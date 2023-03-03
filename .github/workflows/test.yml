@@ -11,7 +11,7 @@ permissions:
 
 env:
   OPENAI_API_KEY:  ${{ secrets.OPENAI_API_KEY }}
-  MONGO_URI: ${{ secrets.TEST_MONGO_SECRET }}
+  MONGODB_URI: ${{ secrets.TEST_MONGO_SECRET }}
 
 jobs:
   autotester:

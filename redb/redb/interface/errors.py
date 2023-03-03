@@ -4,3 +4,6 @@ class REDBError(Exception):
 
 class DocumentNotFound(REDBError):
     pass
+
+class CannotUpdateIdentifyingField(REDBError):
+    pass
