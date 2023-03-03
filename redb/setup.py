@@ -37,7 +37,7 @@ with open("README.md") as f:
 
 setuptools.setup(
     name="redb-odm",
-    version="1.0.4",
+    version="1.1.0",
     author="Teia Labs",
     author_email="contato@teialabs.com",
     description="A python ODM for JSON, Mongo, and Mongo+Milvus.",
