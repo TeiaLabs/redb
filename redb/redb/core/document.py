@@ -459,7 +459,7 @@ def _format_sort(sort: SortColumns) -> list[tuple[str, str | int]] | None:
 def _format_document_data(data: OptionalDocumentData) -> dict[str, Any]:
     if data is None:
         return {}
-    if isinstance(data, Document):
+    if isinstance(data, BaseDocument):
         return data.dict(by_alias=True)
     return data
 

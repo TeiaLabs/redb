@@ -3,11 +3,11 @@ from typing import Optional
 import pandas as pd
 from pydantic import BaseModel
 
-from redb.core import Document
+from redb.core import BaseDocument, Document
 from redb.interface.fields import ClassField, CompoundIndex, Index
 
 
-class Embedding(BaseModel):
+class Embedding(BaseDocument):
     model_name: str
     model_type: str
     vector: list[float]
