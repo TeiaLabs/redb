@@ -8,24 +8,8 @@ from redb.interface.configs import CONFIG_TYPE, JSONConfig, MigoConfig, MongoCon
 from redb.teia_schema import Embedding, File, Instance
 
 
-# Define and implement the minimal interfaces for a Knowledge Bases manager so we can remove the athena-indexer package:
-
-# Manager for Knowledge Bases must:
-#     insert instances (batch) to a kb
-#     update/extract embeddings
-#     load knowledge bases from disk
-#     perform search loading from database (memory search)
-
-# Overall, KB Manager is the class that uses an encoder from melting-face (defined by model_name and model_type) and teia-schema from redb.
-# Probably, in a near future we should have a search service running to support all projects.
-
-# Basically we have to unify the athena-bot/kb.py and the athena-indexer/extract scripts.
-
-# In addition, we must design an interface that is compatible with loading from disk for memory search or doing efficient database-powered vector search (milvus/migo).
-
-
 @dataclasses.dataclass
-class KBFilterSetting:
+class KBFilterSettings:
     """
     Knowledge base filter settings.
 
@@ -54,6 +38,11 @@ class KnowledgeBaseManager:
     """
     Knowledge base manager for Teia Schema documents.
 
+    Currently supports the following operations:
+        - Insert/Update `Instance` embeddings using a predefined model.
+        - Search for most similar `Instance`s using filters (`KBFilterSetting`).
+        - Count number of `Instance`s in entire database or knowledge base.
+
     Args:
         redb_config: ReDB configuration file.
         model_config: encoder model configuration file.
@@ -66,7 +55,7 @@ class KnowledgeBaseManager:
         self,
         redb_config: CONFIG_TYPE,
         model_config: LocalSettings | RemoteSettings,
-        search_settings: list[KBFilterSetting],
+        search_settings: list[KBFilterSettings],
     ) -> None:
         RedB.setup(redb_config)
         self.redb_config = redb_config
@@ -162,7 +151,7 @@ class KnowledgeBaseManager:
     def search_instances(
         self,
         query: str,
-        search_settings: list[KBFilterSetting] | None = None,
+        search_settings: list[KBFilterSettings] | None = None,
     ) -> pd.DataFrame:
         """
         Search knowledge bases for entries that are most similar to a given query.
@@ -306,7 +295,6 @@ class KnowledgeBaseManager:
             },
         )
         if not instances_with_emb:
-            print("INSTANCE DOES NOT HAVE THIS EMBEDDING")
             # did not find instance with these embedding parameters
             Instance.update_one(
                 filter={"_id": instance.id},
@@ -316,7 +304,6 @@ class KnowledgeBaseManager:
                 operator="$push",
             )
         else:
-            print("INSTANCE HAS EMBEDDING, UPDATING IT")
             # found instance with these embedding parameters, update it
             mongo_driver = Instance._get_driver_collection(Instance)
             res = mongo_driver.update_one(
@@ -345,7 +332,7 @@ class KnowledgeBaseManager:
     ):
         raise NotImplementedError
 
-    def _validate_search_settings(self, search_settings: list[KBFilterSetting]) -> None:
+    def _validate_search_settings(self, search_settings: list[KBFilterSettings]) -> None:
         """
         Validates a list of knowledge base search settings to guarantee that
         the requested knowledge bases exist.
@@ -365,7 +352,7 @@ class KnowledgeBaseManager:
                 raise ValueError(f"Invalid knowledge base name: {settings.kb_name}.")
 
     def _search_instances_memory(
-        self, query: str, search_settings: list[KBFilterSetting]
+        self, query: str, search_settings: list[KBFilterSettings]
     ) -> pd.DataFrame:
         if "vector" not in self.local_kb:
             columns = [
@@ -408,7 +395,7 @@ class KnowledgeBaseManager:
     def _search_instances_db(
         self,
         query: str,
-        search_settings: list[KBFilterSetting],
+        search_settings: list[KBFilterSettings],
     ) -> pd.DataFrame:
         raise NotImplementedError
 
@@ -503,24 +490,6 @@ if __name__ == "__main__":
     #     client_folder_path="/tmp/redb",
     #     default_database_folder_path="test_db",
     # )
-    RedB.setup(redb_config)
-    # print([
-    #     field_model.alias if field_model.alias else field_name
-    #     for field_name, field_model in Instance.__fields__.items()
-    # ])
-    # Instance.delete_many({})
-    # print("Empty")
-    # print(Instance.find_many({}))
-    # print()
-    # add_test_documents()
-    # print("Filled")
-    # print(Instance.find_many({}))
-    # print()
-    # add_test_documents()
-    # print("updated_at")
-    # print(Instance.find_many({}))
-    # print()
-    # exit()
 
     model_config = LocalSettings(
         model_type="sentence_transformer",
@@ -530,10 +499,11 @@ if __name__ == "__main__":
         ),
     )
     search_settings = [
-        KBFilterSetting(kb_name="documents", threshold=0.5, top_k=3),
-        KBFilterSetting(kb_name="sfcc", threshold=0.5, top_k=2),
+        KBFilterSettings(kb_name="documents", threshold=0.5, top_k=3),
+        KBFilterSettings(kb_name="sfcc", threshold=0.5, top_k=2),
     ]
 
+    RedB.setup(redb_config)
     Instance.delete_many({})
     add_test_documents()
     kb_manager = KnowledgeBaseManager(
@@ -541,19 +511,9 @@ if __name__ == "__main__":
         model_config=model_config,
         search_settings=search_settings,
     )
-    print(kb_manager.local_kb)
-    print()
-    print(len(kb_manager))
-    print(kb_manager.get_kb_length(kb_name="mene"))
-
-    exit()
-
-    Instance.delete_many({})
-    kb_manager.refresh_local_kb()
-    print("NO DOCUMENTS?")
-    print(kb_manager.local_kb)  # empty
-    print()
-    exit()
 
     updated_ids = kb_manager.update_instance_embeddings(overwrite=True)
+    kb_manager.refresh_local_kb()
+    print(kb_manager.local_kb)
     search_results = kb_manager.search_instances(query="OSF Organization")
+    print(search_results["content"])
