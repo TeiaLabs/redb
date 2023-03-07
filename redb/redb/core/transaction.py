@@ -236,8 +236,9 @@ def transaction(
     backend: str | None = None,
     config: CONFIG_TYPE | None = None,
     db_name: str | None = None,
-) -> ContextManager[None]:
+) -> ContextManager[CollectionWrapper]:
     pass
+
 
 @overload
 def transaction(
@@ -245,7 +246,7 @@ def transaction(
     backend: str | None = None,
     config: CONFIG_TYPE | None = None,
     db_name: str | None = None,
-) -> ContextManager[int]:
+) -> ContextManager[Collection]:
     pass
 
 
@@ -255,12 +256,8 @@ def transaction(
     backend: str | None = None,
     config: CONFIG_TYPE | None = None,
     db_name: str | None = None,
-) -> int | None:
+) -> Collection | CollectionWrapper:
     new_client, client = get_client(backend, config)
-    if new_client:
-        __client = client
-    else:
-        __client = None
 
     if db_name is None:
         database = client.get_default_database()
@@ -268,14 +265,16 @@ def transaction(
         database = client.get_database(db_name)
 
     if isinstance(collection, str):
-        __collection = database.get_collection(collection)
+        collection = database.get_collection(collection)
     else:
         collection_name = collection.collection_name()
         driver_collection = database.get_collection(collection_name)
-        __collection = CollectionWrapper(driver_collection, collection)
-    yield __collection
-    if __client is not None:
-        __client.close()
+        collection = CollectionWrapper(driver_collection, collection)
+
+    yield collection
+
+    if new_client:
+        client.close()
 
 
 def get_client(backend: str | None, config: CONFIG_TYPE):
