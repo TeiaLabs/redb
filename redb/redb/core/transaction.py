@@ -57,9 +57,9 @@ class CollectionWrapper:
         fields: IncludeColumns = None,
         skip: int = 0,
     ) -> "Document":
-        return_cls = _get_return_cls(self.__collection_class, fields)
-        filters = _format_document_data(filter)
         chosen_fields = _format_fields(fields)
+        return_cls = _get_return_cls(self.__collection_class, chosen_fields)
+        filters = _format_document_data(filter)
         return self.__collection.find_one(
             cls=self.__collection_class,
             return_cls=return_cls,
@@ -76,15 +76,15 @@ class CollectionWrapper:
         skip: int = 0,
         limit: int = 0,
     ) -> list["Document"]:
-        return_cls = _get_return_cls(self.__collection_class, fields)
+        chosen_fields = _format_fields(fields)
+        return_cls = _get_return_cls(self.__collection_class, chosen_fields)
         filter = _format_document_data(filter)
-        fields = _format_fields(fields)
         sort = _format_sort(sort)
         return self.__collection.find(
             cls=self.__collection_class,
             return_cls=return_cls,
             filter=filter,
-            fields=fields,
+            fields=chosen_fields,
             sort=sort,
             skip=skip,
             limit=limit,
