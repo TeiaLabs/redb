@@ -34,8 +34,6 @@ class BaseDocument(BaseModel, metaclass=DocumentMetaclass):
     __database_name__: ClassVar[str | None] = None
 
     def dict(self, *args, **kwargs) -> dict:
-        print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-        print(self.__config__.json_encoders)
         if "by_alias" not in kwargs:
             kwargs["by_alias"] = True
         out = super().dict(*args, **kwargs)
