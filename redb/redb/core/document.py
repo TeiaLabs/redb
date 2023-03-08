@@ -58,12 +58,6 @@ class Document(BaseDocument):
             data["_id"] = self.get_hash(data)
         super().__init__(**data)
 
-    def dict(self, *args, **kwargs) -> dict:
-        if "by_alias" not in kwargs:
-            kwargs["by_alias"] = True
-        out = super().dict(*args, **kwargs)
-        return _apply_encoders(out, self.__config__.json_encoders)
-
     @classmethod
     def create_indexes(cls: Type[T]) -> None:
         collection = Document._get_collection(cls)
@@ -371,25 +365,6 @@ class Document(BaseDocument):
             cls=cls,
             filter=filter,
         )
-
-
-def _apply_encoders(obj, encoders):
-    obj_type = type(obj)
-    if obj_type == list:
-        obj = [_apply_encoders(val, encoders) for val in obj]
-    elif obj_type == set:
-        obj = {_apply_encoders(val, encoders) for val in obj}
-    elif obj_type == tuple:
-        obj = (_apply_encoders(val, encoders) for val in obj)
-    elif obj_type == dict:
-        obj = {
-            _apply_encoders(key, encoders): _apply_encoders(val, encoders)
-            for key, val in obj.items()
-        }
-    elif obj_type in encoders:
-        encoding = encoders[obj_type]
-        obj = encoding(obj) if callable(encoding) else encoding
-    return obj
 
 
 def _validate_fields(cls: Type[DocumentData], data: DocumentData) -> None:

@@ -1,5 +1,6 @@
 import hashlib
-from typing import Any, Callable, ClassVar, Type
+import dataclasses
+from typing import Any, Callable, ClassVar, Dict, Type
 
 from pydantic import BaseModel, Field
 from pydantic.main import ModelMetaclass
@@ -31,6 +32,14 @@ class DocumentMetaclass(ModelMetaclass):
 
 class BaseDocument(BaseModel, metaclass=DocumentMetaclass):
     __database_name__: ClassVar[str | None] = None
+
+    def dict(self, *args, **kwargs) -> dict:
+        print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+        print(self.__config__.json_encoders)
+        if "by_alias" not in kwargs:
+            kwargs["by_alias"] = True
+        out = super().dict(*args, **kwargs)
+        return _apply_encoders(out, self.__config__.json_encoders)
 
     @staticmethod
     def _get_driver_collection(
@@ -112,7 +121,7 @@ class BaseDocument(BaseModel, metaclass=DocumentMetaclass):
     def _get_key_value_tuples_for_hash(
         self,
         fields: list[ClassField] | list[str],
-        data: dict[str, Any] | None = None,
+        data: Dict[str, Any] | None = None,
     ) -> list[tuple[str, Any]]:
         if data:
             if isinstance(fields[0], str):
@@ -131,7 +140,7 @@ class BaseDocument(BaseModel, metaclass=DocumentMetaclass):
 
     def get_hash(
         self,
-        data: dict[str, Any] | None = None,
+        data: Dict[str, Any] | None = None,
         use_data_fields: bool = False,
     ) -> str:
         if use_data_fields:
@@ -165,3 +174,28 @@ class BaseDocument(BaseModel, metaclass=DocumentMetaclass):
         )
 
         return f"{class_name}({attributes})"
+
+
+def _apply_encoders(obj, encoders):
+    obj_type = type(obj)
+    if obj_type == list:
+        obj = [_apply_encoders(val, encoders) for val in obj]
+    elif obj_type == set:
+        obj = {_apply_encoders(val, encoders) for val in obj}
+    elif obj_type == tuple:
+        obj = (_apply_encoders(val, encoders) for val in obj)
+    elif obj_type == dict:
+        obj = {
+            _apply_encoders(key, encoders): _apply_encoders(val, encoders)
+            for key, val in obj.items()
+        }
+    elif obj_type in encoders:
+        encoding = encoders[obj_type]
+        obj = encoding(obj) if callable(encoding) else encoding
+    elif dataclasses.is_dataclass(obj):
+        return dataclasses.asdict(obj)
+    else:
+        for encoder_from, encoder_fn in encoders.items():
+            if isinstance(obj, encoder_from):
+                return encoder_fn(obj)
+    return obj
