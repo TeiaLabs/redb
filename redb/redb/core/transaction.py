@@ -1,5 +1,5 @@
 import contextlib
-from typing import Any, ContextManager, Dict, TypeVar, overload
+from typing import Any, ContextManager, Dict, Type, TypeVar, overload
 
 from redb.core.document import (
     Document,
@@ -232,7 +232,7 @@ class CollectionWrapper:
 
 @overload
 def transaction(
-    collection: Document,
+    collection: Type[Document],
     backend: str | None = None,
     config: CONFIG_TYPE | None = None,
     db_name: str | None = None,
@@ -246,7 +246,7 @@ def transaction(
     backend: str | None = None,
     config: CONFIG_TYPE | None = None,
     db_name: str | None = None,
-) -> ContextManager[Collection]:
+) -> ContextManager[Type[Collection]]:
     pass
 
 
@@ -256,7 +256,7 @@ def transaction(
     backend: str | None = None,
     config: CONFIG_TYPE | None = None,
     db_name: str | None = None,
-) -> Collection | CollectionWrapper:
+) -> Type[Collection] | CollectionWrapper:
     new_client, client = get_client(backend, config)
 
     if db_name is None:
