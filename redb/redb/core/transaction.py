@@ -246,7 +246,7 @@ def transaction(
     backend: str | None = None,
     config: CONFIG_TYPE | None = None,
     db_name: str | None = None,
-) -> ContextManager[Type[Collection]]:
+) -> ContextManager[Collection]:
     pass
 
 
@@ -256,7 +256,7 @@ def transaction(
     backend: str | None = None,
     config: CONFIG_TYPE | None = None,
     db_name: str | None = None,
-) -> Type[Collection] | CollectionWrapper:
+) -> Collection | CollectionWrapper:
     new_client, client = get_client(backend, config)
 
     if db_name is None:
