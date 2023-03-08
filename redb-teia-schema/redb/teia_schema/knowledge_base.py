@@ -1,15 +1,18 @@
-import dataclasses
+from __future__ import annotations
+
 from datetime import datetime
+from typing import Optional
 
 import pandas as pd
+from melting_face.completion.openai_model import get_tokenizer
 from melting_face.encoders import EncoderClient, LocalSettings, RemoteSettings
+from pydantic import BaseModel, validator
 from redb.core import RedB
 from redb.interface.configs import CONFIG_TYPE, JSONConfig, MigoConfig, MongoConfig
 from redb.teia_schema import Embedding, File, Instance
 
 
-@dataclasses.dataclass
-class KBFilterSettings:
+class KBFilterSettings(BaseModel):
     """
     Knowledge base filter settings.
 
@@ -24,14 +27,30 @@ class KBFilterSettings:
     """
 
     kb_name: str
-    threshold: float = 0.5
-    top_k: int = 10
+    threshold: Optional[float] = 0.5
+    top_k: Optional[int] = 10
 
-    def __post_init__(self):
-        if (self.threshold < 0.0) or (self.threshold > 1.0):
+    @validator("threshold")
+    def validate_threshold(cls, v):
+        if (v < 0.0) or (v > 1.0):
             raise ValueError("Threshold must be in [0, 1].")
-        if self.top_k <= 0:
+        return v
+
+    @validator("top_k")
+    def validate_topk(cls, v):
+        if v <= 0:
             raise ValueError("Top K must be greater than 0.")
+        return v
+
+
+class KBManagerSettings(BaseModel):
+    """
+    Knowledge base manager settings.
+    """
+
+    redb_config: JSONConfig | MigoConfig | MongoConfig
+    model_config: LocalSettings | RemoteSettings
+    search_settings: list[KBFilterSettings]
 
 
 class KnowledgeBaseManager:
@@ -61,11 +80,20 @@ class KnowledgeBaseManager:
         self.redb_config = redb_config
         self.model_config = model_config
         self.encoder = EncoderClient(model_config)
+        self.encoder_tokenizer = get_tokenizer(model_config.model_kwargs["model_name"])
         self.memory_search = not isinstance(redb_config, MigoConfig)  # JSON, Mongo
         self.mongo_backend = not isinstance(redb_config, JSONConfig)  # Mongo, Migo
         self._validate_search_settings(search_settings)
         self.search_settings = search_settings
         self.refresh_local_kb()
+
+    @classmethod
+    def from_settings(cls, settings: KBManagerSettings) -> KnowledgeBaseManager:
+        return cls(
+            redb_config=settings.redb_config,
+            model_config=settings.model_config,
+            search_settings=settings.search_settings,
+        )
 
     def update_instance_embeddings(
         self,
@@ -168,7 +196,11 @@ class KnowledgeBaseManager:
             search_settings = self.search_settings
         else:
             self._validate_search_settings(search_settings)
-        search_func = self._search_instances_memory if self.memory_search else self._search_instances_db
+        search_func = (
+            self._search_instances_memory
+            if self.memory_search
+            else self._search_instances_db
+        )
         return search_func(query, search_settings)
 
     def refresh_local_kb(self, force_refresh: bool = False) -> None:
@@ -262,7 +294,7 @@ class KnowledgeBaseManager:
             return len(self.local_kb)
         else:
             raise NotImplementedError
-        
+
     def get_kb_length(self, kb_name: str) -> int:
         """
         Returns the length of a managed knowledge base.
@@ -280,6 +312,54 @@ class KnowledgeBaseManager:
                 f"Knowledge bases found: {kb_names}."
             )
         return Instance.count_documents(filter={"kb_name": kb_name})
+
+    def search_result_to_string(
+        self,
+        search_result: pd.DataFrame,
+        to_relevance: bool = True,
+        max_chars_line: int = 512,
+        max_total_tokens: int = 1024,
+    ) -> str:
+        """
+        Transforms a `pd.DataFrame` containing search results into a string.
+
+        Args:
+            search_result: A DataFrame containing search results from the
+                database (result of `self.search_instances`).
+            to_relevance: whether to return similarity results (i.e., distances
+                in [0, 1]) in relevance format (i.e., percentages in [0, 100]).
+            max_chars_line: maximum number of *characters* per line.
+            max_total_tokens: maximum number of total *tokens* for final result.
+
+        Returns:
+            str: stringified search results.
+        """
+        # check if dataframe has all required columns
+        required_cols = ["content", "kb_name", "distances"]
+        if not set(required_cols).issubset(search_result.columns):
+            raise ValueError("Invalid search results to stringify (missing columns).")
+        
+        # compute strings for each line while counting number of tokens
+        result = []
+        total_tokens = 0
+        for _, row in search_result.iterrows():
+            score = row["distances"]
+            if to_relevance:
+                score = (1 - score) * 100
+            line = (
+                f"Data: {row['content'][:max_chars_line]}\n"
+                f"Source: {row['kb_name']}\n"
+                f"Relevance: {score:2.1f}\n"
+            )
+            num_tokens = self.encoder_tokenizer.count_tokens(line)
+            if (total_tokens + num_tokens) > max_total_tokens:
+                break
+            result.append(line)
+            total_tokens += num_tokens
+
+        # generate final string
+        result_final = "\n".join(result)
+        return result_final
 
     def _update_instance_embedding_mongo(
         self,
@@ -332,7 +412,9 @@ class KnowledgeBaseManager:
     ):
         raise NotImplementedError
 
-    def _validate_search_settings(self, search_settings: list[KBFilterSettings]) -> None:
+    def _validate_search_settings(
+        self, search_settings: list[KBFilterSettings]
+    ) -> None:
         """
         Validates a list of knowledge base search settings to guarantee that
         the requested knowledge bases exist.
@@ -499,8 +581,8 @@ if __name__ == "__main__":
         ),
     )
     search_settings = [
-        KBFilterSettings(kb_name="documents", threshold=0.5, top_k=3),
-        KBFilterSettings(kb_name="sfcc", threshold=0.5, top_k=2),
+        KBFilterSettings(kb_name="documents", threshold=1.0, top_k=3),
+        KBFilterSettings(kb_name="sfcc", threshold=1.0, top_k=2),
     ]
 
     RedB.setup(redb_config)
@@ -511,9 +593,19 @@ if __name__ == "__main__":
         model_config=model_config,
         search_settings=search_settings,
     )
+    print(kb_manager.local_kb)
 
     updated_ids = kb_manager.update_instance_embeddings(overwrite=True)
     kb_manager.refresh_local_kb()
     print(kb_manager.local_kb)
-    search_results = kb_manager.search_instances(query="OSF Organization")
-    print(search_results["content"])
+    search_result = kb_manager.search_instances(query="OSF Organization")
+    print(search_result["content"])
+    print("---")
+
+    search_results_str = kb_manager.search_result_to_string(
+        search_result=search_result,
+        to_relevance=True,
+        max_chars_line=512,
+        max_total_tokens=1024,
+    )
+    print(search_results_str)
