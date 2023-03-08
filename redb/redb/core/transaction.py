@@ -1,5 +1,5 @@
 import contextlib
-from typing import Any, ContextManager, Dict, Type, TypeVar, overload
+from typing import Any, ContextManager, Dict, Type, TypeVar, Sequence, overload
 
 from redb.core.document import (
     Document,
@@ -140,7 +140,7 @@ class CollectionWrapper:
 
     def insert_many(
         self,
-        data: list[DocumentData],
+        data: Sequence[DocumentData],
     ) -> InsertManyResult:
         [_validate_fields(self.__collection_class, val) for val in data]
 
