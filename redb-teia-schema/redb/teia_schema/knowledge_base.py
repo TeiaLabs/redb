@@ -1,19 +1,18 @@
 from __future__ import annotations
 
-import dataclasses
 from datetime import datetime
 from typing import Optional
 
 import pandas as pd
 from melting_face.completion.openai_model import get_tokenizer
 from melting_face.encoders import EncoderClient, LocalSettings, RemoteSettings
+from pydantic import BaseModel, validator
 from redb.core import RedB
 from redb.interface.configs import CONFIG_TYPE, JSONConfig, MigoConfig, MongoConfig
 from redb.teia_schema import Embedding, File, Instance
 
 
-@dataclasses.dataclass
-class KBFilterSettings:
+class KBFilterSettings(BaseModel):
     """
     Knowledge base filter settings.
 
@@ -31,15 +30,20 @@ class KBFilterSettings:
     threshold: Optional[float] = 0.5
     top_k: Optional[int] = 10
 
-    def __post_init__(self):
-        if (self.threshold < 0.0) or (self.threshold > 1.0):
+    @validator("threshold")
+    def validate_threshold(cls, v):
+        if (v < 0.0) or (v > 1.0):
             raise ValueError("Threshold must be in [0, 1].")
-        if self.top_k <= 0:
+        return v
+
+    @validator("top_k")
+    def validate_topk(cls, v):
+        if v <= 0:
             raise ValueError("Top K must be greater than 0.")
+        return v
 
 
-@dataclasses.dataclass
-class KBManagerSettings:
+class KBManagerSettings(BaseModel):
     """
     Knowledge base manager settings.
     """
@@ -47,6 +51,7 @@ class KBManagerSettings:
     redb_config: JSONConfig | MigoConfig | MongoConfig
     model_config: LocalSettings | RemoteSettings
     search_settings: list[KBFilterSettings]
+
 
 
 class KnowledgeBaseManager:
