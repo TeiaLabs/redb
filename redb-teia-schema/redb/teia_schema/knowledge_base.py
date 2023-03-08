@@ -76,6 +76,7 @@ class KnowledgeBaseManager:
         redb_config: CONFIG_TYPE,
         model_config: LocalSettings | RemoteSettings,
         search_settings: list[KBFilterSettings],
+        preload_local_kb: bool = False,
     ) -> None:
         RedB.setup(redb_config)
         self.redb_config = redb_config
@@ -86,7 +87,8 @@ class KnowledgeBaseManager:
         self.mongo_backend = not isinstance(redb_config, JSONConfig)  # Mongo, Migo
         self._validate_search_settings(search_settings)
         self.search_settings = search_settings
-        self.refresh_local_kb()
+        if preload_local_kb:
+            self.refresh_local_kb()
 
     @classmethod
     def from_settings(cls, settings: KBManagerSettings) -> KnowledgeBaseManager:
@@ -593,6 +595,7 @@ if __name__ == "__main__":
         redb_config=redb_config,
         model_config=model_config,
         search_settings=search_settings,
+        preload_local_kb=True,
     )
     print(kb_manager.local_kb)
 
