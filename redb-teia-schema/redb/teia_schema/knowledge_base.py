@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from typing import Optional
 
@@ -10,6 +11,9 @@ from pydantic import BaseModel, validator
 from redb.core import RedB
 from redb.interface.configs import CONFIG_TYPE, JSONConfig, MigoConfig, MongoConfig
 from redb.teia_schema import Embedding, File, Instance
+
+
+logger = logging.getLogger(__name__)
 
 
 class KBFilterSettings(BaseModel):
@@ -53,7 +57,6 @@ class KBManagerSettings(BaseModel):
     search_settings: list[KBFilterSettings]
 
 
-
 class KnowledgeBaseManager:
     """
     Knowledge base manager for Teia Schema documents.
@@ -78,6 +81,7 @@ class KnowledgeBaseManager:
         search_settings: list[KBFilterSettings],
         preload_local_kb: bool = False,
     ) -> None:
+        logger.debug("Instantiating KB manager.")
         RedB.setup(redb_config)
         self.redb_config = redb_config
         self.model_config = model_config
@@ -88,6 +92,7 @@ class KnowledgeBaseManager:
         self._validate_search_settings(search_settings)
         self.search_settings = search_settings
         if preload_local_kb:
+            logger.debug("Preloading local kb replica.")
             self.refresh_local_kb()
 
     @classmethod
@@ -119,15 +124,19 @@ class KnowledgeBaseManager:
         Returns:
             list[str]: list of IDs for updated instances.
         """
+        logger.debug(f"Updating Instance embeddings for kb {kb_name}.")
         model_type = self.model_config.model_type
         model_name = self.model_config.model_kwargs["model_name"]
         # find all relevant instances
         kb_filter = {"kb_name": kb_name} if kb_name else {}
         instances = Instance.find_many(filter=kb_filter, fields=["_id"])
         if not instances:
+            logger.debug("No instances found.")
             return []
 
+        logger.debug(f"Operating on KB with {len(instances)} instances.")
         if overwrite:
+            logger.debug("Overwrite requested. Selecting all instances.")
             ids_missing = [i["_id"] for i in instances]
         else:
             # find all instances without embeddings for our model
@@ -145,16 +154,21 @@ class KnowledgeBaseManager:
                 )
             )
             if not ids_missing:
+                logging.debug("No instances with empty embeddings.")
                 return []
 
+        logger.debug(f"Found {len(ids_missing)} missing instances.")
         # update all instances that have missing embeddings for our model
         if self.mongo_backend:
+            logger.debug("Using Mongo backend.")
             update_func = self._update_instance_embedding_mongo
         else:
+            logger.debug("Using local file backend.")
             update_func = self._update_instance_embedding_memory
         instances_missing = Instance.find_many({"_id": {"$in": ids_missing}})
         updated_ids = []
         for instance in instances_missing:
+            logger.debug(f"Updating embeddings for instance {instance.id}.")
             embs = self.encoder.encode_text(
                 texts=[instance.content, instance.query],
                 return_type="list",
@@ -173,7 +187,9 @@ class KnowledgeBaseManager:
             update_func(instance, query_embedding, "query_embedding")
             updated_ids.append(instance.id)
 
+        logger.debug(f"Updated {len(updated_ids)} instances.")
         if update_local_kb:
+            logger.debug("Local KB refresh requested.")
             # update local kb with new instances
             self.refresh_local_kb()
 
@@ -195,7 +211,9 @@ class KnowledgeBaseManager:
         Returns:
             pd.DataFrame: search results for all knowledge bases.
         """
+        logger.debug(f"Searching documents similar to query '{query}'")
         if not search_settings:
+            logger.debug("No search settings specified, using default.")
             search_settings = self.search_settings
         else:
             self._validate_search_settings(search_settings)
@@ -220,12 +238,18 @@ class KnowledgeBaseManager:
         Args:
             force_refresh: forces a full refresh of the local database replica.
         """
+        logger.debug("Refreshing local replica.")
         # if we are using a backend that can perform searches, ignore refreshes
         if not self.memory_search:
+            logger.debug("Using non-local search backend. Skipping refresh.")
             return None
 
         # if local replica does not exist, create it (empty at first)
         if not hasattr(self, "local_kb") or force_refresh:
+            logger.debug(
+                "No local replica found or force refresh specified. "
+                "Recreating local replica."
+            )
             columns = [
                 field_model.alias if field_model.alias else field_name
                 for field_name, field_model in Instance.__fields__.items()
@@ -251,6 +275,9 @@ class KnowledgeBaseManager:
         ids_db = [i["_id"] for i in instances_db]
         ids_remove_local = list(set(ids_local).difference(ids_db))
         if ids_remove_local:
+            logger.debug(
+                f"Removing {len(ids_remove_local)} local instances (not found in DB)."
+            )
             self.local_kb.drop(
                 labels=self.local_kb["_id"].isin(ids_remove_local).index,
                 axis="index",
@@ -283,6 +310,7 @@ class KnowledgeBaseManager:
 
         ids_missing = list(set(new_ids + was_updated))
         if ids_missing:
+            logger.debug(f"Updating {len(ids_missing)} instances based on IDs and timestamps.")
             instances_missing = Instance.find_many({"_id": {"$in": ids_missing}})
             instances_missing_df = Instance.instances_to_dataframe(
                 instances_missing, explode_vectors=True
@@ -296,7 +324,7 @@ class KnowledgeBaseManager:
         if self.memory_search:
             return len(self.local_kb)
         else:
-            raise NotImplementedError
+            return Instance.count_documents({})
 
     def get_kb_length(self, kb_name: str) -> int:
         """
@@ -340,6 +368,7 @@ class KnowledgeBaseManager:
         # check if dataframe has all required columns
         required_cols = ["content", "kb_name", "distances"]
         if not set(required_cols).issubset(search_result.columns):
+            logger.error("Requested stringify but required columns were missing.")
             raise ValueError("Invalid search results to stringify (missing columns).")
 
         # compute strings for each line while counting number of tokens
@@ -378,6 +407,7 @@ class KnowledgeBaseManager:
             },
         )
         if not instances_with_emb:
+            logger.debug(f"Instance {instance.id} does not have embeddings for {embedding_name}. Inserting.")
             # did not find instance with these embedding parameters
             Instance.update_one(
                 filter={"_id": instance.id},
@@ -387,6 +417,7 @@ class KnowledgeBaseManager:
                 operator="$push",
             )
         else:
+            logger.debug(f"Instance {instance.id} has embeddings for {embedding_name}. Replacing.")
             # found instance with these embedding parameters, update it
             mongo_driver = Instance._get_driver_collection(Instance)
             res = mongo_driver.update_one(
@@ -425,9 +456,11 @@ class KnowledgeBaseManager:
         Args:
             search_settings: list of knowledge base search settings.
         """
+        logger.debug("Validating search settings.")
         # if there are no documents, skip validations
         num_instances = Instance.count_documents()
         if num_instances == 0:
+            logger.debug("No documents found, skipping validation.")
             return
 
         # check if knowledge bases exist
@@ -440,6 +473,7 @@ class KnowledgeBaseManager:
         self, query: str, search_settings: list[KBFilterSettings]
     ) -> pd.DataFrame:
         if "vector" not in self.local_kb:
+            logger.debug("No 'vector' column in local replica.")
             columns = [
                 field_model.alias if field_model.alias else field_name
                 for field_name, field_model in Instance.__fields__.items()
@@ -458,6 +492,7 @@ class KnowledgeBaseManager:
         }
         model_filters.update(kb_filter)
         instances = Instance.find_many(model_filters)
+        logger.debug(f"Found {len(instances)} instances in local replica.")
         instances_df = Instance.instances_to_dataframe(instances, explode_vectors=True)
 
         query_embedding = self.encoder.encode_text([query], return_type="list")[0]
@@ -468,14 +503,18 @@ class KnowledgeBaseManager:
         instances_df.sort_values(by="distances", inplace=True)
 
         df_list = []
+        logger.debug("Filtering search results according to search settings.")
         for settings in search_settings:
             current_kb = instances_df.query(f"kb_name == @settings.kb_name")
             current_kb = current_kb[current_kb.distances < settings.threshold]
             current_kb = current_kb.sort_values(by="distances")
             current_kb = current_kb.head(settings.top_k)
+            logger.debug(f"Found {len(current_kb)} result(s) for KB '{settings.kb_name}'.")
             df_list.append(current_kb)
 
-        return pd.concat(df_list)
+        result = pd.concat(df_list)
+        logger.debug(f"Total number of search results: {len(result)}")
+        return result
 
     def _search_instances_db(
         self,
@@ -567,6 +606,8 @@ def add_test_documents():
 
 
 if __name__ == "__main__":
+    logging.basicConfig()
+    logger.setLevel(logging.DEBUG)
     redb_config = MongoConfig(
         database_uri="mongodb://localhost:27017",
         default_database="test_db",
