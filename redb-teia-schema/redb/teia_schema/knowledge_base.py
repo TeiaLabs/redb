@@ -72,6 +72,8 @@ class KnowledgeBaseManager:
         search_settings: default search settings to use when querying knowledge
             bases. Each filter in the list corresponds to one knowledge that
             exists in the database.
+        preload_local_kb: whether to preload local database replica during
+            manager startup. For large databases, this may take a while.
     """
 
     def __init__(
@@ -94,6 +96,9 @@ class KnowledgeBaseManager:
         if preload_local_kb:
             logger.debug("Preloading local kb replica.")
             self.refresh_local_kb()
+        else:
+            logger.debug("NOT preloading local kb replica.")
+            self.local_kb = self._create_empty_local_replica()
 
     @classmethod
     def from_settings(cls, settings: KBManagerSettings) -> KnowledgeBaseManager:
@@ -250,11 +255,7 @@ class KnowledgeBaseManager:
                 "No local replica found or force refresh specified. "
                 "Recreating local replica."
             )
-            columns = [
-                field_model.alias if field_model.alias else field_name
-                for field_name, field_model in Instance.__fields__.items()
-            ]
-            self.local_kb = pd.DataFrame([], columns=columns)
+            self.local_kb = self._create_empty_local_replica()
 
         # generate diff and populate with missing instances
         model_type = self.model_config.model_type
@@ -474,11 +475,7 @@ class KnowledgeBaseManager:
     ) -> pd.DataFrame:
         if "vector" not in self.local_kb:
             logger.debug("No 'vector' column in local replica.")
-            columns = [
-                field_model.alias if field_model.alias else field_name
-                for field_name, field_model in Instance.__fields__.items()
-            ]
-            return pd.DataFrame([], columns=columns)
+            return self._create_empty_local_replica()
 
         kb_list = [settings.kb_name for settings in search_settings]
         kb_filter = {"kb_name": {"$in": kb_list}}
@@ -523,6 +520,12 @@ class KnowledgeBaseManager:
     ) -> pd.DataFrame:
         raise NotImplementedError
 
+    def _create_empty_local_replica(self):
+        columns = [
+            field_model.alias if field_model.alias else field_name
+            for field_name, field_model in Instance.__fields__.items()
+        ]
+        return pd.DataFrame([], columns=columns)
 
 def distances_from_embeddings_np(
     query_embedding: list[float],
