@@ -285,6 +285,11 @@ class Document(BaseDocument):
             update=update,
             upsert=upsert,
         )
+        collection.update_one(
+            filter=filter,
+            update={"$set": {"updated_at": datetime.utcnow()}},
+        )
+        return result
 
     @classmethod
     def update_one(
@@ -311,6 +316,10 @@ class Document(BaseDocument):
             filter=filters,
             update=update_data,
             upsert=upsert,
+        )
+        collection.update_one(
+            filter=filter,
+            update={"$set": {"updated_at": datetime.utcnow()}},
         )
         return result
 
@@ -340,6 +349,11 @@ class Document(BaseDocument):
             update=update,
             upsert=upsert,
         )
+        collection.update_one(
+            filter=filter,
+            update={"$set": {"updated_at": datetime.utcnow()}},
+        )
+        return result
 
     def delete(self: T) -> DeleteOneResult:
         collection = Document._get_collection(self.__class__)
