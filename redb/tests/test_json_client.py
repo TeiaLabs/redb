@@ -102,7 +102,12 @@ def test_update_one(collection_path: Path, embedding: Embedding):
     expected["vector"] = [1, 2, 3]
     other = read_json(collection_path / f"{embedding.id}.json")
     remove_document(collection_path, embedding.id)
-    assert expected == other
+    for key, value in expected.items():
+        if key == "updated_at":
+            continue
+
+        assert key in other
+        assert value == other[key]
 
 
 def test_delete_one(collection_path: Path, embedding: Embedding):

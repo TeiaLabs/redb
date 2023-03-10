@@ -45,9 +45,10 @@ def test_soft_undeletion():
         Cat.soft_delete_one(filters)
         with pytest.raises(DocumentNotFound):
             Cat.find_one(filters)
+            
         Cat.soft_undelete_one(filters)
         cat = Cat.find_one(filters)
-        assert cat == obj
+        assert cat.dict(exclude={"updated_at"}) == obj.dict(exclude={"updated_at"})
     finally:
         Cat.delete_one(filters)
 
@@ -60,9 +61,13 @@ def test_soft_delete_then_undelete_many():
         Cat.soft_delete_many(filters)
         found_objs = Cat.find_many(filters)
         assert len(found_objs) == 0
+        
         Cat.soft_undelete_many(filters)
         found_objs = Cat.find_many(filters)
         found_objs = sorted(found_objs, key=attrgetter("name"))
-        assert objs == found_objs
+        assert len(objs) == len(found_objs)
+        for expec, found in zip(objs, found_objs):
+            assert expec.dict(exclude={"updated_at"}) == found.dict(exclude={"updated_at"})
+
     finally:
         Cat.delete_many(filters)
