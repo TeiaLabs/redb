@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional, cast
 
 import pandas as pd
 from melting_face.completion.openai_model import get_tokenizer
@@ -79,7 +79,7 @@ class KnowledgeBaseManager:
     def __init__(
         self,
         redb_config: CONFIG_TYPE,
-        model_config: LocalSettings | RemoteSettings,
+        model_config: LocalSettings,
         search_settings: list[KBFilterSettings],
         preload_local_kb: bool = False,
     ) -> None:
@@ -93,12 +93,12 @@ class KnowledgeBaseManager:
         self.mongo_backend = not isinstance(redb_config, JSONConfig)  # Mongo, Migo
         self._validate_search_settings(search_settings)
         self.search_settings = search_settings
+        self.local_kb = self._create_empty_local_replica()
         if preload_local_kb:
             logger.debug("Preloading local kb replica.")
             self.refresh_local_kb()
         else:
             logger.debug("NOT preloading local kb replica.")
-            self.local_kb = self._create_empty_local_replica()
 
     @classmethod
     def from_settings(cls, settings: KBManagerSettings) -> KnowledgeBaseManager:
@@ -116,8 +116,8 @@ class KnowledgeBaseManager:
     ) -> list[str]:
         """
         Insert or update embeddings for `Instance`s based on current model.
-        If `kb_name` is `None`, updates embeddings for all knowledge bases.
 
+        If `kb_name` is `None`, updates embeddings for all knowledge bases.
         Args:
             kb_name: knowledge base name.
             overwrite: whether to overwrite all instances or not.
@@ -135,6 +135,7 @@ class KnowledgeBaseManager:
         # find all relevant instances
         kb_filter = {"kb_name": kb_name} if kb_name else {}
         instances = Instance.find_many(filter=kb_filter, fields=["_id"])
+        instances = cast(list[dict[str, Any]], instances)
         if not instances:
             logger.debug("No instances found.")
             return []
@@ -151,12 +152,11 @@ class KnowledgeBaseManager:
                 "query_embedding.model_type": model_type,
                 "query_embedding.model_name": model_name,
             }
-            model_filters.update(kb_filter)
+            model_filters |= kb_filter
             instances_filled = Instance.find_many(model_filters, fields=["_id"])
-            ids_missing = list(
-                set([i["_id"] for i in instances]).difference(
-                    [i["_id"] for i in instances_filled]
-                )
+            instances_filled = cast(list[dict[str, Any]], instances_filled)
+            ids_missing = {i["_id"] for i in instances}.difference(
+                {i["_id"] for i in instances_filled}
             )
             if not ids_missing:
                 logging.debug("No instances with empty embeddings.")
@@ -174,22 +174,27 @@ class KnowledgeBaseManager:
         updated_ids = []
         for instance in instances_missing:
             logger.debug(f"Updating embeddings for instance {instance.id}.")
+            texts = [instance.content]
+            if instance.query is not None:
+                texts.append(instance.query)
             embs = self.encoder.encode_text(
-                texts=[instance.content, instance.query],
+                texts=texts,
                 return_type="list",
             )
+            embs = cast(list[list[float]], embs)
             content_embedding = Embedding(
                 model_name=model_name,
                 model_type=model_type,
                 vector=embs[0],
             )
-            query_embedding = Embedding(
-                model_name=model_name,
-                model_type=model_type,
-                vector=embs[1],
-            )
             update_func(instance, content_embedding, "content_embedding")
-            update_func(instance, query_embedding, "query_embedding")
+            if len(embs) > 1:
+                query_embedding = Embedding(
+                    model_name=model_name,
+                    model_type=model_type,
+                    vector=embs[1],
+                )
+                update_func(instance, query_embedding, "query_embedding")
             updated_ids.append(instance.id)
 
         logger.debug(f"Updated {len(updated_ids)} instances.")
@@ -231,7 +236,7 @@ class KnowledgeBaseManager:
 
     def refresh_local_kb(self, force_refresh: bool = False) -> None:
         """
-        Refreshes the local replica of the knowledge base, which is used to
+        Refresh the local replica of the knowledge base, which is used to
         cache searches in DBs that are inefficient at vector search. If you
         are using a ReDB configuration that requires in-memory searches and
         forget to call this method after operations that modify the database,
@@ -250,11 +255,8 @@ class KnowledgeBaseManager:
             return None
 
         # if local replica does not exist, create it (empty at first)
-        if not hasattr(self, "local_kb") or force_refresh:
-            logger.debug(
-                "No local replica found or force refresh specified. "
-                "Recreating local replica."
-            )
+        if force_refresh:
+            logger.debug("Forced refresh specified; recreating local replica.")
             self.local_kb = self._create_empty_local_replica()
 
         # generate diff and populate with missing instances
@@ -270,11 +272,12 @@ class KnowledgeBaseManager:
             },
             fields=["_id", "updated_at"],
         )
+        instances_db = cast(list[dict[str, Any]], instances_db)
 
         # remove local instances that do not exist in DB (based on IDs)
         ids_local = [i["_id"] for i in instances_local]
         ids_db = [i["_id"] for i in instances_db]
-        ids_remove_local = list(set(ids_local).difference(ids_db))
+        ids_remove_local = set(ids_local).difference(ids_db)
         if ids_remove_local:
             logger.debug(
                 f"Removing {len(ids_remove_local)} local instances (not found in DB)."
@@ -290,12 +293,12 @@ class KnowledgeBaseManager:
         instances_local = self.local_kb[["_id", "updated_at"]].to_dict(orient="records")
         map_id_update_local = {i["_id"]: i["updated_at"] for i in instances_local}
         map_id_update_db = {i["_id"]: i["updated_at"] for i in instances_db}
-        new_ids = [
+        new_ids = {
             db_id
-            for db_id, _ in map_id_update_db.items()
-            if db_id not in set(map_id_update_local.keys())
-        ]
-        was_updated = []
+            for db_id in map_id_update_db.keys()
+            if db_id not in map_id_update_local
+        }
+        was_updated = set()
         for local_id, local_update in map_id_update_local.items():
             if isinstance(local_update, str):
                 local_update = datetime.fromisoformat(local_update)
@@ -304,7 +307,7 @@ class KnowledgeBaseManager:
                 db_update = datetime.fromisoformat(db_update)
 
             if local_update < db_update:
-                was_updated.append(local_id)
+                was_updated.add(local_id)
 
         if was_updated:
             self.local_kb.drop(
@@ -314,7 +317,7 @@ class KnowledgeBaseManager:
             )
             self.local_kb.reset_index(drop=True, inplace=True)
 
-        ids_missing = list(set(new_ids + was_updated))
+        ids_missing = new_ids | was_updated
         if ids_missing:
             logger.debug(
                 f"Updating {len(ids_missing)} instances based on IDs and timestamps."
@@ -336,7 +339,7 @@ class KnowledgeBaseManager:
 
     def get_kb_length(self, kb_name: str) -> int:
         """
-        Returns the length of a managed knowledge base.
+        Return the length of a managed knowledge base.
 
         Args:
             kb_name: knowledge base name.
@@ -360,7 +363,7 @@ class KnowledgeBaseManager:
         max_total_tokens: int = 1024,
     ) -> str:
         """
-        Transforms a `pd.DataFrame` containing search results into a string.
+        Transform a `pd.DataFrame` containing search results into a string.
 
         Args:
             search_result: A DataFrame containing search results from the
@@ -446,6 +449,7 @@ class KnowledgeBaseManager:
                     }
                 ],
             )
+            logger.debug(f"Update result: {res}")
         Instance.update_one(
             filter={"_id": instance.id}, update={"updated_at": datetime.utcnow()}
         )

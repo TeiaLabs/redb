@@ -1,11 +1,9 @@
-from typing import Optional
+from typing import Optional, Sequence
 
 import pandas as pd
-from pydantic import BaseModel
 
 from redb.core import BaseDocument, Document
 from redb.interface.fields import ClassField, CompoundIndex, Index
-
 
 class Embedding(BaseDocument):
     model_name: str
@@ -33,7 +31,7 @@ class Instance(Document):
 
     @classmethod
     def get_indexes(cls) -> list[Index | CompoundIndex]:
-        return [Index(field=cls.id)]
+        return [Index(field=cls.id)]  # type: ignore
 
     @classmethod
     def content_embedding_name(cls):
@@ -57,7 +55,7 @@ class Instance(Document):
         return cls.find_many({"kb_name": kb_name})
 
     @classmethod
-    def get_kb_names(cls) -> set:
+    def get_kb_names(cls) -> set[str]:
         # instances = cls.distinct(key="kb_name")
         # kb_names = set([instance.kb_name for instance in instances])
         # return kb_names
@@ -74,13 +72,13 @@ class Instance(Document):
 
     @classmethod
     def instances_to_dataframe(
-        cls, instances: list[object], explode_vectors=True
+        cls, instances: Sequence["Instance"], explode_vectors=True
     ) -> pd.DataFrame:
         if len(instances) == 0:
             return pd.DataFrame(data={})
 
-        instances = [inst.dict() for inst in instances]
-        df = pd.DataFrame(instances)
+        dict_instances = [inst.dict() for inst in instances]
+        df = pd.DataFrame(dict_instances)
         if explode_vectors:
             df = cls.explode_embeddings(df, cls.content_embedding_name())
             if df[cls.query_embedding_name()].any():
@@ -89,7 +87,6 @@ class Instance(Document):
 
     @classmethod
     def from_row(cls, dataframe_row: pd.DataFrame):
-
         content_embedding = None
         if (
             "content_embedding.vector" in dataframe_row

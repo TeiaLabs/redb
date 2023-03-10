@@ -39,7 +39,7 @@ class Document(BaseDocument):
 
     class Config:
         json_encoders = {
-            datetime: lambda d: d.isoformat(),
+            datetime: lambda d: d.isoformat(),  # TODO: shouldn't we keep this as datetime?
             DBRef: lambda ref: dict(ref.as_doc()),
             ObjectId: str,
         }
