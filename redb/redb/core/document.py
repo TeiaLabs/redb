@@ -289,6 +289,7 @@ class Document(BaseDocument):
             upsert=upsert,
         )
         collection.update_one(
+            cls=self.__class__,
             filter=filter,
             update={"$set": {"updated_at": str(datetime.utcnow())}},
         )
@@ -313,7 +314,7 @@ class Document(BaseDocument):
         if not upsert:
             filter = _optimize_filter(cls, filter)
 
-        _raise_if_updating_hashable(cls, update)
+        _raise_if_updating_hashable(cls, update_data)
         if operator is not None:
             update_data = {operator: update_data}
 
