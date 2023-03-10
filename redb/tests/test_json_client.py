@@ -3,8 +3,6 @@ from pathlib import Path
 
 import pytest
 
-# from redb.core.transaction import transaction, MongoConfig
-
 from .utils import Embedding, read_json, remove_document
 
 
