@@ -274,6 +274,7 @@ class Document(BaseDocument):
         collection = Document._get_collection(self.__class__)
         filter = _format_document_data(self)
         update = _format_document_data(update)
+        filter = _optimize_filter(filter)
 
         _raise_if_updating_hashable(self.__class__, update)
         if operator is not None:
@@ -302,10 +303,11 @@ class Document(BaseDocument):
     ) -> UpdateOneResult:
         if not allow_new_fields:
             _validate_fields(cls, update)
-            
+
         collection = Document._get_collection(cls)
         filters = _format_document_data(filter)
         update_data = _format_document_data(update)
+        filter = _optimize_filter(filter)
 
         _raise_if_updating_hashable(cls, update)
         if operator is not None:
@@ -338,6 +340,7 @@ class Document(BaseDocument):
         collection = Document._get_collection(cls)
         filter = _format_document_data(filter)
         update = _format_document_data(update)
+        filter = _optimize_filter(filter)
 
         _raise_if_updating_hashable(cls, update)
         if operator is not None:
@@ -499,3 +502,20 @@ def _raise_if_updating_hashable(cls: Type[T], update_dict: dict):
         if field in hashable_field_attr_names:
             m = f"Cannot update hashable field {field} on {cls.__name__}"
             raise CannotUpdateIdentifyingField(m)
+
+
+def _optimize_filter(cls: Type[T], filter: dict) -> dict:
+    if "_id" in filter:
+        return {"_id": filter["_id"]}
+
+    unique_fields = {}
+    indexes = cls.get_indexes()
+    for index in indexes:
+        if index.unique:
+            unique_fields.add(index.field.alias)
+
+    for key, value in filter.items():
+        if key in unique_fields:
+            return {key: value}
+
+    return filter
