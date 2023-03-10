@@ -274,7 +274,9 @@ class Document(BaseDocument):
         collection = Document._get_collection(self.__class__)
         filter = _format_document_data(self)
         update = _format_document_data(update)
-        filter = _optimize_filter(filter)
+
+        if not upsert:
+            filter = _optimize_filter(self.__class__, filter)
 
         _raise_if_updating_hashable(self.__class__, update)
         if operator is not None:
@@ -288,7 +290,7 @@ class Document(BaseDocument):
         )
         collection.update_one(
             filter=filter,
-            update={"$set": {"updated_at": datetime.utcnow()}},
+            update={"$set": {"updated_at": str(datetime.utcnow())}},
         )
         return result
 
@@ -305,9 +307,11 @@ class Document(BaseDocument):
             _validate_fields(cls, update)
 
         collection = Document._get_collection(cls)
-        filters = _format_document_data(filter)
+        filter = _format_document_data(filter)
         update_data = _format_document_data(update)
-        filter = _optimize_filter(filter)
+
+        if not upsert:
+            filter = _optimize_filter(cls, filter)
 
         _raise_if_updating_hashable(cls, update)
         if operator is not None:
@@ -315,13 +319,14 @@ class Document(BaseDocument):
 
         result = collection.update_one(
             cls=cls,
-            filter=filters,
+            filter=filter,
             update=update_data,
             upsert=upsert,
         )
         collection.update_one(
+            cls=cls,
             filter=filter,
-            update={"$set": {"updated_at": datetime.utcnow()}},
+            update={"$set": {"updated_at": str(datetime.utcnow())}},
         )
         return result
 
@@ -340,7 +345,9 @@ class Document(BaseDocument):
         collection = Document._get_collection(cls)
         filter = _format_document_data(filter)
         update = _format_document_data(update)
-        filter = _optimize_filter(filter)
+
+        if not upsert:
+            filter = _optimize_filter(cls, filter)
 
         _raise_if_updating_hashable(cls, update)
         if operator is not None:
@@ -352,9 +359,10 @@ class Document(BaseDocument):
             update=update,
             upsert=upsert,
         )
-        collection.update_one(
+        collection.update_many(
+            cls=cls,
             filter=filter,
-            update={"$set": {"updated_at": datetime.utcnow()}},
+            update={"$set": {"updated_at": str(datetime.utcnow())}},
         )
         return result
 
