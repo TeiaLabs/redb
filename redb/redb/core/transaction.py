@@ -1,5 +1,5 @@
 import contextlib
-from typing import Any, ContextManager, Dict, TypeVar, overload
+from typing import Any, ContextManager, Dict, Type, TypeVar, Sequence, overload
 
 from redb.core.document import (
     Document,
@@ -57,9 +57,9 @@ class CollectionWrapper:
         fields: IncludeColumns = None,
         skip: int = 0,
     ) -> "Document":
-        return_cls = _get_return_cls(self.__collection_class, fields)
-        filters = _format_document_data(filter)
         chosen_fields = _format_fields(fields)
+        return_cls = _get_return_cls(self.__collection_class, chosen_fields)
+        filters = _format_document_data(filter)
         return self.__collection.find_one(
             cls=self.__collection_class,
             return_cls=return_cls,
@@ -76,15 +76,15 @@ class CollectionWrapper:
         skip: int = 0,
         limit: int = 0,
     ) -> list["Document"]:
-        return_cls = _get_return_cls(self.__collection_class, fields)
+        chosen_fields = _format_fields(fields)
+        return_cls = _get_return_cls(self.__collection_class, chosen_fields)
         filter = _format_document_data(filter)
-        fields = _format_fields(fields)
         sort = _format_sort(sort)
         return self.__collection.find(
             cls=self.__collection_class,
             return_cls=return_cls,
             filter=filter,
-            fields=fields,
+            fields=chosen_fields,
             sort=sort,
             skip=skip,
             limit=limit,
@@ -140,7 +140,7 @@ class CollectionWrapper:
 
     def insert_many(
         self,
-        data: list[DocumentData],
+        data: Sequence[DocumentData],
     ) -> InsertManyResult:
         [_validate_fields(self.__collection_class, val) for val in data]
 
@@ -232,12 +232,13 @@ class CollectionWrapper:
 
 @overload
 def transaction(
-    collection: Document,
+    collection: Type[Document],
     backend: str | None = None,
     config: CONFIG_TYPE | None = None,
     db_name: str | None = None,
-) -> ContextManager[None]:
+) -> ContextManager[CollectionWrapper]:
     pass
+
 
 @overload
 def transaction(
@@ -245,7 +246,7 @@ def transaction(
     backend: str | None = None,
     config: CONFIG_TYPE | None = None,
     db_name: str | None = None,
-) -> ContextManager[int]:
+) -> ContextManager[Collection]:
     pass
 
 
@@ -255,12 +256,8 @@ def transaction(
     backend: str | None = None,
     config: CONFIG_TYPE | None = None,
     db_name: str | None = None,
-) -> int | None:
+) -> Collection | CollectionWrapper:
     new_client, client = get_client(backend, config)
-    if new_client:
-        __client = client
-    else:
-        __client = None
 
     if db_name is None:
         database = client.get_default_database()
@@ -268,14 +265,16 @@ def transaction(
         database = client.get_database(db_name)
 
     if isinstance(collection, str):
-        __collection = database.get_collection(collection)
+        collection = database.get_collection(collection)
     else:
         collection_name = collection.collection_name()
         driver_collection = database.get_collection(collection_name)
-        __collection = CollectionWrapper(driver_collection, collection)
-    yield __collection
-    if __client is not None:
-        __client.close()
+        collection = CollectionWrapper(driver_collection, collection)
+
+    yield collection
+
+    if new_client:
+        client.close()
 
 
 def get_client(backend: str | None, config: CONFIG_TYPE):
