@@ -508,11 +508,11 @@ def _optimize_filter(cls: Type[T], filter: dict) -> dict:
     if "_id" in filter:
         return {"_id": filter["_id"]}
 
-    unique_fields = {}
+    unique_fields = set()
     indexes = cls.get_indexes()
     for index in indexes:
         if index.unique:
-            unique_fields.add(index.field.alias)
+            unique_fields.add(index.field.model_field.alias)
 
     for key, value in filter.items():
         if key in unique_fields:
