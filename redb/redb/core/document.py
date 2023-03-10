@@ -274,10 +274,12 @@ class Document(BaseDocument):
         collection = Document._get_collection(self.__class__)
         filter = _format_document_data(self)
         update = _format_document_data(update)
+
+        _raise_if_updating_hashable(self.__class__, update)
         if operator is not None:
             update = {operator: update}
 
-        return collection.update_one(
+        result = collection.update_one(
             cls=self.__class__,
             filter=filter,
             update=update,
@@ -295,18 +297,15 @@ class Document(BaseDocument):
     ) -> UpdateOneResult:
         if not allow_new_fields:
             _validate_fields(cls, update)
+            
         collection = Document._get_collection(cls)
         filters = _format_document_data(filter)
         update_data = _format_document_data(update)
-        hashable_field_attr_names = set(
-            x.model_field.name for x in cls.get_hashable_fields()
-        )
-        for field in update_data.keys():
-            if field in hashable_field_attr_names:
-                m = f"Cannot update hashable field {field} on {cls.__name__}"
-                raise CannotUpdateIdentifyingField(m)
+
+        _raise_if_updating_hashable(cls, update)
         if operator is not None:
             update_data = {operator: update_data}
+
         result = collection.update_one(
             cls=cls,
             filter=filters,
@@ -330,10 +329,12 @@ class Document(BaseDocument):
         collection = Document._get_collection(cls)
         filter = _format_document_data(filter)
         update = _format_document_data(update)
+
+        _raise_if_updating_hashable(cls, update)
         if operator is not None:
             update = {operator: update}
 
-        return collection.update_many(
+        result = collection.update_many(
             cls=cls,
             filter=filter,
             update=update,
@@ -474,3 +475,13 @@ def _format_index(index: Index | CompoundIndex):
         )
 
     return index
+
+
+def _raise_if_updating_hashable(cls: Type[T], update_dict: dict):
+    hashable_field_attr_names = set(
+        x.model_field.name for x in cls.get_hashable_fields()
+    )
+    for field in update_dict.keys():
+        if field in hashable_field_attr_names:
+            m = f"Cannot update hashable field {field} on {cls.__name__}"
+            raise CannotUpdateIdentifyingField(m)
