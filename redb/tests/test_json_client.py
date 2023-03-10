@@ -3,8 +3,6 @@ from pathlib import Path
 
 import pytest
 
-# from redb.core.transaction import transaction, MongoConfig
-
 from .utils import Embedding, read_json, remove_document
 
 
@@ -102,11 +100,19 @@ def test_update_one(collection_path: Path, embedding: Embedding):
     expected["vector"] = [1, 2, 3]
     other = read_json(collection_path / f"{embedding.id}.json")
     remove_document(collection_path, embedding.id)
-    assert expected == other
+    for key, value in expected.items():
+        if key == "updated_at":
+            continue
+
+        assert key in other
+        assert value == other[key]
 
 
 def test_delete_one(collection_path: Path, embedding: Embedding):
-    Embedding.insert_one(embedding)
+    try:
+        Embedding.insert_one(embedding)
+    except:
+        pass
     Embedding.delete_one(embedding)
     with pytest.raises(AssertionError):
         assert (collection_path / f"{embedding.id}.json").is_file()

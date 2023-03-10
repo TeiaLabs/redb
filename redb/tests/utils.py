@@ -61,7 +61,8 @@ class RussianDog(Document):
         # Iterating is better than just "=="
         # in case of an error the log will be more readable :3
         for a_key in a_keys:
-            assert a[a_key] == b[a_key]
+            if a_key != "updated_at":
+                assert a[a_key] == b[a_key]
         return True
 
 

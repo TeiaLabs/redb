@@ -75,7 +75,7 @@ class TestmongoSystem:
         RussianDog.update_one(filter=boris, update={"age": 3})
         boris.age = 3
         upsert_result = RussianDog.update_one(
-            filter=boris, update={"is_good_boy": False}, upsert=True
+            filter=boris.dict(exclude={"updated_at", "created_at"}), update={"is_good_boy": False}, upsert=True
         )
         boris_from_db = RussianDog.find_one({"_id": boris_id.inserted_id})
 

@@ -1,5 +1,6 @@
 import contextlib
-from typing import Any, ContextManager, Dict, Type, TypeVar, Sequence, overload
+from datetime import datetime
+from typing import Any, ContextManager, Dict, Sequence, Type, TypeVar, overload
 
 from redb.core.document import (
     Document,
@@ -12,6 +13,8 @@ from redb.core.document import (
     _format_index,
     _format_sort,
     _get_return_cls,
+    _optimize_filter,
+    _raise_if_updating_hashable,
     _validate_fields,
 )
 from redb.interface.collection import (
@@ -182,15 +185,26 @@ class CollectionWrapper:
 
         filter = _format_document_data(filter)
         update = _format_document_data(update)
+
+        if not upsert:
+            filter = _optimize_filter(self.__collection_class, filter)
+
+        _raise_if_updating_hashable(self.__collection_class, update)
         if operator is not None:
             update = {operator: update}
 
-        return self.__collection.update_one(
+        result = self.__collection.update_one(
             cls=self.__collection_class,
             filter=filter,
             update=update,
             upsert=upsert,
         )
+        self.__collection.update_one(
+            cls=self.__collection_class,
+            filter=filter,
+            update={"$set": {"updated_at": str(datetime.utcnow())}},
+        )
+        return result
 
     def update_many(
         self,
@@ -205,15 +219,26 @@ class CollectionWrapper:
 
         filter = _format_document_data(filter)
         update = _format_document_data(update)
+
+        if not upsert:
+            filter = _optimize_filter(self.__collection_class, filter)
+
+        _raise_if_updating_hashable(self.__collection_class, update)
         if operator is not None:
             update = {operator: update}
 
-        return self.__collection.update_many(
+        result = self.__collection.update_many(
             cls=self.__collection_class,
             filter=filter,
             update=update,
             upsert=upsert,
         )
+        self.__collection.update_many(
+            cls=self.__collection_class,
+            filter=filter,
+            update={"$set": {"updated_at": str(datetime.utcnow())}},
+        )
+        return result
 
     def delete_one(self, filter: DocumentData) -> DeleteOneResult:
         filter = _format_document_data(filter)
