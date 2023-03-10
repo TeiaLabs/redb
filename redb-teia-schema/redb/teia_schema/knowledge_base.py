@@ -280,7 +280,7 @@ class KnowledgeBaseManager:
                 f"Removing {len(ids_remove_local)} local instances (not found in DB)."
             )
             self.local_kb.drop(
-                labels=self.local_kb["_id"].isin(ids_remove_local).index,
+                labels=self.local_kb[self.local_kb["_id"].isin(ids_remove_local)].index,
                 axis="index",
                 inplace=True,
             )
@@ -295,15 +295,20 @@ class KnowledgeBaseManager:
             for db_id, _ in map_id_update_db.items()
             if db_id not in set(map_id_update_local.keys())
         ]
-        was_updated = [
-            local_id
-            for local_id, local_update in map_id_update_local.items()
-            if local_id in set(map_id_update_db.keys())
-            and datetime.fromisoformat(local_update) < map_id_update_db[local_id]
-        ]
+        was_updated = []
+        for local_id, local_update in map_id_update_local.items():
+            if isinstance(local_update, str):
+                local_update = datetime.fromisoformat(local_update)
+            db_update = map_id_update_db[local_id]
+            if isinstance(db_update, str):
+                db_update = datetime.fromisoformat(db_update)
+
+            if local_update < db_update:
+                was_updated.append(local_id)
+
         if was_updated:
             self.local_kb.drop(
-                labels=self.local_kb["_id"].isin(was_updated).index,
+                labels=self.local_kb[self.local_kb["_id"].isin(was_updated)].index,
                 axis="index",
                 inplace=True,
             )
@@ -311,7 +316,9 @@ class KnowledgeBaseManager:
 
         ids_missing = list(set(new_ids + was_updated))
         if ids_missing:
-            logger.debug(f"Updating {len(ids_missing)} instances based on IDs and timestamps.")
+            logger.debug(
+                f"Updating {len(ids_missing)} instances based on IDs and timestamps."
+            )
             instances_missing = Instance.find_many({"_id": {"$in": ids_missing}})
             instances_missing_df = Instance.instances_to_dataframe(
                 instances_missing, explode_vectors=True
@@ -408,7 +415,9 @@ class KnowledgeBaseManager:
             },
         )
         if not instances_with_emb:
-            logger.debug(f"Instance {instance.id} does not have embeddings for {embedding_name}. Inserting.")
+            logger.debug(
+                f"Instance {instance.id} does not have embeddings for {embedding_name}. Inserting."
+            )
             # did not find instance with these embedding parameters
             Instance.update_one(
                 filter={"_id": instance.id},
@@ -418,7 +427,9 @@ class KnowledgeBaseManager:
                 operator="$push",
             )
         else:
-            logger.debug(f"Instance {instance.id} has embeddings for {embedding_name}. Replacing.")
+            logger.debug(
+                f"Instance {instance.id} has embeddings for {embedding_name}. Replacing."
+            )
             # found instance with these embedding parameters, update it
             mongo_driver = Instance._get_driver_collection(Instance)
             res = mongo_driver.update_one(
@@ -506,7 +517,9 @@ class KnowledgeBaseManager:
             current_kb = current_kb[current_kb.distances < settings.threshold]
             current_kb = current_kb.sort_values(by="distances")
             current_kb = current_kb.head(settings.top_k)
-            logger.debug(f"Found {len(current_kb)} result(s) for KB '{settings.kb_name}'.")
+            logger.debug(
+                f"Found {len(current_kb)} result(s) for KB '{settings.kb_name}'."
+            )
             df_list.append(current_kb)
 
         result = pd.concat(df_list)
@@ -526,6 +539,7 @@ class KnowledgeBaseManager:
             for field_name, field_model in Instance.__fields__.items()
         ]
         return pd.DataFrame([], columns=columns)
+
 
 def distances_from_embeddings_np(
     query_embedding: list[float],
