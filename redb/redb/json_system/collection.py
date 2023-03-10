@@ -49,8 +49,6 @@ class JSONCollection(Collection):
         transform = lambda file_path: json.load(open(file_path))
         if filter is not None and "_id" in filter:
             file_path = self.__collection / f"{filter['_id']}.json"
-            if len(filter) > 1:
-                print("JSON backend does not support filtering yet.", file=sys.stderr)
             if file_path.is_file() and not file_path.is_symlink():
                 return [return_cls(**transform(file_path))]
 
