@@ -509,7 +509,7 @@ def _raise_if_updating_hashable(cls: Type[T], update_dict: dict):
     )
     for field in update_dict.keys():
         if field in hashable_field_attr_names:
-            m = f"Cannot update hashable field {field} on {cls.__name__}"
+            m = f"Cannot update hashable field {field!r} on {cls.__name__!r}."
             raise CannotUpdateIdentifyingField(m)
 
 
