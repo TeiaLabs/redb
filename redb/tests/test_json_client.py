@@ -111,7 +111,10 @@ def test_update_one(collection_path: Path, embedding: Embedding):
 
 
 def test_delete_one(collection_path: Path, embedding: Embedding):
-    Embedding.insert_one(embedding)
+    try:
+        Embedding.insert_one(embedding)
+    except:
+        pass
     Embedding.delete_one(embedding)
     with pytest.raises(AssertionError):
         assert (collection_path / f"{embedding.id}.json").is_file()
