@@ -516,15 +516,17 @@ def _raise_if_updating_hashable(cls: Type[T], update_dict: dict):
 def _optimize_filter(cls: Type[T], filter: dict) -> dict:
     if "_id" in filter:
         return {"_id": filter["_id"]}
-
     unique_fields = set()
-    indexes = cls.get_indexes()
+    indexes = [i for i in cls.get_indexes() if isinstance(i, Index)]
     for index in indexes:
         if index.unique:
             unique_fields.add(index.field.model_field.alias)
-
     for key, value in filter.items():
         if key in unique_fields:
             return {key: value}
-
+    compound_indexes = [i for i in cls.get_indexes() if isinstance(i, CompoundIndex)]
+    for c_index in compound_indexes:
+        if c_index.unique:
+            if all(k in filter for k in c_index.fields):
+                return {k: filter[k] for k in c_index.fields}
     return filter
