@@ -18,5 +18,3 @@ class UniqueConstraintViolation(REDBError):
     def __init__(self, *args: object, dup_keys: dict) -> None:
         msg = f"Duplicate key error on: {dup_keys}"
         super().__init__(msg, *args)
-
-    pass
