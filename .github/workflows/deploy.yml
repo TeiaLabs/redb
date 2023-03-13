@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
@@ -21,11 +23,9 @@ jobs:
       - name: Build package.
         working-directory: ./redb/
         run: |
-          python -m pip install --upgrade pip build
-          python -m build .
+          python -m pip install --upgrade pip build twine
+          python -m build --sdist && python -m build --wheel
       - name: Publish.
-        uses: pypa/gh-action-pypi-publish@v1.6.4
-        with:
-          packages_dir: ./redb/dist/
-          password: ${{ secrets.PYPI_API_TOKEN }}
-          print_hash: true
+        working-directory: ./redb/
+        run: |
+          twine upload ./dist/* -u __token__ -p ${{ secrets.PYPI_API_TOKEN }}

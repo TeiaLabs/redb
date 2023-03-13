@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import shlex
+import subprocess
 from pathlib import Path
 
 import setuptools
@@ -22,6 +24,17 @@ def get_optional_requirements() -> dict[str, list[str]]:
     return requirements
 
 
+def get_version() -> str:
+    raw_git_cmd = "git describe --tags"
+    git_cmd = shlex.split(raw_git_cmd)
+    fmt_cmd = shlex.split("cut -d '-' -f 1,2")
+    git = subprocess.Popen(git_cmd, stdout=subprocess.PIPE)
+    cut = subprocess.check_output(fmt_cmd, stdin=git.stdout)
+    ret_code = git.wait()
+    assert ret_code == 0, f"{raw_git_cmd!r} failed with exit code {ret_code}."
+    return cut.decode().strip()
+
+
 requirements = read_multiline_as_list("requirements.txt")
 
 opt_requirements = get_optional_requirements()
@@ -37,7 +50,7 @@ with open("README.md") as f:
 
 setuptools.setup(
     name="redb-odm",
-    version="1.1.0",
+    version=get_version(),
     author="Teia Labs",
     author_email="contato@teialabs.com",
     description="A python ODM for JSON, Mongo, and Mongo+Milvus.",
