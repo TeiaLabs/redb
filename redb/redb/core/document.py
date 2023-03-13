@@ -195,8 +195,8 @@ class Document(BaseDocument):
                 cls=cls,
                 data=data,
             )
-        except DuplicateKeyError:
-            raise UniqueConstraintViolation
+        except DuplicateKeyError as e:
+            raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
 
     @classmethod
     def insert_vectors(
@@ -228,8 +228,8 @@ class Document(BaseDocument):
                 data=data,
             )
             return result
-        except DuplicateKeyError:
-            raise UniqueConstraintViolation
+        except DuplicateKeyError as e:
+            raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
 
     def replace(
         self: T,
@@ -340,9 +340,8 @@ class Document(BaseDocument):
                 filter=filter,
                 update={"$set": {"updated_at": str(datetime.utcnow())}},
             )
-        except DuplicateKeyError:
-            raise UniqueConstraintViolation
-
+        except DuplicateKeyError as e:
+            raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
         return result
 
     @classmethod
@@ -380,8 +379,8 @@ class Document(BaseDocument):
                 filter=filter,
                 update={"$set": {"updated_at": str(datetime.utcnow())}},
             )
-        except DuplicateKeyError:
-            raise UniqueConstraintViolation
+        except DuplicateKeyError as e:
+            raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
 
         return result
 

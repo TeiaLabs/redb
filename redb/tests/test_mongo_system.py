@@ -3,11 +3,11 @@ from pathlib import Path
 
 import dotenv
 import pytest
-
 from redb.core import RedB
-from redb.interface.fields import Direction, SortColumn
 from redb.interface.configs import MongoConfig
 from redb.interface.errors import DocumentNotFound
+from redb.interface.fields import Direction, SortColumn
+
 from .utils import Embedding, RussianDog
 
 dotenv.load_dotenv()
@@ -75,7 +75,9 @@ class TestmongoSystem:
         RussianDog.update_one(filter=boris, update={"age": 3})
         boris.age = 3
         upsert_result = RussianDog.update_one(
-            filter=boris.dict(exclude={"updated_at", "created_at"}), update={"is_good_boy": False}, upsert=True
+            filter=boris.dict(exclude={"updated_at", "created_at"}),
+            update={"is_good_boy": False},
+            upsert=True,
         )
         boris_from_db = RussianDog.find_one({"_id": boris_id.inserted_id})
 
