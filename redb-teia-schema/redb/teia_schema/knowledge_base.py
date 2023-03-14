@@ -170,7 +170,7 @@ class KnowledgeBaseManager:
         else:
             logger.debug("Using local file backend.")
             update_func = self._update_instance_embedding_memory
-        instances_missing = Instance.find_many({"_id": {"$in": ids_missing}})
+        instances_missing = Instance.find_many({"_id": {"$in": list(ids_missing)}})
         updated_ids = []
         for instance in instances_missing:
             logger.debug(f"Updating embeddings for instance {instance.id}.")
@@ -322,7 +322,7 @@ class KnowledgeBaseManager:
             logger.debug(
                 f"Updating {len(ids_missing)} instances based on IDs and timestamps."
             )
-            instances_missing = Instance.find_many({"_id": {"$in": ids_missing}})
+            instances_missing = Instance.find_many({"_id": {"$in": list(ids_missing)}})
             instances_missing_df = Instance.instances_to_dataframe(
                 instances_missing, explode_vectors=True
             )
