@@ -520,33 +520,25 @@ class KnowledgeBaseManager:
             logger.debug("No 'vector' column in local replica.")
             return self._create_empty_local_replica()
 
+        logger.debug(f"Filtering local replica based on search settings.")
         kb_list = [settings.kb_name for settings in search_settings]
-        kb_filter = {"kb_name": {"$in": kb_list}}
-        model_type = self.model_config.model_type
-        model_name = self.model_config.model_kwargs["model_name"]
-        model_filters = {
-            "content_embedding.model_type": model_type,
-            "content_embedding.model_name": model_name,
-            "query_embedding.model_type": model_type,
-            "query_embedding.model_name": model_name,
-        }
-        model_filters.update(kb_filter)
-        with transaction(db_name=self.db_name, collection=Instance) as ic:
-            instances = ic.find_many(model_filters)
-        logger.debug(f"Found {len(instances)} instances in local replica.")
-        instances_df = Instance.instances_to_dataframe(instances, explode_vectors=True)
+        local_kb_filtered = self.local_kb.query("kb_name.isin(@kb_list)")
+        local_kb_filtered.reset_index(drop=True, inplace=True)
+        logger.debug(f"Found {len(local_kb_filtered)} instances in local replica.")
 
+        logger.debug("Computing embedding for search query.")
         query_embedding = self.encoder.encode_text([query], return_type="list")[0]
-        instances_df["distances"] = distances_from_embeddings_np(
+        logger.debug("Computing distances between query/instances embeddings.")
+        local_kb_filtered["distances"] = distances_from_embeddings_np(
             query_embedding=query_embedding,
-            embeddings=instances_df.vector.tolist(),
+            embeddings=local_kb_filtered.vector.tolist(),
         )
-        instances_df.sort_values(by="distances", inplace=True)
+        local_kb_filtered.sort_values(by="distances", inplace=True)
 
         df_list = []
         logger.debug("Filtering search results according to search settings.")
         for settings in search_settings:
-            current_kb = instances_df.query(f"kb_name == @settings.kb_name")
+            current_kb = local_kb_filtered.query(f"kb_name == @settings.kb_name")
             current_kb = current_kb[current_kb.distances < settings.threshold]
             current_kb = current_kb.sort_values(by="distances")
             current_kb = current_kb.head(settings.top_k)
@@ -565,6 +557,18 @@ class KnowledgeBaseManager:
         search_settings: list[KBFilterSettings],
     ) -> pd.DataFrame:
         raise NotImplementedError
+        # may be useful for future implementation
+        kb_list = [settings.kb_name for settings in search_settings]
+        kb_filter = {"kb_name": {"$in": kb_list}}
+        model_type = self.model_config.model_type
+        model_name = self.model_config.model_kwargs["model_name"]
+        model_filters = {
+            "content_embedding.model_type": model_type,
+            "content_embedding.model_name": model_name,
+        }
+        model_filters.update(kb_filter)
+        with transaction(db_name=self.db_name, collection=Instance) as ic:
+            instances = ic.find_many(model_filters)
 
     def _create_empty_local_replica(self):
         columns = [
