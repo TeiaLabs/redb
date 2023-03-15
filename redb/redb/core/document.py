@@ -1,7 +1,11 @@
 from datetime import datetime
 from typing import Any, Dict, Sequence, Type, TypeAlias, TypeVar, Union, cast
 
-from redb.interface.errors import CannotUpdateIdentifyingField
+from pymongo.errors import DuplicateKeyError
+from redb.interface.errors import (
+    CannotUpdateIdentifyingField,
+    UniqueConstraintViolation,
+)
 from redb.interface.fields import (
     CompoundIndex,
     DBRef,
@@ -180,10 +184,13 @@ class Document(BaseDocument):
 
         collection = Document._get_collection(cls)
         data = _format_document_data(data)
-        return collection.insert_one(
-            cls=cls,
-            data=data,
-        )
+        try:
+            return collection.insert_one(
+                cls=cls,
+                data=data,
+            )
+        except DuplicateKeyError as e:
+            raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
 
     @classmethod
     def insert_vectors(
@@ -209,11 +216,14 @@ class Document(BaseDocument):
             _validate_fields(cls, val)
         collection = Document._get_collection(cls)
         data = [_format_document_data(val) for val in data]
-        result = collection.insert_many(
-            cls=cls,
-            data=data,
-        )
-        return result
+        try:
+            result = collection.insert_many(
+                cls=cls,
+                data=data,
+            )
+            return result
+        except DuplicateKeyError as e:
+            raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
 
     def replace(
         self: T,
@@ -312,17 +322,20 @@ class Document(BaseDocument):
         if operator is not None:
             update_data = {operator: update_data}
 
-        result = collection.update_one(
-            cls=cls,
-            filter=filter,
-            update=update_data,
-            upsert=upsert,
-        )
-        collection.update_one(
-            cls=cls,
-            filter=filter,
-            update={"$set": {"updated_at": str(datetime.utcnow())}},
-        )
+        try:
+            result = collection.update_one(
+                cls=cls,
+                filter=filter,
+                update=update_data,
+                upsert=upsert,
+            )
+            collection.update_one(
+                cls=cls,
+                filter=filter,
+                update={"$set": {"updated_at": str(datetime.utcnow())}},
+            )
+        except DuplicateKeyError as e:
+            raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
         return result
 
     @classmethod
@@ -348,17 +361,21 @@ class Document(BaseDocument):
         if operator is not None:
             update = {operator: update}
 
-        result = collection.update_many(
-            cls=cls,
-            filter=filter,
-            update=update,
-            upsert=upsert,
-        )
-        collection.update_many(
-            cls=cls,
-            filter=filter,
-            update={"$set": {"updated_at": str(datetime.utcnow())}},
-        )
+        try:
+            result = collection.update_many(
+                cls=cls,
+                filter=filter,
+                update=update,
+                upsert=upsert,
+            )
+            collection.update_many(
+                cls=cls,
+                filter=filter,
+                update={"$set": {"updated_at": str(datetime.utcnow())}},
+            )
+        except DuplicateKeyError as e:
+            raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
+
         return result
 
     def delete(self: T) -> DeleteOneResult:
