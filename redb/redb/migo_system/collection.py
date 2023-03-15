@@ -17,7 +17,6 @@ from migo.utils import (
 from migo.utils import Index as MigoIndex
 from migo.utils import (
     IVFFlatIndex,
-    IVFIndex,
     IVFPQIndex,
     IVFSQ8Index,
     MilvusBinaryIndex,
@@ -259,8 +258,8 @@ class MigoCollection(Collection):
     ) -> ReturnType:
         migo_filter = _build_migo_data(cls, data=filter, out=MigoFilter)
         migo_fields = _build_migo_fields(cls, fields)
-        results = self.__collection.find_one(filter=migo_filter, fields=migo_fields)
-        return [return_cls(**result) for result in results]
+        result = self.__collection.find_one(filter=migo_filter, fields=migo_fields)
+        return return_cls(**result)
 
     def distinct(
         self,
@@ -268,10 +267,7 @@ class MigoCollection(Collection):
         key: str,
         filter: OptionalJson = None,
     ) -> list[Any]:
-        results = self.__collection.distinct(
-            key=key,
-            filter=filter,
-        )
+        results = self.__collection.distinct(key=key, filter=filter)
         return results
 
     def count_documents(
@@ -279,8 +275,7 @@ class MigoCollection(Collection):
         cls: Type[Document],
         filter: OptionalJson = None,
     ) -> int:
-        migo_filter = _build_migo_data(cls, data=filter, out=MigoFilter)
-        return self.count_documents(filter=migo_filter)
+        return self.__collection.count(filter=filter)
 
     def bulk_write(self, _: list[PyMongoOperations]) -> BulkWriteResult:
         raise NotImplementedError
@@ -291,7 +286,8 @@ class MigoCollection(Collection):
         data: Json,
     ) -> InsertOneResult:
         migo_data = _build_migo_data(cls, data=data, out=MigoDocument)
-        return self.__collection.insert_one(data=migo_data)
+        result = self.__collection.insert_one(data=migo_data)
+        return InsertOneResult(inserted_id=result.inserted_id)
 
     def insert_many(
         self,
@@ -306,7 +302,8 @@ class MigoCollection(Collection):
             if migo_doc.milvus_array:
                 migo_data.milvus_arrays.append(migo_doc.milvus_array)
 
-        return self.__collection.insert_many(migo_data)
+        result = self.__collection.insert_many(migo_data)
+        return InsertManyResult(inserted_ids=result.inserted_ids)
 
     def replace_one(
         self,
@@ -317,10 +314,15 @@ class MigoCollection(Collection):
     ) -> ReplaceOneResult:
         migo_doc = _build_migo_data(cls, data=replacement, out=MigoDocument)
         migo_filter = _build_migo_data(cls, data=filter, out=MigoFilter)
-        return self.__collection.replace_one(
+        result = self.__collection.replace_one(
             data=migo_doc,
             filter=migo_filter,
             upsert=upsert,
+        )
+        return ReplaceOneResult(
+            matched_count=result.matched_count,
+            modified_count=result.modified_count,
+            upserted_id=result.upserted_id,
         )
 
     def update_one(
@@ -332,10 +334,15 @@ class MigoCollection(Collection):
     ) -> UpdateOneResult:
         migo_doc = _build_migo_data(cls, data=update, out=MigoDocument)
         migo_filter = _build_migo_data(cls, data=filter, out=MigoDocument)
-        return self.__collection.update_one(
+        result = self.__collection.update_one(
             data=migo_doc,
             filter=migo_filter,
             upsert=upsert,
+        )
+        return UpdateOneResult(
+            matched_count=result.matched_count,
+            modified_count=result.modified_count,
+            upserted_id=result.upserted_id,
         )
 
     def update_many(
@@ -347,10 +354,15 @@ class MigoCollection(Collection):
     ) -> UpdateManyResult:
         migo_doc = _build_migo_data(cls, data=update, out=MigoDocument)
         migo_filter = _build_migo_data(cls, data=filter, out=MigoFilter)
-        return self.__collection.update_many(
+        result = self.__collection.update_many(
             data=migo_doc,
             filter=migo_filter,
             upsert=upsert,
+        )
+        return UpdateManyResult(
+            matched_count=result.matched_count,
+            modified_count=result.modified_count,
+            upserted_id=result.upserted_id,
         )
 
     def delete_one(
@@ -359,7 +371,8 @@ class MigoCollection(Collection):
         filter: Json,
     ) -> DeleteOneResult:
         migo_filter = _build_migo_data(cls, data=filter, out=MigoFilter)
-        return self.__collection.delete_one(filter=migo_filter)
+        result = self.__collection.delete_one(filter=migo_filter)
+        return DeleteOneResult(deleted_count=result.deleted_count)
 
     def delete_many(
         self,
@@ -367,4 +380,5 @@ class MigoCollection(Collection):
         filter: Json,
     ) -> DeleteManyResult:
         migo_filter = _build_migo_data(cls, data=filter, out=MigoFilter)
-        return self.__collection.delete_many(filter=migo_filter)
+        result = self.__collection.delete_many(filter=migo_filter)
+        return DeleteManyResult(deleted_count=result.deleted_count)

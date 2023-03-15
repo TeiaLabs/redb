@@ -25,6 +25,9 @@ class MigoClient(Client):
     def get_default_database(self) -> MigoDatabase:
         return MigoDatabase(self.__migo_driver.get_default_database())
 
+    def get_database(self, name: str) -> MigoDatabase:
+        return MigoDatabase(self.__migo_driver.get_database(name))
+
     def get_databases(self) -> Sequence[MigoDatabase]:
         return [
             MigoDatabase(database) for database in self.__migo_driver.get_databases()
