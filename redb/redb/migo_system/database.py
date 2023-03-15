@@ -34,6 +34,10 @@ class MigoDatabase(Database):
             return True
         except:
             return False
+        
+    @property
+    def name(self) -> str:
+        return self.__database.name
 
     def __getitem__(self, name: str) -> MigoCollection:
         return self.get_collection(name)

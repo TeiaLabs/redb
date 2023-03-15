@@ -30,6 +30,9 @@ class MigoClient(Client):
             MigoDatabase(database) for database in self.__migo_driver.get_databases()
         ]
 
+    def get_database(self, name: str) -> MigoDatabase:
+        return MigoDatabase(self.__migo_driver.get_database(name))
+
     def drop_database(self, name: str) -> bool:
         try:
             self.__migo_driver.drop_database(name)

@@ -33,6 +33,10 @@ class JSONDatabase(Database):
     def delete_collection(self, name: str) -> None:
         shutil.rmtree(self.get_collection(name).__class__.__name__)
 
+    @property
+    def name(self) -> str:
+        return self.__database_folder_path.name
+
     def __getitem__(self, name: str) -> "JSONDatabase":
         return JSONCollection(self.__database_folder_path / name)
 
