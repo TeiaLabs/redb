@@ -35,6 +35,10 @@ class MongoDatabase(Database):
             return True
         except CollectionInvalid:
             return False
+        
+    @property
+    def name(self) -> str:
+        return self.__database.name
 
     def __getitem__(self, name: str) -> MongoCollection:
         return self.get_collection(name)

@@ -8,10 +8,11 @@ import pandas as pd
 from melting_face.completion.openai_model import get_tokenizer
 from melting_face.encoders import EncoderClient, LocalSettings, RemoteSettings
 from pydantic import BaseModel, validator
-from redb.core import RedB
-from redb.interface.configs import CONFIG_TYPE, JSONConfig, MigoConfig, MongoConfig
-from redb.teia_schema import Embedding, File, Instance
 
+from redb.core import RedB
+from redb.core.transaction import transaction
+from redb.interface.configs import JSONConfig, MigoConfig, MongoConfig
+from redb.teia_schema import Embedding, File, Instance
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ class KBManagerSettings(BaseModel):
     Knowledge base manager settings.
     """
 
-    redb_config: JSONConfig | MigoConfig | MongoConfig
+    database_name: str
     model_config: LocalSettings | RemoteSettings
     search_settings: list[KBFilterSettings]
 
@@ -61,36 +62,42 @@ class KnowledgeBaseManager:
     """
     Knowledge base manager for Teia Schema documents.
 
+    WARNING: you MUST call `RedB.setup()` before instantiating this class,
+    since we need to extract information regarding the active RedB connection.
+
     Currently supports the following operations:
         - Insert/Update `Instance` embeddings using a predefined model.
         - Search for most similar `Instance`s using filters (`KBFilterSetting`).
         - Count number of `Instance`s in entire database or knowledge base.
 
     Args:
-        redb_config: ReDB configuration file.
         model_config: encoder model configuration file.
         search_settings: default search settings to use when querying knowledge
             bases. Each filter in the list corresponds to one knowledge that
             exists in the database.
+        database_name: database to connect to. If `None`, uses default database
+            name specified by the active RedB connection.
         preload_local_kb: whether to preload local database replica during
             manager startup. For large databases, this may take a while.
     """
 
     def __init__(
         self,
-        redb_config: CONFIG_TYPE,
         model_config: LocalSettings,
         search_settings: list[KBFilterSettings],
+        database_name: str | None = None,
         preload_local_kb: bool = False,
     ) -> None:
         logger.debug("Instantiating KB manager.")
-        RedB.setup(redb_config)
-        self.redb_config = redb_config
+        self.redb_config = RedB.get_config()
+        self.db_name = database_name
+        if database_name is None:
+            self.db_name = RedB.get_client().get_default_database().name
         self.model_config = model_config
         self.encoder = EncoderClient(model_config)
         self.encoder_tokenizer = get_tokenizer(model_config.model_kwargs["model_name"])
-        self.memory_search = not isinstance(redb_config, MigoConfig)  # JSON, Mongo
-        self.mongo_backend = not isinstance(redb_config, JSONConfig)  # Mongo, Migo
+        self.memory_search = not isinstance(self.redb_config, MigoConfig)  # JSON, Mongo
+        self.mongo_backend = not isinstance(self.redb_config, JSONConfig)  # Mongo, Migo
         self._validate_search_settings(search_settings)
         self.search_settings = search_settings
         self.local_kb = self._create_empty_local_replica()
@@ -103,7 +110,7 @@ class KnowledgeBaseManager:
     @classmethod
     def from_settings(cls, settings: KBManagerSettings) -> KnowledgeBaseManager:
         return cls(
-            redb_config=settings.redb_config,
+            database_name=settings.database_name,
             model_config=settings.model_config,
             search_settings=settings.search_settings,
         )
@@ -134,7 +141,8 @@ class KnowledgeBaseManager:
         model_name = self.model_config.model_kwargs["model_name"]
         # find all relevant instances
         kb_filter = {"kb_name": kb_name} if kb_name else {}
-        instances = Instance.find_many(filter=kb_filter, fields=["_id"])
+        with transaction(db_name=self.db_name, collection=Instance) as ic:
+            instances = ic.find_many(filter=kb_filter, fields=["_id"])
         instances = cast(list[dict[str, Any]], instances)
         if not instances:
             logger.debug("No instances found.")
@@ -153,7 +161,8 @@ class KnowledgeBaseManager:
                 "query_embedding.model_name": model_name,
             }
             model_filters |= kb_filter
-            instances_filled = Instance.find_many(model_filters, fields=["_id"])
+            with transaction(db_name=self.db_name, collection=Instance) as ic:
+                instances_filled = ic.find_many(model_filters, fields=["_id"])
             instances_filled = cast(list[dict[str, Any]], instances_filled)
             ids_missing = {i["_id"] for i in instances}.difference(
                 {i["_id"] for i in instances_filled}
@@ -170,7 +179,9 @@ class KnowledgeBaseManager:
         else:
             logger.debug("Using local file backend.")
             update_func = self._update_instance_embedding_memory
-        instances_missing = Instance.find_many({"_id": {"$in": list(ids_missing)}})
+
+        with transaction(db_name=self.db_name, collection=Instance) as ic:
+            instances_missing = ic.find_many({"_id": {"$in": list(ids_missing)}})
         updated_ids = []
         for instance in instances_missing:
             logger.debug(f"Updating embeddings for instance {instance.id}.")
@@ -265,13 +276,14 @@ class KnowledgeBaseManager:
         # get local instances' IDs and last update timestamp
         instances_local = self.local_kb[["_id", "updated_at"]].to_dict(orient="records")
         # get DB instances' IDs and last update timestamp
-        instances_db = Instance.find_many(
-            filter={
-                "content_embedding.model_type": model_type,
-                "content_embedding.model_name": model_name,
-            },
-            fields=["_id", "updated_at"],
-        )
+        with transaction(db_name=self.db_name, collection=Instance) as ic:
+            instances_db = ic.find_many(
+                filter={
+                    "content_embedding.model_type": model_type,
+                    "content_embedding.model_name": model_name,
+                },
+                fields=["_id", "updated_at"],
+            )
         instances_db = cast(list[dict[str, Any]], instances_db)
 
         # remove local instances that do not exist in DB (based on IDs)
@@ -322,7 +334,8 @@ class KnowledgeBaseManager:
             logger.debug(
                 f"Updating {len(ids_missing)} instances based on IDs and timestamps."
             )
-            instances_missing = Instance.find_many({"_id": {"$in": list(ids_missing)}})
+            with transaction(db_name=self.db_name, collection=Instance) as ic:
+                instances_missing = ic.find_many({"_id": {"$in": list(ids_missing)}})
             instances_missing_df = Instance.instances_to_dataframe(
                 instances_missing, explode_vectors=True
             )
@@ -335,7 +348,9 @@ class KnowledgeBaseManager:
         if self.memory_search:
             return len(self.local_kb)
         else:
-            return Instance.count_documents({})
+            with transaction(db_name=self.db_name, collection=Instance) as ic:
+                count = ic.count_documents({})
+            return count
 
     def get_kb_length(self, kb_name: str) -> int:
         """
@@ -347,13 +362,21 @@ class KnowledgeBaseManager:
         Returns:
             int: length of knowledge base.
         """
-        kb_names = Instance.get_kb_names()
+        kb_names = self.get_kb_names()
         if kb_name not in kb_names:
             raise ValueError(
                 f"Invalid knowledge base name: '{kb_name}'. "
                 f"Knowledge bases found: {kb_names}."
             )
-        return Instance.count_documents(filter={"kb_name": kb_name})
+        with transaction(db_name=self.db_name, collection=Instance) as ic:
+            count = ic.count_documents(filter={"kb_name": kb_name})
+        return count
+
+    def get_kb_names(self) -> list[str]:
+        """Returns a list of knowledge base names in the database."""
+        with transaction(db_name=self.db_name, collection=Instance) as ic:
+            kb_names = set(ic.distinct(key="kb_name"))
+        return list(kb_names)
 
     def search_result_to_string(
         self,
@@ -410,31 +433,34 @@ class KnowledgeBaseManager:
         embedding: Embedding,
         embedding_name: str,
     ):
-        instances_with_emb = Instance.find_many(
-            filter={
-                "_id": instance.id,
-                f"{embedding_name}.model_type": embedding.model_type,
-                f"{embedding_name}.model_name": embedding.model_name,
-            },
-        )
+        with transaction(db_name=self.db_name, collection=Instance) as ic:
+            instances_with_emb = ic.find_many(
+                filter={
+                    "_id": instance.id,
+                    f"{embedding_name}.model_type": embedding.model_type,
+                    f"{embedding_name}.model_name": embedding.model_name,
+                },
+            )
         if not instances_with_emb:
             logger.debug(
                 f"Instance {instance.id} does not have embeddings for {embedding_name}. Inserting."
             )
             # did not find instance with these embedding parameters
-            Instance.update_one(
-                filter={"_id": instance.id},
-                update={
-                    f"{embedding_name}": embedding.dict(),
-                },
-                operator="$push",
-            )
+            with transaction(db_name=self.db_name, collection=Instance) as ic:
+                ic.update_one(
+                    filter={"_id": instance.id},
+                    update={
+                        f"{embedding_name}": embedding.dict(),
+                    },
+                    operator="$push",
+                )
         else:
             logger.debug(
                 f"Instance {instance.id} has embeddings for {embedding_name}. Replacing."
             )
             # found instance with these embedding parameters, update it
-            mongo_driver = Instance._get_driver_collection(Instance)
+            with transaction(db_name=self.db_name, collection=Instance) as ic:
+                mongo_driver = ic._get_driver_collection()
             res = mongo_driver.update_one(
                 filter={"_id": instance.id},
                 update={
@@ -450,9 +476,10 @@ class KnowledgeBaseManager:
                 ],
             )
             logger.debug(f"Update result: {res}")
-        Instance.update_one(
-            filter={"_id": instance.id}, update={"updated_at": datetime.utcnow()}
-        )
+        with transaction(db_name=self.db_name, collection=Instance) as ic:
+            ic.update_one(
+                filter={"_id": instance.id}, update={"updated_at": datetime.utcnow()}
+            )
 
     def _update_instance_embedding_memory(
         self,
@@ -474,13 +501,14 @@ class KnowledgeBaseManager:
         """
         logger.debug("Validating search settings.")
         # if there are no documents, skip validations
-        num_instances = Instance.count_documents()
+        with transaction(db_name=self.db_name, collection=Instance) as ic:
+            num_instances = ic.count_documents()
         if num_instances == 0:
             logger.debug("No documents found, skipping validation.")
             return
 
         # check if knowledge bases exist
-        kb_names = Instance.get_kb_names()
+        kb_names = self.get_kb_names()
         for settings in search_settings:
             if settings.kb_name not in kb_names:
                 raise ValueError(f"Invalid knowledge base name: {settings.kb_name}.")
@@ -492,32 +520,25 @@ class KnowledgeBaseManager:
             logger.debug("No 'vector' column in local replica.")
             return self._create_empty_local_replica()
 
+        logger.debug(f"Filtering local replica based on search settings.")
         kb_list = [settings.kb_name for settings in search_settings]
-        kb_filter = {"kb_name": {"$in": kb_list}}
-        model_type = self.model_config.model_type
-        model_name = self.model_config.model_kwargs["model_name"]
-        model_filters = {
-            "content_embedding.model_type": model_type,
-            "content_embedding.model_name": model_name,
-            "query_embedding.model_type": model_type,
-            "query_embedding.model_name": model_name,
-        }
-        model_filters.update(kb_filter)
-        instances = Instance.find_many(model_filters)
-        logger.debug(f"Found {len(instances)} instances in local replica.")
-        instances_df = Instance.instances_to_dataframe(instances, explode_vectors=True)
+        local_kb_filtered = self.local_kb.query("kb_name.isin(@kb_list)")
+        local_kb_filtered.reset_index(drop=True, inplace=True)
+        logger.debug(f"Found {len(local_kb_filtered)} instances in local replica.")
 
+        logger.debug("Computing embedding for search query.")
         query_embedding = self.encoder.encode_text([query], return_type="list")[0]
-        instances_df["distances"] = distances_from_embeddings_np(
+        logger.debug("Computing distances between query/instances embeddings.")
+        local_kb_filtered["distances"] = distances_from_embeddings_np(
             query_embedding=query_embedding,
-            embeddings=instances_df.vector.tolist(),
+            embeddings=local_kb_filtered.vector.tolist(),
         )
-        instances_df.sort_values(by="distances", inplace=True)
+        local_kb_filtered.sort_values(by="distances", inplace=True)
 
         df_list = []
         logger.debug("Filtering search results according to search settings.")
         for settings in search_settings:
-            current_kb = instances_df.query(f"kb_name == @settings.kb_name")
+            current_kb = local_kb_filtered.query(f"kb_name == @settings.kb_name")
             current_kb = current_kb[current_kb.distances < settings.threshold]
             current_kb = current_kb.sort_values(by="distances")
             current_kb = current_kb.head(settings.top_k)
@@ -536,6 +557,18 @@ class KnowledgeBaseManager:
         search_settings: list[KBFilterSettings],
     ) -> pd.DataFrame:
         raise NotImplementedError
+        # may be useful for future implementation
+        kb_list = [settings.kb_name for settings in search_settings]
+        kb_filter = {"kb_name": {"$in": kb_list}}
+        model_type = self.model_config.model_type
+        model_name = self.model_config.model_kwargs["model_name"]
+        model_filters = {
+            "content_embedding.model_type": model_type,
+            "content_embedding.model_name": model_name,
+        }
+        model_filters.update(kb_filter)
+        with transaction(db_name=self.db_name, collection=Instance) as ic:
+            instances = ic.find_many(model_filters)
 
     def _create_empty_local_replica(self):
         columns = [
@@ -654,7 +687,7 @@ if __name__ == "__main__":
     Instance.delete_many({})
     add_test_documents()
     kb_manager = KnowledgeBaseManager(
-        redb_config=redb_config,
+        database_name="test_db",
         model_config=model_config,
         search_settings=search_settings,
         preload_local_kb=True,

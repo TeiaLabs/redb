@@ -14,6 +14,7 @@ class RedB:
 
     _client = None
     _client_name: str | None = None
+    _config: CONFIG_TYPE | None = None
 
     @classmethod
     def get_client(cls):
@@ -26,6 +27,12 @@ class RedB:
         if cls._client_name is None:
             raise RuntimeError("Client not setup. Call setup() first.")
         return cls._client_name
+    
+    @classmethod
+    def get_config(cls) -> CONFIG_TYPE:
+        if cls._config is None:
+            raise RuntimeError("Client not setup. Call setup() first.")
+        return cls._config
 
     @classmethod
     def setup(
@@ -51,7 +58,7 @@ class RedB:
             cls._client = MongoClient(config)
             cls._client_name = "mongo"
 
-        elif backend == "migo" and (
+        elif backend == "migo" or (
             backend is None and check_config(config, MigoConfig)
         ):
             from redb.migo_system import MigoClient
@@ -61,3 +68,5 @@ class RedB:
 
         else:
             raise ValueError(f"Backend not found for config type: {type(config)!r}.")
+        
+        cls._config = config

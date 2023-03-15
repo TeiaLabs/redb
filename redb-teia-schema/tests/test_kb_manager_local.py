@@ -17,6 +17,8 @@ class TestKBManagerLocal:
     @pytest.fixture
     def test_docs(self):
         # pre
+        Instance.delete_many({})
+        File.delete_many({})
         curr_time = datetime.utcnow()
         file = File(
             scraped_at=curr_time,
@@ -70,7 +72,7 @@ class TestKBManagerLocal:
         Instance.delete_many({})
         File.delete_many({})
 
-    @pytest.fixture(scope="session")
+    @pytest.fixture
     def mongo_config(self) -> MongoConfig:
         cfg = MongoConfig(
             database_uri="mongodb://localhost:27017",
@@ -79,7 +81,7 @@ class TestKBManagerLocal:
         RedB.setup(cfg)
         return cfg
 
-    @pytest.fixture(scope="session")
+    @pytest.fixture
     def json_config(self) -> JSONConfig:
         cfg = JSONConfig(
             client_folder_path="/tmp/redb",
@@ -88,7 +90,7 @@ class TestKBManagerLocal:
         RedB.setup(cfg)
         return cfg
 
-    @pytest.fixture(scope="session")
+    @pytest.fixture
     def model_config(self) -> LocalSettings:
         model_config = LocalSettings(
             model_type="sentence_transformer",
@@ -99,7 +101,7 @@ class TestKBManagerLocal:
         )
         return model_config
 
-    @pytest.fixture(scope="session")
+    @pytest.fixture
     def search_settings(self) -> list[KBFilterSettings]:
         search_settings = [
             KBFilterSettings(kb_name="documents", threshold=1.0, top_k=3),
@@ -107,7 +109,7 @@ class TestKBManagerLocal:
         ]
         return search_settings
 
-    @pytest.fixture(scope="session")
+    @pytest.fixture
     def kb_manager_mongo(
         self,
         mongo_config: MongoConfig,
@@ -115,14 +117,14 @@ class TestKBManagerLocal:
         search_settings: list[KBFilterSettings],
     ) -> KnowledgeBaseManager:
         kb_manager = KnowledgeBaseManager(
-            redb_config=mongo_config,
+            database_name=mongo_config.default_database,
             model_config=model_config,
             search_settings=search_settings,
             preload_local_kb=True,
         )
         return kb_manager
 
-    @pytest.fixture(scope="session")
+    @pytest.fixture
     def kb_manager_json(
         self,
         json_config: JSONConfig,
@@ -130,7 +132,7 @@ class TestKBManagerLocal:
         search_settings: list[KBFilterSettings],
     ) -> KnowledgeBaseManager:
         kb_manager = KnowledgeBaseManager(
-            redb_config=json_config,
+            database_name=json_config.default_database_folder_path,
             model_config=model_config,
             search_settings=search_settings,
             preload_local_kb=True,
@@ -157,6 +159,7 @@ class TestKBManagerLocal:
     def test_from_settings(self, mongo_config, model_config, search_settings):
         """KB manager instantiation using from_settings."""
         settings = KBManagerSettings(
+            database_name=mongo_config.default_database,
             redb_config=mongo_config,
             model_config=model_config,
             search_settings=search_settings,
@@ -170,7 +173,7 @@ class TestKBManagerLocal:
         search_settings = KBFilterSettings(kb_name="abc")
         with pytest.raises(ValueError):
             _ = KnowledgeBaseManager(
-                redb_config=mongo_config,
+                database_name=mongo_config.default_database,
                 model_config=model_config,
                 search_settings=[search_settings],
             )
@@ -180,7 +183,7 @@ class TestKBManagerLocal:
         """Local database replica preloading."""
         # without preload
         kb_manager = KnowledgeBaseManager(
-            redb_config=mongo_config,
+            database_name=mongo_config.default_database,
             model_config=model_config,
             search_settings=search_settings,
             preload_local_kb=False,
@@ -190,7 +193,7 @@ class TestKBManagerLocal:
 
         # with preload
         kb_manager = KnowledgeBaseManager(
-            redb_config=mongo_config,
+            database_name=mongo_config.default_database,
             model_config=model_config,
             search_settings=search_settings,
             preload_local_kb=True,
