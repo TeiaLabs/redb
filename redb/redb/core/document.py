@@ -39,7 +39,7 @@ class Document(BaseDocument):
 
     class Config:
         json_encoders = {
-            datetime: lambda d: d.isoformat(),
+            datetime: lambda d: d.isoformat(),  # TODO: shouldn't we keep this as datetime?
             DBRef: lambda ref: dict(ref.as_doc()),
             ObjectId: str,
         }
@@ -57,12 +57,6 @@ class Document(BaseDocument):
         if calculate_hash:
             data["_id"] = self.get_hash(data)
         super().__init__(**data)
-
-    def dict(self, *args, **kwargs) -> dict:
-        if "by_alias" not in kwargs:
-            kwargs["by_alias"] = True
-        out = super().dict(*args, **kwargs)
-        return _apply_encoders(out, self.__config__.json_encoders)
 
     @classmethod
     def create_indexes(cls: Type[T]) -> None:
@@ -400,25 +394,6 @@ class Document(BaseDocument):
         )
 
 
-def _apply_encoders(obj, encoders):
-    obj_type = type(obj)
-    if obj_type == list:
-        obj = [_apply_encoders(val, encoders) for val in obj]
-    elif obj_type == set:
-        obj = {_apply_encoders(val, encoders) for val in obj}
-    elif obj_type == tuple:
-        obj = (_apply_encoders(val, encoders) for val in obj)
-    elif obj_type == dict:
-        obj = {
-            _apply_encoders(key, encoders): _apply_encoders(val, encoders)
-            for key, val in obj.items()
-        }
-    elif obj_type in encoders:
-        encoding = encoders[obj_type]
-        obj = encoding(obj) if callable(encoding) else encoding
-    return obj
-
-
 def _validate_fields(cls: Type[DocumentData], data: DocumentData) -> None:
     if data is None:
         return
@@ -486,7 +461,7 @@ def _format_sort(sort: SortColumns) -> list[tuple[str, str | int]] | None:
 def _format_document_data(data: OptionalDocumentData) -> dict[str, Any]:
     if data is None:
         return {}
-    if isinstance(data, Document):
+    if isinstance(data, BaseDocument):
         return data.dict(by_alias=True)
     return data
 
