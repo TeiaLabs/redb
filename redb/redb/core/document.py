@@ -170,10 +170,13 @@ class Document(BaseDocument):
     def insert(self: T) -> InsertOneResult:
         collection = Document._get_collection(self.__class__)
         data = _format_document_data(self)
-        return collection.insert_one(
-            cls=self.__class__,
-            data=data,
-        )
+        try:
+            return collection.insert_one(
+                cls=self.__class__,
+                data=data,
+            )
+        except DuplicateKeyError as e:
+            raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
 
     @classmethod
     def insert_one(
@@ -202,10 +205,13 @@ class Document(BaseDocument):
         values_size = len(data[keys[0]])
         instances = [None] * values_size
         instances = [{key: data[key][i] for key in keys} for i in range(values_size)]
-        return collection.insert_many(
-            cls=cls,
-            data=instances,
-        )
+        try:
+            return collection.insert_many(
+                cls=cls,
+                data=instances,
+            )
+        except DuplicateKeyError as e:
+            raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
 
     @classmethod
     def insert_many(

@@ -2,6 +2,11 @@ import contextlib
 from datetime import datetime
 from typing import Any, ContextManager, Dict, Sequence, Type, TypeVar, overload
 
+from pymongo.errors import DuplicateKeyError
+from redb.interface.errors import (
+    CannotUpdateIdentifyingField,
+    UniqueConstraintViolation,
+)
 from redb.core.document import (
     Document,
     DocumentData,
@@ -126,20 +131,28 @@ class CollectionWrapper:
 
     def insert_one(self, data: DocumentData) -> InsertOneResult:
         data = _format_document_data(data)
-        return self.__collection.insert_one(
-            cls=self.__collection_class,
-            data=data,
-        )
+
+        try:
+            return self.__collection.insert_one(
+                cls=self.__collection_class,
+                data=data,
+            )
+        except DuplicateKeyError as e:
+            raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
 
     def insert_vectors(self, data: Dict[str, list[Any]]) -> InsertManyResult:
         keys = list(data.keys())
         values_size = len(data[keys[0]])
         instances = [None] * values_size
         instances = [{key: data[key][i] for key in keys} for i in range(values_size)]
-        return self.__collection.insert_many(
-            cls=self.__collection_class,
-            data=instances,
-        )
+
+        try:
+            return self.__collection.insert_many(
+                cls=self.__collection_class,
+                data=instances,
+            )
+        except DuplicateKeyError as e:
+            raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
 
     def insert_many(
         self,
@@ -148,10 +161,14 @@ class CollectionWrapper:
         [_validate_fields(self.__collection_class, val) for val in data]
 
         data = [_format_document_data(val) for val in data]
-        return self.__collection.insert_many(
-            cls=self.__collection_class,
-            data=data,
-        )
+
+        try:
+            return self.__collection.insert_many(
+                cls=self.__collection_class,
+                data=data,
+            )
+        except DuplicateKeyError as e:
+            raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
 
     def replace_one(
         self,
