@@ -173,6 +173,7 @@ def _get_unwrapped_annotation(annotation: T) -> T:
     annotation = _unwrap_optional(annotation)
     annotation = _unwrap_union(annotation)
     annotation = _unwrap_iterable(annotation)
+    annotation = _unwrap_union(annotation)
     return annotation
 
 
