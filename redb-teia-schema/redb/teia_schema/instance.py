@@ -3,7 +3,7 @@ from typing import Optional, Sequence
 import pandas as pd
 
 from redb.core import BaseDocument, Document
-from redb.interface.fields import ClassField, CompoundIndex, Index
+from redb.interface.fields import ClassField, CompoundIndex, Index, Field
 
 class Embedding(BaseDocument):
     model_name: str
@@ -12,14 +12,14 @@ class Embedding(BaseDocument):
 
 
 class Instance(Document):
-    content_embedding: Optional[list[Embedding]]
+    content_embedding: Optional[list[Embedding]] = Field(default_factory=list)
     content: str
-    data_type: Optional[str] = "text"
-    file_id: Optional[str]
-    kb_name: Optional[str]
-    query: Optional[str]
-    query_embedding: Optional[list[Embedding]] = []
-    url: Optional[str]  # TODO: this should be a set/list
+    data_type: str = "text"
+    file_id: Optional[str] = None
+    kb_name: str
+    query: Optional[str] = None
+    query_embedding: Optional[list[Embedding]] = Field(default_factory=list)
+    url: Optional[str] = None  # TODO: this should be a set/list
 
     @classmethod
     def get_hashable_fields(cls) -> list[ClassField]:
@@ -72,12 +72,10 @@ class Instance(Document):
 
     @classmethod
     def instances_to_dataframe(
-        cls, instances: Sequence["Instance"], explode_vectors=True
+        cls, dict_instances: Sequence[dict], explode_vectors=True
     ) -> pd.DataFrame:
-        if len(instances) == 0:
+        if len(dict_instances) == 0:
             return pd.DataFrame(data={})
-
-        dict_instances = [inst.dict() for inst in instances]
         df = pd.DataFrame(dict_instances)
         if explode_vectors:
             df = cls.explode_embeddings(df, cls.content_embedding_name())
