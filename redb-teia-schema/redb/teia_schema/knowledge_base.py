@@ -8,6 +8,7 @@ import pandas as pd
 from melting_face.completion.openai_model import get_tokenizer
 from melting_face.encoders import EncoderClient, LocalSettings, RemoteSettings
 from pydantic import BaseModel, validator
+from pymongo.collection import Collection
 
 from redb.core import RedB
 from redb.core.transaction import transaction
@@ -182,6 +183,7 @@ class KnowledgeBaseManager:
 
         with transaction(db_name=self.db_name, collection=Instance) as ic:
             instances_missing = ic.find_many({"_id": {"$in": list(ids_missing)}})
+        instances_missing = cast(list[Instance], instances_missing)
         updated_ids = []
         for instance in instances_missing:
             logger.debug(f"Updating embeddings for instance {instance.id}.")
@@ -335,7 +337,33 @@ class KnowledgeBaseManager:
                 f"Updating {len(ids_missing)} instances based on IDs and timestamps."
             )
             with transaction(db_name=self.db_name, collection=Instance) as ic:
-                instances_missing = ic.find_many({"_id": {"$in": list(ids_missing)}})
+                mongo_driver: Collection = ic._get_driver_collection()
+                instances_missing = mongo_driver.aggregate(
+                    [
+                        {"$match": {"_id": {"$in": list(ids_missing)}}},
+                        {"$unwind": "$content_embedding"},
+                        {
+                            "$match": {
+                                "content_embedding.model_name": model_name,
+                                "content_embedding.model_type": model_type,
+                            }
+                        },
+                        {
+                            "$group": {
+                                "_id": "$_id",
+                                "content_embedding": { "$push": "$content_embedding" },
+                                "content": { "$first": "$content" },
+                                "data_type": { "$first": "$data_type" },
+                                "file_id": { "$first": "$file_id" },
+                                "kb_name": { "$first": "$kb_name" },
+                                "query": { "$first": "$query" },
+                                "query_embedding": { "$first": "$query_embedding" },
+                                "url": { "$first": "$url" },
+                            },
+                        },
+                    ]
+                )
+            instances_missing = list(instances_missing)
             instances_missing_df = Instance.instances_to_dataframe(
                 instances_missing, explode_vectors=True
             )
