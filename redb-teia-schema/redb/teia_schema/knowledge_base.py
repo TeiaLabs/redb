@@ -8,6 +8,7 @@ import pandas as pd
 from melting_face.completion.openai_model import get_tokenizer
 from melting_face.encoders import EncoderClient, LocalSettings, RemoteSettings
 from pydantic import BaseModel, validator
+from pymongo.operations import UpdateOne
 from pymongo.collection import Collection
 
 from redb.core import RedB
@@ -121,6 +122,7 @@ class KnowledgeBaseManager:
         kb_name: str | None = None,
         overwrite: bool = False,
         update_local_kb: bool = False,
+        batch_size: int = 1,
     ) -> list[str]:
         """
         Insert or update embeddings for `Instance`s based on current model.
@@ -184,31 +186,58 @@ class KnowledgeBaseManager:
         with transaction(db_name=self.db_name, collection=Instance) as ic:
             instances_missing = ic.find_many({"_id": {"$in": list(ids_missing)}})
         instances_missing = cast(list[Instance], instances_missing)
+
         updated_ids = []
-        for instance in instances_missing:
-            logger.debug(f"Updating embeddings for instance {instance.id}.")
-            texts = [instance.content]
-            if instance.query is not None:
-                texts.append(instance.query)
-            embs = self.encoder.encode_text(
-                texts=texts,
+        for instances in self._batchify_list(instances_missing, batch_size=batch_size):
+            logger.debug(f"Updating embeddings for {len(instances)} instances.")
+            logger.debug(f"Instance IDs: {[i.id for i in instances]}")
+            # update content embeddings
+            logger.debug("Updating content embeddings.")
+            texts_content = [i.content for i in instances]
+            embs_content = self.encoder.encode_text(
+                texts=texts_content,
                 return_type="list",
             )
-            embs = cast(list[list[float]], embs)
-            content_embedding = Embedding(
-                model_name=model_name,
-                model_type=model_type,
-                vector=embs[0],
-            )
-            update_func(instance, content_embedding, "content_embedding")
-            if len(embs) > 1:
-                query_embedding = Embedding(
+            embs_content = cast(list[list[float]], embs_content)
+            content_embedding = [
+                Embedding(
                     model_name=model_name,
                     model_type=model_type,
-                    vector=embs[1],
+                    vector=emb,
                 )
-                update_func(instance, query_embedding, "query_embedding")
-            updated_ids.append(instance.id)
+                for emb in embs_content
+            ]
+            # TODO: parallelize insertion
+            for instance, emb in zip(instances, content_embedding):
+                update_func(instance, emb, "content_embedding")
+
+            # update query embeddings (queries are trickier since they are optional)
+            logger.debug("Updating query embeddings.")
+            indices_with_query = [
+                i for i, instance in enumerate(instances) if instance.query is not None
+            ]
+            print("indices_with_query", indices_with_query)
+            texts_query = [instances[i].query for i in indices_with_query]
+            print("len texts_query", len(texts_query))
+            embs_query = self.encoder.encode_text(
+                texts=texts_query,
+                return_type="list",
+            )
+            embs_query = cast(list[list[float]], embs_query)
+            query_embedding = [
+                Embedding(
+                    model_name=model_name,
+                    model_type=model_type,
+                    vector=emb,
+                )
+                for emb in embs_query
+            ]
+            # TODO: parallelize insertion
+            for instance, emb in zip(
+                [instances[i] for i in indices_with_query], query_embedding
+            ):
+                update_func(instance, emb, "query_embedding")
+            updated_ids.extend([i.id for i in instances])
 
         logger.debug(f"Updated {len(updated_ids)} instances.")
         if update_local_kb:
@@ -351,14 +380,14 @@ class KnowledgeBaseManager:
                         {
                             "$group": {
                                 "_id": "$_id",
-                                "content_embedding": { "$push": "$content_embedding" },
-                                "content": { "$first": "$content" },
-                                "data_type": { "$first": "$data_type" },
-                                "file_id": { "$first": "$file_id" },
-                                "kb_name": { "$first": "$kb_name" },
-                                "query": { "$first": "$query" },
-                                "query_embedding": { "$first": "$query_embedding" },
-                                "url": { "$first": "$url" },
+                                "content_embedding": {"$push": "$content_embedding"},
+                                "content": {"$first": "$content"},
+                                "data_type": {"$first": "$data_type"},
+                                "file_id": {"$first": "$file_id"},
+                                "kb_name": {"$first": "$kb_name"},
+                                "query": {"$first": "$query"},
+                                "query_embedding": {"$first": "$query_embedding"},
+                                "url": {"$first": "$url"},
                             },
                         },
                     ]
@@ -457,8 +486,8 @@ class KnowledgeBaseManager:
 
     def _update_instance_embedding_mongo(
         self,
-        instance: Instance,
-        embedding: Embedding,
+        instances: list[Instance],
+        embeddings: list[Embedding],
         embedding_name: str,
     ):
         with transaction(db_name=self.db_name, collection=Instance) as ic:
@@ -605,11 +634,16 @@ class KnowledgeBaseManager:
         ]
         return pd.DataFrame([], columns=columns)
 
+    @staticmethod
+    def _batchify_list(l: list, batch_size: int) -> list[Any]:
+        """Generator to iterate through sublists of size `batch_size`."""
+        for i in range(0, len(l), batch_size):
+            yield l[i : i + batch_size]
+
 
 def distances_from_embeddings_np(
     query_embedding: list[float],
     embeddings: list[list[float]],
-    distance_metric="cosine",
 ) -> list[list]:
     """Return the distances between a query embedding and a list of embeddings."""
     import numpy as np
@@ -619,7 +653,7 @@ def distances_from_embeddings_np(
     embeddings = np.array(embeddings)
     embeddings = embeddings / np.linalg.norm(embeddings, axis=1)[:, np.newaxis]
     distances = np.dot(embeddings, query_embedding)
-    distances = 1 - distances
+    distances = (1 - distances) / 2.0
     return distances
 
 
@@ -658,6 +692,11 @@ def add_test_documents():
         dict(
             query="SFCC Guidelines",
             content="Just give up.",
+            kb_name="sfcc",
+        ),
+        dict(
+            query=None,
+            content="I have no query!!!.",
             kb_name="sfcc",
         ),
     ]
@@ -722,7 +761,8 @@ if __name__ == "__main__":
     )
     print(kb_manager.local_kb)
 
-    updated_ids = kb_manager.update_instance_embeddings(overwrite=True)
+    updated_ids = kb_manager.update_instance_embeddings(overwrite=True, batch_size=2)
+    exit()
     kb_manager.refresh_local_kb()
     print(kb_manager.local_kb)
     search_result = kb_manager.search_instances(query="OSF Organization")
