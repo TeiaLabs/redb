@@ -20,7 +20,7 @@ class File(Document):
     hash: str
     organization_id: str
     size_bytes: int
-    url_mirrors: Optional[list[Mirror]]
+    url_mirrors: Optional[list[Mirror]] = None
     url_original: str
 
     @classmethod
@@ -35,7 +35,7 @@ class File(Document):
 
     @classmethod
     def get_indexes(cls) -> list[Index | CompoundIndex]:
-        return [Index(field=cls.id)]
+        return [Index(field=cls.id)]  # type: ignore
 
     @classmethod
     def get_organization_ids(cls) -> set:
