@@ -199,7 +199,7 @@ class KnowledgeBaseManager:
                 return_type="list",
             )
             embs_content = cast(list[list[float]], embs_content)
-            content_embedding = [
+            content_embeddings = [
                 Embedding(
                     model_name=model_name,
                     model_type=model_type,
@@ -207,10 +207,7 @@ class KnowledgeBaseManager:
                 )
                 for emb in embs_content
             ]
-            # TODO: parallelize insertion
-            for instance, emb in zip(instances, content_embedding):
-                update_func(instance, emb, "content_embedding")
-
+            update_func(instances, content_embeddings, "content_embedding")
             # update query embeddings (queries are trickier since they are optional)
             logger.debug("Updating query embeddings.")
             indices_with_query = [
@@ -224,7 +221,7 @@ class KnowledgeBaseManager:
                 return_type="list",
             )
             embs_query = cast(list[list[float]], embs_query)
-            query_embedding = [
+            query_embeddings = [
                 Embedding(
                     model_name=model_name,
                     model_type=model_type,
@@ -232,11 +229,7 @@ class KnowledgeBaseManager:
                 )
                 for emb in embs_query
             ]
-            # TODO: parallelize insertion
-            for instance, emb in zip(
-                [instances[i] for i in indices_with_query], query_embedding
-            ):
-                update_func(instance, emb, "query_embedding")
+            update_func(instances, query_embeddings, "query_embedding")
             updated_ids.extend([i.id for i in instances])
 
         logger.debug(f"Updated {len(updated_ids)} instances.")
@@ -348,7 +341,6 @@ class KnowledgeBaseManager:
             db_update = map_id_update_db[local_id]
             if isinstance(db_update, str):
                 db_update = datetime.fromisoformat(db_update)
-
             if local_update < db_update:
                 was_updated.add(local_id)
 
@@ -490,58 +482,51 @@ class KnowledgeBaseManager:
         embeddings: list[Embedding],
         embedding_name: str,
     ):
+        current_date = datetime.utcnow().isoformat()
         with transaction(db_name=self.db_name, collection=Instance) as ic:
-            instances_with_emb = ic.find_many(
+            mongo_driver: Collection = ic._get_driver_collection()
+        updates = []
+        for instance, embedding in zip(instances, embeddings):
+            logger.debug(f"Updating instance {instance.id}'s '{embedding_name}'.")
+            push_query = UpdateOne(
                 filter={
                     "_id": instance.id,
-                    f"{embedding_name}.model_type": embedding.model_type,
-                    f"{embedding_name}.model_name": embedding.model_name,
+                    "$or": [
+                        {f"{embedding_name}.model_type": {"$ne": embedding.model_type}},
+                        {f"{embedding_name}.model_name": {"$ne": embedding.model_name}},
+                    ],
+                },
+                update={
+                    "$push": {
+                        embedding_name: embedding.dict(),
+                    },
+                    "$set": {"updated_at": current_date},
                 },
             )
-        if not instances_with_emb:
-            logger.debug(
-                f"Instance {instance.id} does not have embeddings for {embedding_name}. Inserting."
-            )
-            # did not find instance with these embedding parameters
-            with transaction(db_name=self.db_name, collection=Instance) as ic:
-                ic.update_one(
-                    filter={"_id": instance.id},
-                    update={
-                        f"{embedding_name}": embedding.dict(),
-                    },
-                    operator="$push",
-                )
-        else:
-            logger.debug(
-                f"Instance {instance.id} has embeddings for {embedding_name}. Replacing."
-            )
-            # found instance with these embedding parameters, update it
-            with transaction(db_name=self.db_name, collection=Instance) as ic:
-                mongo_driver = ic._get_driver_collection()
-            res = mongo_driver.update_one(
+            update_query = UpdateOne(
                 filter={"_id": instance.id},
                 update={
-                    "$set": {f"{embedding_name}.$[embedding].vector": embedding.vector},
+                    "$set": {
+                        f"{embedding_name}.$[emb].vector": embedding.vector,
+                        "updated_at": current_date,
+                    },
                 },
                 array_filters=[
                     {
-                        "$and": [
-                            {"embedding.model_name": {"$eq": embedding.model_name}},
-                            {"embedding.model_type": {"$eq": embedding.model_type}},
-                        ]
+                        "emb.model_name": embedding.model_name,
+                        "emb.model_type": embedding.model_type,
                     }
                 ],
             )
-            logger.debug(f"Update result: {res}")
-        with transaction(db_name=self.db_name, collection=Instance) as ic:
-            ic.update_one(
-                filter={"_id": instance.id}, update={"updated_at": datetime.utcnow()}
-            )
+            updates.append(push_query)
+            updates.append(update_query)
+        res = mongo_driver.bulk_write(updates)
+        logger.debug(f"Update result: {res.bulk_api_result}")
 
     def _update_instance_embedding_memory(
         self,
-        instance: Instance,
-        embedding: Embedding,
+        instances: list[Instance],
+        embeddings: list[Embedding],
         embedding_name: str,
     ):
         raise NotImplementedError
@@ -729,8 +714,11 @@ def add_test_documents():
 if __name__ == "__main__":
     logging.basicConfig()
     logger.setLevel(logging.DEBUG)
+    import os, dotenv
+
+    dotenv.load_dotenv()
     redb_config = MongoConfig(
-        database_uri="mongodb://localhost:27017",
+        database_uri=os.environ["MONGODB_URI"],
         default_database="test_db",
     )
     # redb_config = JSONConfig(
@@ -762,7 +750,6 @@ if __name__ == "__main__":
     print(kb_manager.local_kb)
 
     updated_ids = kb_manager.update_instance_embeddings(overwrite=True, batch_size=2)
-    exit()
     kb_manager.refresh_local_kb()
     print(kb_manager.local_kb)
     search_result = kb_manager.search_instances(query="OSF Organization")
