@@ -44,9 +44,6 @@ class Instance(Document):
     @staticmethod
     def explode_embeddings(df, embedding_name):
         new_df = df.explode(embedding_name)
-        print("WHOOO")
-        print(new_df)
-        print(new_df.columns.values)
         new_df[["model_type", "model_name", "vector"]] = new_df[embedding_name].apply(
             pd.Series
         )
@@ -81,12 +78,7 @@ class Instance(Document):
             return pd.DataFrame(data={})
         df = pd.DataFrame(dict_instances)
         if explode_vectors:
-            print(df.head())
-            print(df["content_embedding"])
-            print(df.columns.values)
             df = cls.explode_embeddings(df, cls.content_embedding_name())
-            print(df.head())
-            print(df.columns.values)
             if df[cls.query_embedding_name()].any():
                 df = cls.explode_embeddings(df, cls.query_embedding_name())
         return df

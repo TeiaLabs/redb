@@ -521,8 +521,8 @@ class KnowledgeBaseManager:
 
     def _update_instance_embedding_mongo(
         self,
-        instances: Instance,
-        embeddings: Embedding,
+        instances: list[Instance],
+        embeddings: list[Embedding],
         embedding_name: str,
     ):
         current_date = datetime.utcnow().isoformat()
