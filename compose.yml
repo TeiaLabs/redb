@@ -49,10 +49,11 @@ services:
     container_name: mongodb
     restart: unless-stopped
     ports:
-      - ${MONGODB_PORT}:27017
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_USER}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD}
+      # - ${MONGODB_PORT}:27017
+      - 27017:27017
+    # environment:
+    #   MONGO_INITDB_ROOT_USERNAME: ${MONGODB_USER}
+    #   MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD}
 
   mongo-express:
     profiles: [ "dev" ]

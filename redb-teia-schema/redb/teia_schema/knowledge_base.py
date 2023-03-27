@@ -2,21 +2,23 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Optional, cast
+from typing import Any, Literal, Optional, TypeVar, cast
 
+import numpy as np
 import pandas as pd
 from melting_face.completion.openai_model import get_tokenizer
 from melting_face.encoders import EncoderClient, LocalSettings, RemoteSettings
 from pydantic import BaseModel, validator
-from pymongo.operations import UpdateOne
+from pymongo import UpdateOne
 from pymongo.collection import Collection
 
 from redb.core import RedB
 from redb.core.transaction import transaction
-from redb.interface.configs import JSONConfig, MigoConfig, MongoConfig
-from redb.teia_schema import Embedding, File, Instance
+from redb.interface.configs import JSONConfig, MigoConfig
+from redb.teia_schema import Embedding, Instance
 
 logger = logging.getLogger(__name__)
+T = TypeVar("T")
 
 
 class KBFilterSettings(BaseModel):
@@ -213,9 +215,7 @@ class KnowledgeBaseManager:
             indices_with_query = [
                 i for i, instance in enumerate(instances) if instance.query is not None
             ]
-            print("indices_with_query", indices_with_query)
             texts_query = [instances[i].query for i in indices_with_query]
-            print("len texts_query", len(texts_query))
             embs_query = self.encoder.encode_text(
                 texts=texts_query,
                 return_type="list",
@@ -243,6 +243,7 @@ class KnowledgeBaseManager:
     def search_instances(
         self,
         query: str,
+        match_with: Literal["content", "query"] = "content",
         search_settings: list[KBFilterSettings] | None = None,
     ) -> pd.DataFrame:
         """
@@ -267,7 +268,7 @@ class KnowledgeBaseManager:
             if self.memory_search
             else self._search_instances_db
         )
-        return search_func(query, search_settings)
+        return search_func(query, match_with, search_settings)
 
     def refresh_local_kb(self, force_refresh: bool = False) -> None:
         """
@@ -362,32 +363,74 @@ class KnowledgeBaseManager:
                 instances_missing = mongo_driver.aggregate(
                     [
                         {"$match": {"_id": {"$in": list(ids_missing)}}},
-                        {"$unwind": "$content_embedding"},
+                        {
+                            "$unwind": {
+                                "path": "$content_embedding",
+                                "preserveNullAndEmptyArrays": True,
+                            }
+                        },
+                        {
+                            "$unwind": {
+                                "path": "$query_embedding",
+                                "preserveNullAndEmptyArrays": True,
+                            }
+                        },
                         {
                             "$match": {
-                                "content_embedding.model_name": model_name,
-                                "content_embedding.model_type": model_type,
-                            }
+                                "$or": [
+                                    {
+                                        "content_embedding.model_name": model_name,
+                                        "content_embedding.model_type": model_type,
+                                    },
+                                    {
+                                        "query_embedding.model_name": model_name,
+                                        "query_embedding.model_type": model_type,
+                                    },
+                                ]
+                            },
                         },
                         {
                             "$group": {
                                 "_id": "$_id",
-                                "content_embedding": {"$push": "$content_embedding"},
+                                "created_at": {"$first": "$created_at"},
+                                "updated_at": {"$first": "$updated_at"},
+                                "content_embedding": {
+                                    "$first": "$content_embedding.vector"
+                                },
                                 "content": {"$first": "$content"},
                                 "data_type": {"$first": "$data_type"},
                                 "file_id": {"$first": "$file_id"},
                                 "kb_name": {"$first": "$kb_name"},
                                 "query": {"$first": "$query"},
-                                "query_embedding": {"$first": "$query_embedding"},
+                                "query_embedding": {
+                                    "$first": "$query_embedding.vector"
+                                },
                                 "url": {"$first": "$url"},
                             },
+                        },
+                        {
+                            "$project": {
+                                "_id": 1,
+                                "created_at": 1,
+                                "updated_at": 1,
+                                "content_embedding": {
+                                    "$ifNull": ["$content_embedding", []]
+                                },
+                                "content": 1,
+                                "data_type": 1,
+                                "file_id": 1,
+                                "kb_name": 1,
+                                "query": 1,
+                                "query_embedding": {
+                                    "$ifNull": ["$query_embedding", []]
+                                },
+                                "url": 1,
+                            }
                         },
                     ]
                 )
             instances_missing = list(instances_missing)
-            instances_missing_df = Instance.instances_to_dataframe(
-                instances_missing, explode_vectors=True
-            )
+            instances_missing_df = pd.DataFrame.from_records(instances_missing)
             self.local_kb = pd.concat(
                 [self.local_kb, instances_missing_df], ignore_index=True
             )
@@ -478,8 +521,8 @@ class KnowledgeBaseManager:
 
     def _update_instance_embedding_mongo(
         self,
-        instances: list[Instance],
-        embeddings: list[Embedding],
+        instances: Instance,
+        embeddings: Embedding,
         embedding_name: str,
     ):
         current_date = datetime.utcnow().isoformat()
@@ -556,10 +599,14 @@ class KnowledgeBaseManager:
                 raise ValueError(f"Invalid knowledge base name: {settings.kb_name}.")
 
     def _search_instances_memory(
-        self, query: str, search_settings: list[KBFilterSettings]
+        self,
+        query: str,
+        match_with: Literal["content", "query"],
+        search_settings: list[KBFilterSettings],
     ) -> pd.DataFrame:
-        if "vector" not in self.local_kb:
-            logger.debug("No 'vector' column in local replica.")
+        match_with += "_embedding"
+        if match_with not in self.local_kb:
+            logger.debug(f"No '{match_with}' column in local replica.")
             return self._create_empty_local_replica()
 
         logger.debug(f"Filtering local replica based on search settings.")
@@ -571,11 +618,10 @@ class KnowledgeBaseManager:
         logger.debug("Computing embedding for search query.")
         query_embedding = self.encoder.encode_text([query], return_type="list")[0]
         logger.debug("Computing distances between query/instances embeddings.")
-        local_kb_filtered["distances"] = distances_from_embeddings_np(
+        local_kb_filtered["distances"] = self._distances_from_embeddings_np(
             query_embedding=query_embedding,
-            embeddings=local_kb_filtered.vector.tolist(),
+            embeddings=local_kb_filtered[match_with].tolist(),
         )
-        local_kb_filtered.sort_values(by="distances", inplace=True)
 
         df_list = []
         logger.debug("Filtering search results according to search settings.")
@@ -590,12 +636,14 @@ class KnowledgeBaseManager:
             df_list.append(current_kb)
 
         result = pd.concat(df_list)
+        result.sort_values(by="distances", inplace=True)
         logger.debug(f"Total number of search results: {len(result)}")
         return result
 
     def _search_instances_db(
         self,
         query: str,
+        match_with: Literal["content", "query"],
         search_settings: list[KBFilterSettings],
     ) -> pd.DataFrame:
         raise NotImplementedError
@@ -620,146 +668,28 @@ class KnowledgeBaseManager:
         return pd.DataFrame([], columns=columns)
 
     @staticmethod
-    def _batchify_list(l: list, batch_size: int) -> list[Any]:
+    def _batchify_list(l: list[T], batch_size: int) -> list[T]:
         """Generator to iterate through sublists of size `batch_size`."""
         for i in range(0, len(l), batch_size):
             yield l[i : i + batch_size]
 
-
-def distances_from_embeddings_np(
-    query_embedding: list[float],
-    embeddings: list[list[float]],
-) -> list[list]:
-    """Return the distances between a query embedding and a list of embeddings."""
-    import numpy as np
-
-    query_embedding = np.array(query_embedding)
-    query_embedding = query_embedding / np.linalg.norm(query_embedding)
-    embeddings = np.array(embeddings)
-    embeddings = embeddings / np.linalg.norm(embeddings, axis=1)[:, np.newaxis]
-    distances = np.dot(embeddings, query_embedding)
-    distances = (1 - distances) / 2.0
-    return distances
-
-
-def add_test_documents():
-    curr_time = datetime.utcnow()
-    file = File(
-        scraped_at=curr_time,
-        last_modified_at=curr_time,
-        hash="12345",
-        organization_id="TeiaLabs",
-        size_bytes=100,
-        url_original="file://tmp/main.py",
-    )
-    try:
-        File.insert_one(file)
-    except Exception as e:
-        pass
-
-    embedding = Embedding(
-        model_type="sentence_transformer",
-        model_name="paraphrase-albert-small-v2",
-        vector=[1.0, 2.0, 3.0, 4.0, 5.0],
-    )
-
-    data = [
-        dict(
-            query="What to do when you find a dog on the street",
-            content="You should always pet the dog.",
-            kb_name="documents",
-        ),
-        dict(
-            query="OSF people",
-            content="CEO: Gerry.\nVP of Innovation: Simion.",
-            kb_name="documents",
-        ),
-        dict(
-            query="SFCC Guidelines",
-            content="Just give up.",
-            kb_name="sfcc",
-        ),
-        dict(
-            query=None,
-            content="I have no query!!!.",
-            kb_name="sfcc",
-        ),
-    ]
-
-    for i, d in enumerate(data):
-        instance = Instance(
-            content_embedding=[embedding],
-            # content_embedding=[],
-            content=d["content"],
-            data_type="text",
-            file_id=file.id,
-            kb_name=d["kb_name"],
-            query=d["query"],
-            # query_embedding=[embedding] if i < 1 else [],
-            # query_embedding=[embedding],
-            query_embedding=[],
-            url=f"file://tmp/document{i}.txt",
-        )
-        try:
-            Instance.insert_one(instance)
-        except Exception as e:
-            # print(e)
-            print("UPDATING DATES")
-            Instance.update_one(
-                filter={"_id": instance.id},
-                update={"updated_at": datetime.now()},
-            )
+    @staticmethod
+    def _distances_from_embeddings_np(
+        query_embedding: list[float],
+        embeddings: list[list[float]],
+    ) -> list[list]:
+        """Return the distances between a query embedding and a list of embeddings."""
+        query_embedding = np.array(query_embedding)
+        query_embedding = query_embedding / np.linalg.norm(query_embedding)
+        embeddings = np.array(embeddings)
+        embeddings = embeddings / np.linalg.norm(embeddings, axis=1)[:, np.newaxis]
+        distances = np.dot(embeddings, query_embedding)
+        distances = (1 - distances) / 2.0
+        return distances
 
 
 if __name__ == "__main__":
-    logging.basicConfig()
-    logger.setLevel(logging.DEBUG)
-    import os, dotenv
+    import argparse
 
-    dotenv.load_dotenv()
-    redb_config = MongoConfig(
-        database_uri=os.environ["MONGODB_URI"],
-        default_database="test_db",
-    )
-    # redb_config = JSONConfig(
-    #     client_folder_path="/tmp/redb",
-    #     default_database_folder_path="test_db",
-    # )
-
-    model_config = LocalSettings(
-        model_type="sentence_transformer",
-        model_kwargs=dict(
-            model_name="paraphrase-albert-small-v2",
-            device="cpu",
-        ),
-    )
-    search_settings = [
-        KBFilterSettings(kb_name="documents", threshold=1.0, top_k=3),
-        KBFilterSettings(kb_name="sfcc", threshold=1.0, top_k=2),
-    ]
-
-    RedB.setup(redb_config)
-    Instance.delete_many({})
-    add_test_documents()
-    kb_manager = KnowledgeBaseManager(
-        database_name="test_db",
-        model_config=model_config,
-        search_settings=search_settings,
-        preload_local_kb=True,
-    )
-    print(kb_manager.local_kb)
-
-    updated_ids = kb_manager.update_instance_embeddings(overwrite=True, batch_size=2)
-    kb_manager.refresh_local_kb()
-    print(kb_manager.local_kb)
-    search_result = kb_manager.search_instances(query="OSF Organization")
-    print(search_result["content"])
-    print("---")
-
-    search_results_str = kb_manager.search_result_to_string(
-        search_result=search_result,
-        to_relevance=True,
-        max_chars_line=512,
-        max_total_tokens=1024,
-    )
-    print(search_results_str)
+    parser = argparse.ArgumentParser()
+    args = parser.parse_args()
