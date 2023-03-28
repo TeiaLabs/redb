@@ -94,6 +94,15 @@ class KnowledgeBaseManager:
     ) -> None:
         logger.debug("Instantiating KB manager.")
         self.redb_config = RedB.get_config()
+
+        # prevent KB Manager instantiation with currently-unsupported backends
+        invalid_backends = [JSONConfig, MigoConfig]
+        if any([isinstance(self.redb_config, cfg) for cfg in invalid_backends]):
+            raise ValueError(
+                "Invalid backend specified (no support for now): "
+                f"{self.redb_config.__class__.__name__}"
+            )
+
         self.db_name = database_name
         if database_name is None:
             self.db_name = RedB.get_client().get_default_database().name

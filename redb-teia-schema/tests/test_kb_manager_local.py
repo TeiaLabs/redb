@@ -9,7 +9,7 @@ from redb.teia_schema.knowledge_base import (
 )
 from melting_face.encoders import LocalSettings
 from redb.core import RedB
-from redb.interface.configs import JSONConfig, MongoConfig
+from redb.interface.configs import MongoConfig
 
 
 class TestKBManagerLocal:
@@ -82,15 +82,6 @@ class TestKBManagerLocal:
         return cfg
 
     @pytest.fixture
-    def json_config(self) -> JSONConfig:
-        cfg = JSONConfig(
-            client_folder_path="/tmp/redb",
-            default_database_folder_path="test_db",
-        )
-        RedB.setup(cfg)
-        return cfg
-
-    @pytest.fixture
     def model_config(self) -> LocalSettings:
         model_config = LocalSettings(
             model_type="sentence_transformer",
@@ -124,21 +115,6 @@ class TestKBManagerLocal:
         )
         return kb_manager
 
-    @pytest.fixture
-    def kb_manager_json(
-        self,
-        json_config: JSONConfig,
-        model_config: LocalSettings,
-        search_settings: list[KBFilterSettings],
-    ) -> KnowledgeBaseManager:
-        kb_manager = KnowledgeBaseManager(
-            database_name=json_config.default_database_folder_path,
-            model_config=model_config,
-            search_settings=search_settings,
-            preload_local_kb=True,
-        )
-        return kb_manager
-
     def test_search_settings(self):
         _ = KBFilterSettings(kb_name="abc")
         with pytest.raises(ValueError):
@@ -151,10 +127,6 @@ class TestKBManagerLocal:
     def test_mongo_driver(self, kb_manager_mongo):
         """KB manager instantiates with a valid ReDB MongoDB driver."""
         assert isinstance(kb_manager_mongo, KnowledgeBaseManager)
-
-    def test_json_driver(self, kb_manager_json):
-        """KB manager instantiates with a valid ReDB JSON driver."""
-        assert isinstance(kb_manager_json, KnowledgeBaseManager)
 
     def test_from_settings(self, mongo_config, model_config, search_settings):
         """KB manager instantiation using from_settings."""
@@ -229,7 +201,7 @@ class TestKBManagerLocal:
         kb_manager_mongo.refresh_local_kb()
         local_kb_old = kb_manager_mongo.local_kb
         sfcc_data = local_kb_old[local_kb_old["kb_name"] == "sfcc"]
-        vector_len_old = len(sfcc_data["vector"].iloc[0])
+        vector_len_old = len(sfcc_data["content_embedding"].iloc[0])
         assert vector_len_old == 5
 
         # update for a single KB
@@ -239,12 +211,12 @@ class TestKBManagerLocal:
         )
         local_kb = kb_manager_mongo.local_kb
         sfcc_data = local_kb[local_kb["kb_name"] == "sfcc"]
-        vector_len = len(sfcc_data["vector"].iloc[0])
+        vector_len = len(sfcc_data["content_embedding"].iloc[0])
         update_timestamp1 = sfcc_data["updated_at"].iloc[0]
         assert vector_len > vector_len_old
         # ...and test if other KB's vectors are still the same
         other_data = local_kb[local_kb["kb_name"] == "documents"]
-        vector_lengths = [len(a) for a in other_data["vector"]]
+        vector_lengths = [len(a) for a in other_data["content_embedding"]]
         assert all([vl == 5 for vl in vector_lengths])
 
         # update all KBs (without overwrite)
@@ -256,7 +228,7 @@ class TestKBManagerLocal:
         update_timestamp2 = sfcc_data["updated_at"].iloc[0]
         assert update_timestamp1 == update_timestamp2
         other_data = local_kb[local_kb["kb_name"] == "documents"]
-        vector_lengths = [len(a) for a in other_data["vector"]]
+        vector_lengths = [len(a) for a in other_data["content_embedding"]]
         assert all([vl > 5 for vl in vector_lengths])
 
     @pytest.mark.usefixtures("test_docs")
