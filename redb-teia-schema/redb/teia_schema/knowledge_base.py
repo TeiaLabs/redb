@@ -14,7 +14,7 @@ from pymongo.collection import Collection
 
 from redb.core import RedB
 from redb.core.transaction import transaction
-from redb.interface.configs import JSONConfig, MigoConfig
+from redb.interface.configs import JSONConfig, MigoConfig, MongoConfig
 from redb.teia_schema import Embedding, Instance
 
 logger = logging.getLogger(__name__)
@@ -88,7 +88,7 @@ class KnowledgeBaseManager:
     def __init__(
         self,
         model_config: LocalSettings,
-        search_settings: list[KBFilterSettings],
+        search_settings: list[KBFilterSettings] | None = None,
         database_name: str | None = None,
         preload_local_kb: bool = False,
     ) -> None:
@@ -111,7 +111,8 @@ class KnowledgeBaseManager:
         self.encoder_tokenizer = get_tokenizer(model_config.model_kwargs["model_name"])
         self.memory_search = not isinstance(self.redb_config, MigoConfig)  # JSON, Mongo
         self.mongo_backend = not isinstance(self.redb_config, JSONConfig)  # Mongo, Migo
-        self._validate_search_settings(search_settings)
+        if search_settings:
+            self._validate_search_settings(search_settings)
         self.search_settings = search_settings
         self.local_kb = self._create_empty_local_replica()
         if preload_local_kb:
@@ -198,7 +199,8 @@ class KnowledgeBaseManager:
             instances_missing = ic.find_many({"_id": {"$in": list(ids_missing)}})
         instances_missing = cast(list[Instance], instances_missing)
 
-        updated_ids = []
+        updated_ids_content = set()
+        updated_ids_query = set()
         for instances in self._batchify_list(instances_missing, batch_size=batch_size):
             logger.debug(f"Updating embeddings for {len(instances)} instances.")
             logger.debug(f"Instance IDs: {[i.id for i in instances]}")
@@ -219,11 +221,16 @@ class KnowledgeBaseManager:
                 for emb in embs_content
             ]
             update_func(instances, content_embeddings, "content_embedding")
+            updated_ids_content.update([i.id for i in instances])
+
             # update query embeddings (queries are trickier since they are optional)
             logger.debug("Updating query embeddings.")
             indices_with_query = [
                 i for i, instance in enumerate(instances) if instance.query is not None
             ]
+            if not indices_with_query:
+                logger.debug("No queries to update in mini-batch.")
+                continue
             texts_query = [instances[i].query for i in indices_with_query]
             embs_query = self.encoder.encode_text(
                 texts=texts_query,
@@ -238,10 +245,17 @@ class KnowledgeBaseManager:
                 )
                 for emb in embs_query
             ]
-            update_func(instances, query_embeddings, "query_embedding")
-            updated_ids.extend([i.id for i in instances])
+            update_func(
+                [instances[i] for i in indices_with_query],
+                query_embeddings,
+                "query_embedding",
+            )
+            updated_ids_query.update(indices_with_query)
 
-        logger.debug(f"Updated {len(updated_ids)} instances.")
+        updated_ids = updated_ids_content | updated_ids_query
+        logger.debug(f"Updated {len(updated_ids)} instances in total.")
+        logger.debug(f"Content updates: {len(updated_ids_content)}")
+        logger.debug(f"Query updates: {len(updated_ids_query)}")
         if update_local_kb:
             logger.debug("Local KB refresh requested.")
             # update local kb with new instances
@@ -269,6 +283,11 @@ class KnowledgeBaseManager:
         logger.debug(f"Searching documents similar to query '{query}'")
         if not search_settings:
             logger.debug("No search settings specified, using default.")
+            if not self.search_settings:
+                raise ValueError(
+                    "No search settings specified and no default search settings "
+                    "found. Please specify search settings."
+                )
             search_settings = self.search_settings
         else:
             self._validate_search_settings(search_settings)
@@ -697,8 +716,107 @@ class KnowledgeBaseManager:
         return distances
 
 
+def _run_cli(
+    database_uri: str,
+    database_name: str,
+    model_type: str,
+    model_name: str,
+    use_gpu: bool,
+    overwrite: bool,
+    batch_size: int,
+    kb_name: str,
+):
+    logging.basicConfig(level=logging.DEBUG)
+    redb_config = MongoConfig(
+        database_uri,
+        default_database=database_name,
+    )
+    RedB.setup(redb_config)
+    model_config = LocalSettings(
+        model_type=model_type,
+        model_kwargs=dict(
+            model_name=model_name,
+            device="cuda" if use_gpu else "cpu",
+        ),
+    )
+    kb_manager = KnowledgeBaseManager(
+        model_config=model_config,
+        search_settings=None,
+        database_name=database_name,
+        preload_local_kb=False,
+    )
+
+    updated_ids = kb_manager.update_instance_embeddings(
+        kb_name=kb_name,
+        overwrite=overwrite,
+        update_local_kb=False,
+        batch_size=batch_size,
+    )
+
+
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Knowledge base manager CLI interface (MongoDB only for now).",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    parser.add_argument(
+        "--db_uri",
+        type=str,
+        required=True,
+        help="MongoDB URI to connect to.",
+    )
+    parser.add_argument(
+        "--db_name",
+        type=str,
+        required=True,
+        help="Name of the database to use.",
+    )
+    parser.add_argument(
+        "--model_type",
+        type=str,
+        required=True,
+        help="Type of the model to use.",
+    )
+    parser.add_argument(
+        "--model_name",
+        type=str,
+        required=True,
+        help="Name of the model to use.",
+    )
+    parser.add_argument(
+        "--kb_name",
+        type=str,
+        default=None,
+        help="Names of sub-kbs to compute embeddings for.",
+    )
+    parser.add_argument(
+        "--overwrite_embeddings",
+        action="store_true",
+        help="Whether to overwrite embeddings for all instances.",
+    )
+    parser.add_argument(
+        "--use_gpu",
+        action="store_true",
+        help="Whether to use GPU to compute embeddings.",
+    )
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=1,
+        help="Batch size to compute embeddings.",
+    )
+
     args = parser.parse_args()
+    _run_cli(
+        database_uri=args.db_uri,
+        database_name=args.db_name,
+        model_type=args.model_type,
+        model_name=args.model_name,
+        use_gpu=args.use_gpu,
+        overwrite=args.overwrite_embeddings,
+        batch_size=args.batch_size,
+        kb_name=args.kb_name,
+    )
