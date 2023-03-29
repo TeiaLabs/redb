@@ -7,7 +7,8 @@ import pymongo
 from bson import DBRef as BsonDBRef
 from bson import ObjectId as BsonObjectId
 from pydantic import BaseModel
-from pydantic.fields import FieldInfo, ModelField
+from pydantic.fields import FieldInfo as PydanticFieldInfo
+from pydantic.fields import ModelField
 from pymongo.operations import (
     DeleteMany,
     DeleteOne,
@@ -90,7 +91,7 @@ class CompoundIndex:
     extras: dict | None = None
 
 
-class Field(FieldInfo):
+class FieldInfo(PydanticFieldInfo):
     def __init__(
         self,
         vector_type: str | None = None,
@@ -101,6 +102,10 @@ class Field(FieldInfo):
         super().__init__(*args, **kwargs)
         self.vector_type = vector_type
         self.dimensions = dimensions
+
+
+def Field(*args, **kwargs) -> Any:
+    return FieldInfo(*args, **kwargs)
 
 
 class ClassField:
