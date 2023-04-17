@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import Any, Dict, Sequence, Type, TypeAlias, TypeVar, Union, cast
 
+import pytz
 from pymongo.errors import DuplicateKeyError
+
 from redb.interface.errors import (
     CannotUpdateIdentifyingField,
     UniqueConstraintViolation,
@@ -38,12 +40,12 @@ T = TypeVar("T", bound="Document")
 
 class Document(BaseDocument):
     id: str = Field(alias="_id")  # type: ignore
-    created_at: datetime = Field(default_factory=datetime.utcnow)  # type: ignore
-    updated_at: datetime = Field(default_factory=datetime.utcnow)  # type: ignore
+    created_at: datetime = Field(default_factory=lambda: datetime.now(pytz.UTC))  # type: ignore
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(pytz.UTC))  # type: ignore
 
     class Config:
         json_encoders = {
-            datetime: lambda d: d.isoformat(),  # TODO: shouldn't we keep this as datetime?
+            datetime: lambda d: d.isoformat(),
             DBRef: lambda ref: dict(ref.as_doc()),
             ObjectId: str,
         }
@@ -301,7 +303,7 @@ class Document(BaseDocument):
         collection.update_one(
             cls=self.__class__,
             filter=filter,
-            update={"$set": {"updated_at": str(datetime.utcnow())}},
+            update={"$set": {"updated_at": datetime.now(pytz.UTC).isoformat()}},
         )
         return result
 
@@ -338,7 +340,7 @@ class Document(BaseDocument):
             collection.update_one(
                 cls=cls,
                 filter=filter,
-                update={"$set": {"updated_at": str(datetime.utcnow())}},
+                update={"$set": {"updated_at": datetime.now(pytz.UTC).isoformat()}},
             )
         except DuplicateKeyError as e:
             raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
@@ -377,7 +379,7 @@ class Document(BaseDocument):
             collection.update_many(
                 cls=cls,
                 filter=filter,
-                update={"$set": {"updated_at": str(datetime.utcnow())}},
+                update={"$set": {"updated_at": datetime.now(pytz.UTC).isoformat()}},
             )
         except DuplicateKeyError as e:
             raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])

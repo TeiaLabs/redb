@@ -2,11 +2,9 @@ import contextlib
 from datetime import datetime
 from typing import Any, ContextManager, Dict, Sequence, Type, TypeVar, overload
 
+import pytz
 from pymongo.errors import DuplicateKeyError
-from redb.interface.errors import (
-    CannotUpdateIdentifyingField,
-    UniqueConstraintViolation,
-)
+
 from redb.core.document import (
     Document,
     DocumentData,
@@ -41,6 +39,7 @@ from redb.interface.configs import (
     MongoConfig,
     check_config,
 )
+from redb.interface.errors import UniqueConstraintViolation
 
 T = TypeVar("T", bound=Document)
 
@@ -219,7 +218,7 @@ class CollectionWrapper:
         self.__collection.update_one(
             cls=self.__collection_class,
             filter=filter,
-            update={"$set": {"updated_at": str(datetime.utcnow())}},
+            update={"$set": {"updated_at": datetime.now(pytz.UTC).isoformat()}},
         )
         return result
 
@@ -253,7 +252,7 @@ class CollectionWrapper:
         self.__collection.update_many(
             cls=self.__collection_class,
             filter=filter,
-            update={"$set": {"updated_at": str(datetime.utcnow())}},
+            update={"$set": {"updated_at": datetime.now(pytz.UTC).isoformat()}},
         )
         return result
 
