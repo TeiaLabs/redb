@@ -5,8 +5,16 @@ from pydantic import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
 
-
-DEFAULT_VALUES = {"str": "string", "float": 0.0, "int": 0, "dict": {}, "list": []}
+DEFAULT_CONTAINER_VALUES = {"list": [], "tuple": (), "set": set()}
+DEFAULT_PRIMITIVE_VALUES = {
+    "str": "string",
+    "float": 0.0,
+    "int": 0,
+    "bool": False,
+    "None": None,
+    "bytes": b"",
+}
+DEFAULT_VALUES = DEFAULT_PRIMITIVE_VALUES | DEFAULT_CONTAINER_VALUES
 
 
 def generate_examples(pydantic_models: list[Type[T]]) -> dict[str, dict[str, Any]]:
@@ -44,7 +52,7 @@ def _get_value(pydantic_model: Type[T]) -> dict:
     for name, field in pydantic_model.__fields__.items():
         if field.default is not None or field.default_factory is not None:
             field_value = field.default
-            if field_value is None:
+            if field_value is None and field.default_factory is not None:
                 field_value = field.default_factory()
 
             if isinstance(field_value, Enum):
@@ -59,11 +67,17 @@ def _get_value(pydantic_model: Type[T]) -> dict:
             value[name] = _get_value(field.type_)
         elif issubclass(field.type_, Enum):
             value[name] = next(iter(field.type_)).value
-        elif field.outer_type_.__name__ in DEFAULT_VALUES:
-            value[name] = DEFAULT_VALUES[field.outer_type_.__name__]
         elif field.type_.__name__ in DEFAULT_VALUES:
             value[name] = DEFAULT_VALUES[field.type_.__name__]
         else:
             value[name] = field.type_.__name__
+
+        if name in value and field.outer_type_.__name__ in DEFAULT_CONTAINER_VALUES:
+            if field.outer_type_.__name__ == "list":
+                value[name] = [value[name]]
+            elif field.outer_type_.__name__ == "set":
+                value[name] = {value[name]}
+            elif field.outer_type_.__name__ == "tuple":
+                value[name] = (value[name],)
 
     return value
