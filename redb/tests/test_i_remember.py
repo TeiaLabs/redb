@@ -1,5 +1,4 @@
 import os
-from operator import attrgetter
 
 import pytest
 
@@ -27,51 +26,68 @@ def client():
     )
 
 
-def test_retire_one():
-    Cat.delete_many({})
-    Cat.clear_history()
+@pytest.fixture(scope="function")
+def fluffy_cat() -> Cat:
+    return Cat(name="Fluffy")
 
-    obj = Cat(name="Fluffy")
+
+@pytest.fixture(scope="function")
+def pony_cat() -> Cat:
+    return Cat(name="Pony")
+
+
+@pytest.fixture(scope="function")
+def little_cat() -> Cat:
+    return Cat(name="Little")
+
+
+@pytest.fixture(scope="function", autouse=True)
+def teardown(fluffy_cat: Cat, pony_cat: Cat, little_cat: Cat):
+    yield
+    cat_names = [fluffy_cat.name, pony_cat.name, little_cat.name]
+    filters = {"name": {"$in": cat_names}}
+    Cat.delete_many(filters)
+    Cat.historical_delete_many(filters)
+
+
+def test_delete_one(fluffy_cat: Cat):
+    obj = fluffy_cat
     obj.insert()
-
-    res = Cat.retire_one({"_id": obj.id})
+    res = Cat.historical_delete_one({"_id": obj.id}, user_info="test_user@mail.com")
     deleted_result, inserted_result = res
     assert deleted_result.deleted_count
     assert inserted_result.inserted_id
 
 
-def test_find_history():
-    Cat.delete_many({})
-    Cat.clear_history()
-
-    obj = Cat(name="Pony")
+@pytest.mark.order(after="test_delete_one")
+def test_find_snapshot(pony_cat: Cat):
+    obj = pony_cat
     obj.insert()
-
-    del_res, insert_res = Cat.retire_one({"_id": obj.id})
+    del_res, insert_res = Cat.historical_delete_one({"_id": obj.id})
     assert del_res.deleted_count
     assert insert_res.inserted_id
-
-    history = Cat.find_history(filter={"name": "Pony"})
+    history = Cat.find_snapshot(filter={"name": pony_cat.name})
     assert history.version == 1  # type: ignore
     assert history.name == obj.name  # type: ignore
 
 
-def test_find_histories():
-    Cat.delete_many({})
-    Cat.clear_history()
-
-    obj = Cat(name="My Little")
-    obj.insert()
-
-    del_res, insert_res = Cat.retire_one({"_id": obj.id})
+@pytest.mark.order(after="test_delete_one")
+def test_find_revisions(little_cat: Cat):
+    Cat.insert_one(little_cat.dict())
+    del_res, insert_res = Cat.historical_delete_one({"_id": little_cat.id})
     assert del_res.deleted_count
     assert insert_res.inserted_id
-
-    Cat.insert_one(obj.dict())
-
-    del_res, insert_res = Cat.retire_one({"_id": obj.id})
+    Cat.insert_one(little_cat.dict())
+    del_res, insert_res = Cat.historical_delete_one({"_id": little_cat.id})
     assert del_res.deleted_count
     assert insert_res.inserted_id
-
-    histories = Cat.find_histories()
+    histories = Cat.find_revisions({"name": little_cat.name})
+    # test default sort order descending on version
     assert len(histories) == 2
+    assert histories[0].version == 2
+    assert histories[1].version == 1
+    latest = histories[0]
+    previous = histories[1]
+    assert latest.name == previous.name
+    assert latest.created_at >= previous.created_at
+    assert latest.retired_at > previous.retired_at
