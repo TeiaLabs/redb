@@ -53,36 +53,39 @@ def teardown(fluffy_cat: Cat, pony_cat: Cat, little_cat: Cat):
 def test_delete_one(fluffy_cat: Cat):
     obj = fluffy_cat
     obj.insert()
-    res = Cat.historical_delete_one({"_id": obj.id}, user_info="test_user@mail.com")
-    deleted_result, inserted_result = res
+    deleted_result = Cat.historical_delete_one({"_id": obj.id}, user_info="test_user@mail.com")
     assert deleted_result.deleted_count
-    assert inserted_result.inserted_id
 
 
 @pytest.mark.order(after="test_delete_one")
 def test_find_snapshot(pony_cat: Cat):
     obj = pony_cat
     obj.insert()
-    del_res, insert_res = Cat.historical_delete_one({"_id": obj.id})
+
+    del_res = Cat.historical_delete_one({"_id": obj.id})
     assert del_res.deleted_count
-    assert insert_res.inserted_id
-    history = Cat.find_snapshot(filter={"name": pony_cat.name})
+
+    history = Cat.find_history(filter={"name": "Pony"})
     assert history.version == 1  # type: ignore
     assert history.name == obj.name  # type: ignore
 
 
-@pytest.mark.order(after="test_delete_one")
-def test_find_revisions(little_cat: Cat):
-    Cat.insert_one(little_cat.dict())
-    del_res, insert_res = Cat.historical_delete_one({"_id": little_cat.id})
+def test_find_histories():
+    Cat.delete_many({})
+    Cat.clear_history()
+
+    obj = Cat(name="My Little")
+    obj.insert()
+
+    del_res = Cat.historical_delete_one({"_id": obj.id})
     assert del_res.deleted_count
-    assert insert_res.inserted_id
-    Cat.insert_one(little_cat.dict())
-    del_res, insert_res = Cat.historical_delete_one({"_id": little_cat.id})
+
+    Cat.insert_one(obj.dict())
+
+    del_res = Cat.historical_delete_one({"_id": obj.id})
     assert del_res.deleted_count
-    assert insert_res.inserted_id
-    histories = Cat.find_revisions({"name": little_cat.name})
-    # test default sort order descending on version
+
+    histories = Cat.find_histories()
     assert len(histories) == 2
     assert histories[0].version == 2
     assert histories[1].version == 1

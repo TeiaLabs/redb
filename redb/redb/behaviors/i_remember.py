@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, Optional, TypeVar
+from typing import Any, Dict, TypeVar
 
 import pytz
 from pymongo.collection import Collection as PyMongoCollection
@@ -19,17 +19,33 @@ from ..core.document import (
     _validate_fields,
 )
 from ..interface.errors import DocumentNotFound, UniqueConstraintViolation
-from ..interface.fields import ClassField, Direction, Field, IncludeColumn, SortColumn
-from ..interface.results import DeleteOneResult, InsertOneResult
+from ..interface.fields import ClassField, Direction, Field, SortColumn
+from ..interface.results import DeleteOneResult, InsertOneResult, UpdateOneResult
 
 T = TypeVar("T")
-HISTORY_FIELDS = {"version", "retired_by", "retired_at"}
+HISTORY_FIELDS = {"ref_id", "version", "retired_by", "retired_at"}
 
 
 class IRememberDoc(Document):
-    retired_at: Optional[datetime] = None
-    retired_by: Any = None
+    ref_id: str = ""
     version: int = 0
+    retired_by: Any = None
+    retired_at: datetime = Field(default_factory=lambda: datetime.now(pytz.UTC))
+
+    def __init__(self, **data):
+        calculate_hash = False
+        if "id" in data:
+            data["_id"] = data.pop("id")
+        if "_id" not in data:
+            data["_id"] = None
+            calculate_hash = True
+
+        data = self.update_kwargs(data)
+        if calculate_hash:
+            data["_id"] = self.get_hash(data)
+
+        data["ref_id"] = data["_id"]
+        super().__init__(**data)
 
     @classmethod
     def _get_history_collection_driver(cls) -> PyMongoCollection:
@@ -47,20 +63,43 @@ class IRememberDoc(Document):
     @classmethod
     def _get_history_collection(cls):
         from redb.mongo_system import MongoCollection
+
         driver_collection = cls._get_history_collection_driver()
         return MongoCollection(driver_collection)
 
-    def dict(self, ignored_history_fields: bool = True, *args, **kwargs) -> dict:
-        if ignored_history_fields:
-            if "exclude" in kwargs:
-                kwargs["exclude"] = set(kwargs["exclude"]) | HISTORY_FIELDS
-            else:
-                kwargs["exclude"] = HISTORY_FIELDS
-        return super().dict(*args, **kwargs)
+    @classmethod
+    def __insert_history(
+        cls,
+        data: DocumentData,
+    ) -> InsertOneResult:
+        _validate_fields(cls, data)
+
+        collection = cls._get_history_collection()
+        data = _format_document_data(data)
+        try:
+            return collection.insert_one(
+                cls=cls,
+                data=data,
+            )
+        except DuplicateKeyError as e:
+            raise UniqueConstraintViolation(
+                dup_keys=e.details["keyValue"],  # type: ignore
+                collection_name=cls.history_collection_name(),
+            )
 
     @classmethod
     def history_collection_name(cls):
         return f"{cls.collection_name()}-history"
+
+    def dict(self, ignored_history_fields: bool = True, *args, **kwargs) -> dict:
+        if ignored_history_fields:
+            if "exclude" in kwargs:
+                kwargs["exclude"] |= HISTORY_FIELDS
+            else:
+                kwargs["exclude"] = HISTORY_FIELDS
+
+        out = super().dict(*args, **kwargs)
+        return out
 
     @classmethod
     def get_hashable_fields(cls) -> list[ClassField]:
@@ -68,17 +107,11 @@ class IRememberDoc(Document):
         return list(filter(lambda x: x.model_field.name in HISTORY_FIELDS, all_fields))
 
     @classmethod
-    def get_history_hashable_fields(cls) -> list[ClassField]:
-        hashable_fields = cls.get_hashable_fields()
-        return hashable_fields + [cls.version]  # type: ignore
-
-    @classmethod
-    def find_snapshot(
+    def find_history(
         cls,
         filter: OptionalDocumentData = None,
         fields: IncludeColumns = None,
         skip: int = 0,
-        sort: SortColumns = [SortColumn(name="version", direction=Direction.DESCENDING)],
     ) -> "IRememberDoc" | Dict[str, Any]:
         collection = cls._get_history_collection()
         filter = _format_document_data(filter)
@@ -93,14 +126,14 @@ class IRememberDoc(Document):
         )
 
     @classmethod
-    def find_revisions(
+    def find_histories(
         cls,
         filter: OptionalDocumentData = None,
         fields: IncludeColumns = None,
-        sort: SortColumns = [SortColumn(name="version", direction=Direction.DESCENDING)],
+        sort: SortColumns = SortColumn(name="version", direction=Direction.DESCENDING),
         skip: int = 0,
         limit: int = 0,
-    ) -> list["IRememberDoc"]:
+    ) -> list["IRememberDoc" | Dict[str, Any]]:
         """
         Find many on the history collection.
 
@@ -134,52 +167,61 @@ class IRememberDoc(Document):
         )  # type: ignore
 
     @classmethod
-    def _create_one_history(
+    def historical_update_one(
         cls,
-        data: DocumentData,
-    ) -> InsertOneResult:
-        _validate_fields(cls, data)
-
-        collection = cls._get_history_collection()
-        data = _format_document_data(data)
-        try:
-            return collection.insert_one(
-                cls=cls,
-                data=data,
-            )
-        except DuplicateKeyError as e:
-            raise UniqueConstraintViolation(
-                dup_keys=e.details["keyValue"],  # type: ignore
-                collection_name=cls.history_collection_name(),
-            )
+        filter: DocumentData,
+        update: DocumentData,
+        upsert: bool = False,
+        operator: str | None = "$set",
+        allow_new_fields: bool = False,
+        user_info: Any = None,
+    ) -> UpdateOneResult:
+        original_doc = super().find_one(filter=filter)
+        new_history = cls.__build_history_from_ref(user_info, original_doc)
+        update_result = cls.update_one(
+            filter={"_id": original_doc.id},
+            update=update,
+            upsert=upsert,
+            operator=operator,
+            allow_new_fields=allow_new_fields,
+        )
+        cls.__insert_history(new_history)
+        return update_result
 
     @classmethod
     def historical_delete_one(
         cls,
         filter: DocumentData,
         user_info: Any = None,
-    ) -> tuple[DeleteOneResult, InsertOneResult]:
+    ) -> DeleteOneResult:
         original_doc = super().find_one(filter=filter)
-        history_filter = original_doc.dict(exclude={"id"}, exclude_none=True)
+        new_history = cls.__build_history_from_ref(user_info, original_doc)
+        delete_result = cls.delete_one(filter={"_id": original_doc.id})
+        cls.__insert_history(new_history)
+        return delete_result
+
+    @classmethod
+    def __build_history_from_ref(
+        cls,
+        user_info: Any,
+        referenced_doc: "IRememberDoc",
+    ) -> Dict:
+        history_filter = {"ref_id": referenced_doc.id}
         try:
-            history = cls.find_snapshot(filter=history_filter, fields=["version"])
+            history = cls.find_history(filter=history_filter, fields=["version"])
             version = history["version"] + 1  # type: ignore
         except DocumentNotFound:
             version = 1
 
-        new_history = original_doc.dict(
+        new_history = referenced_doc.dict(
             ignored_history_fields=False,
             exclude={"id"},
             exclude_none=True,
         )
         new_history["version"] = version
         new_history["retired_by"] = user_info
-        new_history["retired_at"] = str(pytz.UTC.localize(datetime.utcnow()))
+        new_history["retired_at"] = str(datetime.utcnow())
+        new_history["ref_id"] = referenced_doc.id
+        new_history["_id"] = f"{referenced_doc.id}_{version}"
 
-        new_history["_id"] = original_doc.get_hash(
-            data=new_history, use_data_fields=True
-        )
-
-        retire_result = cls.delete_one(filter=filter)
-        history_insert_result = cls._create_one_history(new_history)
-        return (retire_result, history_insert_result)
+        return new_history
