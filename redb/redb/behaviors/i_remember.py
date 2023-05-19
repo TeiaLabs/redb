@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, TypeVar
+from typing import Any, Dict, Optional, TypeVar, Type
 
 import pytz
 from pymongo.collection import Collection as PyMongoCollection
@@ -18,19 +18,20 @@ from ..core.document import (
     _get_return_cls,
     _validate_fields,
 )
+from redb.interface.results import DeleteManyResult
 from ..interface.errors import DocumentNotFound, UniqueConstraintViolation
 from ..interface.fields import ClassField, Direction, Field, SortColumn
 from ..interface.results import DeleteOneResult, InsertOneResult, UpdateOneResult
 
-T = TypeVar("T")
+T = TypeVar("T", bound="IRememberDoc")
+DOCUMENT_FIELDS = {"id", "created_at", "created_by"}
 HISTORY_FIELDS = {"ref_id", "version", "retired_by", "retired_at"}
 
 
 class IRememberDoc(Document):
     ref_id: str = ""
     version: int = 0
-    retired_by: Any = None
-    retired_at: datetime = Field(default_factory=lambda: datetime.now(pytz.UTC))
+    retired_at: Optional[datetime] = None
 
     def __init__(self, **data):
         calculate_hash = False
@@ -68,7 +69,7 @@ class IRememberDoc(Document):
         return MongoCollection(driver_collection)
 
     @classmethod
-    def __insert_history(
+    def _historical_insert_one(
         cls,
         data: DocumentData,
     ) -> InsertOneResult:
@@ -107,12 +108,12 @@ class IRememberDoc(Document):
         return list(filter(lambda x: x.model_field.name in HISTORY_FIELDS, all_fields))
 
     @classmethod
-    def find_history(
-        cls,
+    def historical_find_one(
+        cls: Type[T],
         filter: OptionalDocumentData = None,
         fields: IncludeColumns = None,
         skip: int = 0,
-    ) -> "IRememberDoc" | Dict[str, Any]:
+    ) -> T:
         collection = cls._get_history_collection()
         filter = _format_document_data(filter)
         formatted_fields = _format_fields(fields)
@@ -126,17 +127,18 @@ class IRememberDoc(Document):
         )
 
     @classmethod
-    def find_histories(
-        cls,
+    def historical_find_many(
+        cls: Type[T],
         filter: OptionalDocumentData = None,
         fields: IncludeColumns = None,
         sort: SortColumns = SortColumn(name="version", direction=Direction.DESCENDING),
         skip: int = 0,
         limit: int = 0,
-    ) -> list["IRememberDoc" | Dict[str, Any]]:
+    ) -> list[T]:
         """
         Find many on the history collection.
 
+        Allow users to query for previous revisions.
         Sort by version descending by default.
         """
         collection = cls._get_history_collection()
@@ -155,28 +157,16 @@ class IRememberDoc(Document):
         )  # type: ignore
 
     @classmethod
-    def clear_history(
+    def delete_history(
         cls,
         filter: OptionalDocumentData = None,
-    ) -> list["IRememberDoc"]:
+    ) -> DeleteManyResult:
         collection = cls._get_history_collection()
         filter = _format_document_data(filter)
         return collection.delete_many(
             cls=cls,
             filter=filter,
-        )  # type: ignore
-
-    @classmethod
-    def historical_delete_many(
-        cls,
-        filter: OptionalDocumentData = None,
-    ) -> list["IRememberDoc"]:
-        collection = cls._get_history_collection()
-        filter = _format_document_data(filter)
-        return collection.delete_many(
-            cls=cls,
-            filter=filter,
-        )  # type: ignore
+        )
 
     @classmethod
     def historical_update_one(
@@ -197,7 +187,7 @@ class IRememberDoc(Document):
             operator=operator,
             allow_new_fields=allow_new_fields,
         )
-        cls.__insert_history(new_history)
+        cls._historical_insert_one(new_history)
         return update_result
 
     @classmethod
@@ -209,7 +199,7 @@ class IRememberDoc(Document):
         original_doc = super().find_one(filter=filter)
         new_history = cls.__build_history_from_ref(user_info, original_doc)
         delete_result = cls.delete_one(filter={"_id": original_doc.id})
-        cls.__insert_history(new_history)
+        cls._historical_insert_one(new_history)
         return delete_result
 
     @classmethod
@@ -220,7 +210,7 @@ class IRememberDoc(Document):
     ) -> Dict:
         history_filter = {"ref_id": referenced_doc.id}
         try:
-            history = cls.find_history(filter=history_filter, fields=["version"])
+            history = cls.historical_find_one(filter=history_filter, fields=["version"])
             version = history["version"] + 1  # type: ignore
         except DocumentNotFound:
             version = 1
@@ -232,8 +222,7 @@ class IRememberDoc(Document):
         )
         new_history["version"] = version
         new_history["retired_by"] = user_info
-        new_history["retired_at"] = str(datetime.utcnow())
+        new_history["retired_at"] = pytz.UTC.localize(datetime.utcnow())
         new_history["ref_id"] = referenced_doc.id
-        new_history["_id"] = f"{referenced_doc.id}_{version}"
-
+        new_history["_id"] = f"{referenced_doc.id}_v{version}"
         return new_history
