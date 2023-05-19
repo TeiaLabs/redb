@@ -1,9 +1,12 @@
 from pathlib import Path
 
+import dotenv
 import pytest
 
 from redb.core import RedB
 from redb.interface.configs import JSONConfig
+
+dotenv.load_dotenv()
 
 
 @pytest.fixture(scope="session")

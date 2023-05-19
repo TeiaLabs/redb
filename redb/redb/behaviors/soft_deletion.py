@@ -1,12 +1,9 @@
-from typing import Sequence
-
-from ..core import Document
-from ..interface.errors import DocumentNotFound
-from ..core.document import IncludeColumns, OptionalDocumentData, SortColumns
-from ..interface.fields import ClassField, IncludeColumn
-
 from typing import Type, TypeVar
 
+from ..core import Document
+from ..core.document import IncludeColumns, OptionalDocumentData, SortColumns
+from ..interface.errors import DocumentNotFound
+from ..interface.fields import ClassField, IncludeColumn
 
 T = TypeVar("T")
 
