@@ -155,6 +155,18 @@ class IRememberDoc(Document):
         )  # type: ignore
 
     @classmethod
+    def clear_history(
+        cls,
+        filter: OptionalDocumentData = None,
+    ) -> list["IRememberDoc"]:
+        collection = cls._get_history_collection()
+        filter = _format_document_data(filter)
+        return collection.delete_many(
+            cls=cls,
+            filter=filter,
+        )  # type: ignore
+
+    @classmethod
     def historical_delete_many(
         cls,
         filter: OptionalDocumentData = None,
