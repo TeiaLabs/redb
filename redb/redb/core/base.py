@@ -14,7 +14,7 @@ IMPORT_ERROR_MSG = (
     "%s does not seem to be installed, maybe you forgot to `pip install redb[%s]`"
 )
 
-@dataclass_transform(kw_only_default=True, field_specifiers=(Field,))
+@dataclass_transform(kw_only_default=True, field_specifiers=(Field, ClassField))
 class DocumentMetaclass(ModelMetaclass):
     def __getattribute__(cls_or_self, name: str) -> Any:
         try:
