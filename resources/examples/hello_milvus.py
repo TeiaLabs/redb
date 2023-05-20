@@ -12,7 +12,7 @@ from pymilvus import (
 
 fmt = "\n=== {:30} ===\n"
 search_latency_fmt = "search latency = {:.4f}s"
-num_entities, dim = 200000, 512
+num_entities, dim = 2000, 768
 
 print(fmt.format("start connecting to Milvus"))
 connections.connect("default", host="localhost", port="19530")
@@ -38,45 +38,43 @@ fields = [
         auto_id=False,
         max_length=100,
     ),
-    FieldSchema(name="random", dtype=DataType.DOUBLE),
+    FieldSchema(name="random", dtype=DataType.VARCHAR, max_length=100),
     FieldSchema(name="embeddings", dtype=DataType.FLOAT_VECTOR, dim=dim),
 ]
-
 schema = CollectionSchema(
     fields, "hello_milvus is the simplest demo to introduce the APIs"
 )
-
-print(fmt.format("Create collection `hello_milvus`"))
 hello_milvus = Collection("hello_milvus", schema, consistency_level="Strong")
 
 print(fmt.format("Start inserting entities"))
 rng = np.random.default_rng(seed=19530)
-entities = [
-    # provide the pk field because `auto_id` is set to False
-    [str(i) for i in range(num_entities)],
-    rng.random(num_entities).tolist(),  # field random, only supports list
-    rng.random(
-        (num_entities, dim)
-    ),  # field embeddings, supports numpy.ndarray and list
-]
 
-insert_result = hello_milvus.insert(entities)
-
-print(f"Number of entities in Milvus: {hello_milvus.num_entities}")
-
-################################################################################
-# 4. create index
-# We are going to create an IVF_FLAT index for hello_milvus collection.
-# create_index() can only be applied to `FloatVector` and `BinaryVector` fields.
+import os
+import dotenv
+from melting_face.encoders import LocalSettings
+from knowledge_base import Instance, KnowledgeBaseManager
+from redb.core import RedB, MongoConfig
+dotenv.load_dotenv()
+mongo_config = MongoConfig(os.environ["MONGODB_URI"])
+RedB.setup(mongo_config)
+sets = LocalSettings(
+    model_type="sentence_transformer",
+    model_kwargs={
+        "model_name": "paraphrase-distilroberta-base-v1",
+        "device": "cpu",
+    }
+)
+# exit()
 print(fmt.format("Start Creating index IVF_FLAT"))
 index = {
     "index_type": "IVF_FLAT",
     "metric_type": "L2",
     "params": {"nlist": 128},
 }
-
+# create_index() can only be applied to `FloatVector` and `BinaryVector` fields.
+print(hello_milvus.has_index())
 hello_milvus.create_index("embeddings", index)
-
+print(hello_milvus.has_index())
 ################################################################################
 # 5. search, query, and hybrid search
 # After data were inserted into Milvus and indexed, you can perform:
@@ -119,7 +117,7 @@ end_time = time.time()
 
 print(f"query result:\n-{result[0]}")
 print(search_latency_fmt.format(end_time - start_time))
-
+exit()
 # -----------------------------------------------------------------------------
 # hybrid search
 print(fmt.format("Start hybrid searching with `random > 0.5`"))
