@@ -18,7 +18,7 @@ from ..core.document import (
     _get_return_cls,
     _validate_fields,
 )
-from redb.interface.results import DeleteManyResult
+from redb.interface.results import DeleteManyResult, ReplaceOneResult
 from ..interface.errors import DocumentNotFound, UniqueConstraintViolation
 from ..interface.fields import ClassField, Direction, Field, SortColumn
 from ..interface.results import DeleteOneResult, InsertOneResult, UpdateOneResult
@@ -189,6 +189,20 @@ class IRememberDoc(Document):
         )
         cls._historical_insert_one(new_history)
         return update_result
+
+    @classmethod
+    def historical_replace_one(
+        cls, filter: DocumentData, replacement: DocumentData, user_info: Any = None
+    ) -> ReplaceOneResult:
+        original_doc = super().find_one(filter=filter)
+        new_history = cls.__build_history_from_ref(user_info, original_doc)
+        replace_result = cls.replace_one(
+            filter={"_id": original_doc.id},
+            replacement=replacement,
+        )
+        cls._historical_insert_one(new_history)
+        return replace_result
+
 
     @classmethod
     def historical_delete_one(

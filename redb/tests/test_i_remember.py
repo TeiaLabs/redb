@@ -140,3 +140,22 @@ def test_historical_update_one(db: Database, creator_email: str, user_email: str
     assert len(cats) == 1
     cat = cats[0]
     assert cat["breed"] == "American Bobtail"
+
+
+def test_historical_replace_one(db: Database, creator_email: str, user_email: str, fluffy_cat: Cat):
+    fluffy_cat.insert()
+    replaced_result = Cat.historical_replace_one(
+        {"name": fluffy_cat.name}, {**fluffy_cat.dict(), "breed": "American Bobtail"}, user_info=user_email
+    )
+    assert replaced_result.modified_count
+    hist_cats = list(db["cats-history"].find({"name": fluffy_cat.name}))
+    assert len(hist_cats) == 1
+    hist_cat = hist_cats[0]
+    assert hist_cat["version"] == 1
+    assert hist_cat["created_by"] == creator_email
+    assert hist_cat["retired_by"] == user_email
+    assert hist_cat["breed"] == fluffy_cat.breed
+    cats = list(db["cats"].find({"name": fluffy_cat.name}))
+    assert len(cats) == 1
+    cat = cats[0]
+    assert cat["breed"] == "American Bobtail"
