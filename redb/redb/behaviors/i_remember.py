@@ -94,7 +94,7 @@ class IRememberDoc(Document):
 
     def dict(self, ignored_history_fields: bool = True, *args, **kwargs) -> dict:
         if ignored_history_fields:
-            if "exclude" in kwargs:
+            if "exclude" in kwargs and kwargs["exclude"] is not None:
                 kwargs["exclude"] |= HISTORY_FIELDS
             else:
                 kwargs["exclude"] = HISTORY_FIELDS
