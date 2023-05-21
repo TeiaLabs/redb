@@ -235,8 +235,8 @@ class IRememberDoc(Document):
             exclude_none=True,
         )
         new_history["version"] = version
-        new_history["retired_by"] = user_info
-        new_history["retired_at"] = pytz.UTC.localize(datetime.utcnow())
+        new_history["retired_by"] = user_info.dict()
+        new_history["retired_at"] = pytz.UTC.localize(datetime.utcnow()).isoformat()
         new_history["ref_id"] = referenced_doc.id
         new_history["_id"] = f"{referenced_doc.id}_v{version}"
         return new_history
