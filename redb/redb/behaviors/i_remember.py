@@ -105,7 +105,7 @@ class IRememberDoc(Document):
     @classmethod
     def get_hashable_fields(cls) -> list[ClassField]:
         all_fields = super().get_hashable_fields()
-        return list(filter(lambda x: x.model_field.name in HISTORY_FIELDS, all_fields))
+        return list(filter(lambda x: x.model_field.name not in HISTORY_FIELDS, all_fields))
 
     @classmethod
     def historical_find_one(
