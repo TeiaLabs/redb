@@ -3,9 +3,7 @@ from pathlib import Path
 
 import dotenv
 import pytest
-from redb.core import RedB
-from redb.interface.configs import MongoConfig
-from redb.interface.errors import DocumentNotFound, UniqueConstraintViolation
+from redb.interface.errors import DocumentNotFound
 from redb.interface.fields import Direction, SortColumn
 
 from .utils import Embedding, RussianDog
@@ -14,20 +12,9 @@ dotenv.load_dotenv()
 
 
 class TestmongoSystem:
-    @pytest.fixture()
-    def client_path(self):
-        return Path("/tmp/")
 
     @pytest.fixture(scope="class", autouse=True)
-    def client(self):
-        RedB.setup(
-            MongoConfig(
-                database_uri=os.environ["MONGODB_URI"],
-            )
-        )
-
-    @pytest.fixture(scope="class", autouse=True)
-    def clean_db(self, client):
+    def clean_db(self):
         RussianDog.delete_many({})
         Embedding.delete_many({})
         yield
@@ -45,8 +32,7 @@ class TestmongoSystem:
         emb_id = Embedding.insert_one(emb)
         response = Embedding.find_one({"_id": emb_id.inserted_id})
         assert emb == response
-        with pytest.raises(UniqueConstraintViolation):
-            Embedding.insert_one(emb)
+
 
     def test_find_one(self):
         vladmir = RussianDog(

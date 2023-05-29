@@ -17,8 +17,6 @@ class CannotUpdateIdentifyingField(REDBError):
 
 
 class UniqueConstraintViolation(REDBError):
-    """Raised when an insert or update fails due to a duplicate key error."""
-
     def __init__(
         self, *args: object, dup_keys: dict, collection_name: str = ""
     ) -> None:

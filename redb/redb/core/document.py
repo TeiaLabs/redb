@@ -178,7 +178,7 @@ class Document(BaseDocument):
             )
         except DuplicateKeyError as e:
             raise UniqueConstraintViolation(
-                dup_keys=e.details["keyValue"], collection_name=self.__class__.__name__
+                dup_keys=e.details["keyValue"], collection_name=self.collection_name()
             )
 
     @classmethod
@@ -197,7 +197,7 @@ class Document(BaseDocument):
             )
         except DuplicateKeyError as e:
             raise UniqueConstraintViolation(
-                dup_keys=e.details["keyValue"], collection_name=cls.__name__
+                dup_keys=e.details["keyValue"], collection_name=cls.collection_name()
             )
 
     @classmethod
@@ -217,7 +217,7 @@ class Document(BaseDocument):
             )
         except DuplicateKeyError as e:
             raise UniqueConstraintViolation(
-                dup_keys=e.details["keyValue"], collection_name=cls.__name__
+                dup_keys=e.details["keyValue"], collection_name=cls.collection_name()
             )
 
     @classmethod
@@ -237,7 +237,7 @@ class Document(BaseDocument):
             return result
         except DuplicateKeyError as e:
             raise UniqueConstraintViolation(
-                dup_keys=e.details["keyValue"], collection_name=cls.__name__
+                dup_keys=e.details["keyValue"], collection_name=cls.collection_name()
             )
 
     def replace(
@@ -351,7 +351,7 @@ class Document(BaseDocument):
             )
         except DuplicateKeyError as e:
             raise UniqueConstraintViolation(
-                dup_keys=e.details["keyValue"], collection_name=cls.__name__
+                dup_keys=e.details["keyValue"], collection_name=cls.collection_name()
             )
         return result
 
@@ -392,7 +392,7 @@ class Document(BaseDocument):
             )
         except DuplicateKeyError as e:
             raise UniqueConstraintViolation(
-                dup_keys=e.details["keyValue"], collection_name=cls.__name__
+                dup_keys=e.details["keyValue"], collection_name=cls.collection_name()
             )
 
         return result
