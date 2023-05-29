@@ -5,7 +5,7 @@ import dotenv
 import pytest
 from redb.core import RedB
 from redb.interface.configs import MongoConfig
-from redb.interface.errors import DocumentNotFound
+from redb.interface.errors import DocumentNotFound, UniqueConstraintViolation
 from redb.interface.fields import Direction, SortColumn
 
 from .utils import Embedding, RussianDog
@@ -45,6 +45,8 @@ class TestmongoSystem:
         emb_id = Embedding.insert_one(emb)
         response = Embedding.find_one({"_id": emb_id.inserted_id})
         assert emb == response
+        with pytest.raises(UniqueConstraintViolation):
+            Embedding.insert_one(emb)
 
     def test_find_one(self):
         vladmir = RussianDog(

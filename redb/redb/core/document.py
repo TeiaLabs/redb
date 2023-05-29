@@ -3,7 +3,6 @@ from typing import Any, Dict, Sequence, Type, TypeAlias, TypeVar, Union, cast
 
 import pytz
 from pymongo.errors import DuplicateKeyError
-
 from redb.interface.errors import (
     CannotUpdateIdentifyingField,
     UniqueConstraintViolation,
@@ -178,7 +177,9 @@ class Document(BaseDocument):
                 data=data,
             )
         except DuplicateKeyError as e:
-            raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
+            raise UniqueConstraintViolation(
+                dup_keys=e.details["keyValue"], collection_name=self.__class__.__name__
+            )
 
     @classmethod
     def insert_one(
@@ -195,7 +196,9 @@ class Document(BaseDocument):
                 data=data,
             )
         except DuplicateKeyError as e:
-            raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
+            raise UniqueConstraintViolation(
+                dup_keys=e.details["keyValue"], collection_name=cls.__name__
+            )
 
     @classmethod
     def insert_vectors(
@@ -213,7 +216,9 @@ class Document(BaseDocument):
                 data=instances,
             )
         except DuplicateKeyError as e:
-            raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
+            raise UniqueConstraintViolation(
+                dup_keys=e.details["keyValue"], collection_name=cls.__name__
+            )
 
     @classmethod
     def insert_many(
@@ -231,7 +236,9 @@ class Document(BaseDocument):
             )
             return result
         except DuplicateKeyError as e:
-            raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
+            raise UniqueConstraintViolation(
+                dup_keys=e.details["keyValue"], collection_name=cls.__name__
+            )
 
     def replace(
         self: T,
@@ -343,7 +350,9 @@ class Document(BaseDocument):
                 update={"$set": {"updated_at": datetime.now(pytz.UTC).isoformat()}},
             )
         except DuplicateKeyError as e:
-            raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
+            raise UniqueConstraintViolation(
+                dup_keys=e.details["keyValue"], collection_name=cls.__name__
+            )
         return result
 
     @classmethod
@@ -382,7 +391,9 @@ class Document(BaseDocument):
                 update={"$set": {"updated_at": datetime.now(pytz.UTC).isoformat()}},
             )
         except DuplicateKeyError as e:
-            raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
+            raise UniqueConstraintViolation(
+                dup_keys=e.details["keyValue"], collection_name=cls.__name__
+            )
 
         return result
 
