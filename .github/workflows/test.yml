@@ -35,6 +35,5 @@ jobs:
       - name: Install and test `redb`.
         run: |
           pip install -r requirements-test.txt
-          pytest ./tests/ --tb=no -k "not json"
-          pytest ./tests/ --tb=no -k "json"
+          pytest ./tests/ --tb=no
         working-directory: ./redb/

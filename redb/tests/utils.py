@@ -9,7 +9,7 @@ class Embedding(Document):
     kb_name: str
     model: str
     text: str
-    vector: list[float] = None
+    vector: Optional[list[float]] = None
     source_url: str
 
     def __eq__(self, other: "Embedding") -> bool:

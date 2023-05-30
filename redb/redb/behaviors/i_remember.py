@@ -235,7 +235,7 @@ class IRememberDoc(Document):
             exclude_none=True,
         )
         new_history["version"] = version
-        new_history["retired_by"] = user_info.dict()
+        new_history["retired_by"] = user_info.dict() if hasattr(user_info, "dict") else str(user_info)
         new_history["retired_at"] = pytz.UTC.localize(datetime.utcnow()).isoformat()
         new_history["ref_id"] = referenced_doc.id
         new_history["_id"] = f"{referenced_doc.id}_v{version}"

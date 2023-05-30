@@ -17,7 +17,7 @@ def embedding():
     )
 
 
-def test_insert_one(collection_path: Path, embedding: Embedding):
+def test_insert_one(json_client, collection_path: Path, embedding: Embedding):
     # Ignored while we do not have a Mongo instance to run agains
     # with transaction(collection_class=Embedding, config=MongoConfig(database_uri="mongodb://localhost:27017/", default_database="teia"), database_name="another") as embedding:
     #     embedding.insert_one(data=d)
@@ -30,14 +30,14 @@ def test_insert_one(collection_path: Path, embedding: Embedding):
     assert other == embedding
 
 
-def test_find_by_id(collection_path: Path, embedding: Embedding):
+def test_find_by_id(json_client, collection_path: Path, embedding: Embedding):
     Embedding.insert_one(embedding)
     found_instance = Embedding.find_one(filter=dict(_id=embedding.id))
     remove_document(collection_path, embedding.id)
     assert found_instance == embedding
 
 
-def test_insert_vectors(collection_path: Path):
+def test_insert_vectors(json_client, collection_path: Path):
     data = dict(
         _id=["a", "b", "c"],
         kb_name=["KB5", "KB6", "KB7"],
@@ -67,7 +67,7 @@ def test_insert_vectors(collection_path: Path):
         assert original == other
 
 
-def test_count_documents(collection_path: Path, embedding: Embedding):
+def test_count_documents(json_client, collection_path: Path, embedding: Embedding):
     doc_count = Embedding.count_documents()
     assert doc_count == 0
     Embedding.insert_one(embedding)
@@ -78,7 +78,7 @@ def test_count_documents(collection_path: Path, embedding: Embedding):
         remove_document(collection_path, embedding.id)
 
 
-def test_replace_one(collection_path: Path, embedding: Embedding):
+def test_replace_one(json_client, collection_path: Path, embedding: Embedding):
     Embedding.insert_one(embedding)
     replacement = Embedding(
         kb_name="KB_REPLACED",
@@ -93,7 +93,7 @@ def test_replace_one(collection_path: Path, embedding: Embedding):
     assert replacement == other
 
 
-def test_update_one(collection_path: Path, embedding: Embedding):
+def test_update_one(json_client, collection_path: Path, embedding: Embedding):
     Embedding.insert_one(embedding)
     Embedding.update_one(embedding, update={"vector": [1, 2, 3]})
     expected = embedding.dict()
@@ -108,7 +108,7 @@ def test_update_one(collection_path: Path, embedding: Embedding):
         assert value == other[key]
 
 
-def test_delete_one(collection_path: Path, embedding: Embedding):
+def test_delete_one(json_client, collection_path: Path, embedding: Embedding):
     try:
         Embedding.insert_one(embedding)
     except:

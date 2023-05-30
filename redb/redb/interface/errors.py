@@ -1,6 +1,10 @@
 class REDBError(Exception):
     """Base class for all REDB errors."""
 
+    def __init__(self, *args: object, collection_name: str = "") -> None:
+        super().__init__(*args)
+        self.collection_name = collection_name
+
     pass
 
 
@@ -13,8 +17,6 @@ class CannotUpdateIdentifyingField(REDBError):
 
 
 class UniqueConstraintViolation(REDBError):
-    """Raised when an insert or update fails due to a duplicate key error."""
-
     def __init__(
         self, *args: object, dup_keys: dict, collection_name: str = ""
     ) -> None:
@@ -22,4 +24,5 @@ class UniqueConstraintViolation(REDBError):
             msg = f"Duplicate key at collection {collection_name} on: {dup_keys}"
         else:
             msg = f"Duplicate key error on: {dup_keys}"
-        super().__init__(msg, *args)
+        super().__init__(msg, *args, collection_name=collection_name)
+        self.dup_keys = [dup_keys]
