@@ -105,7 +105,9 @@ class IRememberDoc(Document):
     @classmethod
     def get_hashable_fields(cls) -> list[ClassField]:
         all_fields = super().get_hashable_fields()
-        return list(filter(lambda x: x.model_field.name not in HISTORY_FIELDS, all_fields))
+        return list(
+            filter(lambda x: x.model_field.name not in HISTORY_FIELDS, all_fields)
+        )
 
     @classmethod
     def historical_find_one(
@@ -203,7 +205,6 @@ class IRememberDoc(Document):
         cls._historical_insert_one(new_history)
         return replace_result
 
-
     @classmethod
     def historical_delete_one(
         cls,
@@ -235,7 +236,9 @@ class IRememberDoc(Document):
             exclude_none=True,
         )
         new_history["version"] = version
-        new_history["retired_by"] = user_info.dict() if hasattr(user_info, "dict") else str(user_info)
+        new_history["retired_by"] = (
+            user_info.dict() if hasattr(user_info, "dict") else str(user_info)
+        )
         new_history["retired_at"] = pytz.UTC.localize(datetime.utcnow()).isoformat()
         new_history["ref_id"] = referenced_doc.id
         new_history["_id"] = f"{referenced_doc.id}_v{version}"

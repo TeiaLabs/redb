@@ -20,25 +20,25 @@ class SoftDeletinDoc(Document):
     def soft_delete_one(cls, filters):
         result = cls.update_one(filters, dict(is_deleted=True))
         if not result.matched_count:
-            raise DocumentNotFound
+            raise DocumentNotFound(collection_name=cls.collection_name())
 
     @classmethod
     def soft_undelete_one(cls, filters):
         result = cls.update_one(filters, dict(is_deleted=False))
         if not result.matched_count:
-            raise DocumentNotFound
+            raise DocumentNotFound(collection_name=cls.collection_name())
 
     @classmethod
     def soft_delete_many(cls, filters):
         result = cls.update_many(filters, dict(is_deleted=True))
         if not result.matched_count:
-            raise DocumentNotFound
+            raise DocumentNotFound(collection_name=cls.collection_name())
 
     @classmethod
     def soft_undelete_many(cls, filters):
         result = cls.update_many(filters, dict(is_deleted=False))
         if not result.matched_count:
-            raise DocumentNotFound
+            raise DocumentNotFound(collection_name=cls.collection_name())
 
     @classmethod
     def find_one(

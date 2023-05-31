@@ -213,7 +213,7 @@ class JSONCollection(Collection):
         update = update.pop(next(iter(update.keys())))  # { $set: {...} }
         if doc is None:
             if not upsert:
-                raise DocumentNotFound
+                raise DocumentNotFound(collection_name=cls.collection_name())
             result = self.insert_one(cls, data=update)
             return UpdateOneResult(
                 matched_count=1,
