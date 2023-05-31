@@ -87,7 +87,7 @@ class MongoCollection(Collection):
         )
         if not result:
             m = f"Document not found with filters {filter} in collection {self.__collection.name}."
-            raise DocumentNotFound(m)
+            raise DocumentNotFound(m, collection_name=self.__collection.name)
         return return_cls(**result)
 
     def distinct(
