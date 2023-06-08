@@ -228,7 +228,7 @@ class IRememberDoc(Document):
             histories = cls.historical_find_many(filter=history_filter, fields=["version"], limit=1)
             history = histories[0]
             version = history["version"] + 1  # type: ignore
-        except DocumentNotFound | IndexError:
+        except (DocumentNotFound, IndexError):
             version = 1
 
         new_history = referenced_doc.dict(
