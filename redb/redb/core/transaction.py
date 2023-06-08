@@ -4,6 +4,7 @@ from typing import Any, ContextManager, Dict, Sequence, Type, TypeVar, overload
 
 import pytz
 from pymongo.errors import DuplicateKeyError
+from redb.behaviors import IRememberDoc
 
 from redb.core.document import (
     Document,
@@ -45,8 +46,9 @@ T = TypeVar("T", bound=Document)
 
 
 class CollectionWrapper:
-    def __init__(self, collection: Collection, collection_class: T) -> None:
+    def __init__(self, collection: Collection, history_collection: Collection, collection_class: T) -> None:
         self.__collection = collection
+        self.__history_collection = history_collection
         self.__collection_class = collection_class
 
     def _get_driver_collection(self) -> Any:
@@ -138,6 +140,22 @@ class CollectionWrapper:
             )
         except DuplicateKeyError as e:
             raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
+        
+    def _historical_insert_one(self,data: DocumentData) -> InsertOneResult:
+        if self.__history_collection is None:
+            raise ValueError("Base class does not inherit from IRememberDoc")
+
+        data = _format_document_data(data)
+        try:
+            return self.__history_collection.insert_one(
+                cls=self.__collection_class,
+                data=data,
+            )
+        except DuplicateKeyError as e:
+            raise UniqueConstraintViolation(
+                dup_keys=e.details["keyValue"],  # type: ignore
+                collection_name=self.__collection_class.history_collection_name(),
+            )
 
     def insert_vectors(self, data: Dict[str, list[Any]]) -> InsertManyResult:
         keys = list(data.keys())
@@ -222,6 +240,30 @@ class CollectionWrapper:
         )
         return result
 
+    def historical_update_one(
+        self,
+        filter: DocumentData,
+        update: DocumentData,
+        upsert: bool = False,
+        operator: str | None = "$set",
+        allow_new_fields: bool = False,
+        user_info: Any = None,
+    ) -> UpdateOneResult:
+        if self.__history_collection is None:
+            raise ValueError("Base class does not inherit from IRememberDoc")
+        
+        original_doc = self.find_one(filter=filter)
+        new_history = self.__collection_class._build_history_from_ref(user_info, original_doc)
+        update_result = self.update_one(
+            filter={"_id": original_doc.id},
+            update=update,
+            upsert=upsert,
+            operator=operator,
+            allow_new_fields=allow_new_fields,
+        )
+        self._historical_insert_one(new_history)
+        return update_result
+
     def update_many(
         self,
         filter: DocumentData,
@@ -262,6 +304,20 @@ class CollectionWrapper:
             cls=self.__collection_class,
             filter=filter,
         )
+    
+    def historical_delete_one(
+        self,
+        filter: DocumentData,
+        user_info: Any = None,
+    ) -> DeleteOneResult:
+        if self.__history_collection is None:
+            raise ValueError("Base class does not inherit from IRememberDoc")
+        
+        original_doc = self.find_one(filter=filter)
+        new_history = self.__collection_class._build_history_from_ref(user_info, original_doc)
+        delete_result = self.delete_one(filter={"_id": original_doc.id})
+        self._historical_insert_one(new_history)
+        return delete_result
 
     def delete_many(self, filter: DocumentData) -> DeleteManyResult:
         filter = _format_document_data(filter)
@@ -309,8 +365,13 @@ def transaction(
         collection = database.get_collection(collection)
     else:
         collection_name = collection.collection_name()
+        driver_history_collection = None
+        if issubclass(collection, IRememberDoc):
+            history_collection_name = collection.history_collection_name()
+            driver_history_collection = database.get_collection(history_collection_name)
+        
         driver_collection = database.get_collection(collection_name)
-        collection = CollectionWrapper(driver_collection, collection)
+        collection = CollectionWrapper(driver_collection, driver_history_collection, collection)
 
     yield collection
 

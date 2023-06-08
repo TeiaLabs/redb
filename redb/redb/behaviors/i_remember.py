@@ -181,7 +181,7 @@ class IRememberDoc(Document):
         user_info: Any = None,
     ) -> UpdateOneResult:
         original_doc = super().find_one(filter=filter)
-        new_history = cls.__build_history_from_ref(user_info, original_doc)
+        new_history = cls._build_history_from_ref(user_info, original_doc)
         update_result = cls.update_one(
             filter={"_id": original_doc.id},
             update=update,
@@ -197,7 +197,7 @@ class IRememberDoc(Document):
         cls, filter: DocumentData, replacement: DocumentData, user_info: Any = None
     ) -> ReplaceOneResult:
         original_doc = super().find_one(filter=filter)
-        new_history = cls.__build_history_from_ref(user_info, original_doc)
+        new_history = cls._build_history_from_ref(user_info, original_doc)
         replace_result = cls.replace_one(
             filter={"_id": original_doc.id},
             replacement=replacement,
@@ -218,16 +218,17 @@ class IRememberDoc(Document):
         return delete_result
 
     @classmethod
-    def __build_history_from_ref(
+    def _build_history_from_ref(
         cls,
         user_info: Any,
         referenced_doc: "IRememberDoc",
     ) -> Dict:
         history_filter = {"ref_id": referenced_doc.id}
         try:
-            history = cls.historical_find_one(filter=history_filter, fields=["version"])
+            histories = cls.historical_find_many(filter=history_filter, fields=["version"], limit=1)
+            history = histories[0]
             version = history["version"] + 1  # type: ignore
-        except DocumentNotFound:
+        except DocumentNotFound | IndexError:
             version = 1
 
         new_history = referenced_doc.dict(
