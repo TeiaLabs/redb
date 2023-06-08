@@ -212,7 +212,7 @@ class IRememberDoc(Document):
         user_info: Any = None,
     ) -> DeleteOneResult:
         original_doc = super().find_one(filter=filter)
-        new_history = cls.__build_history_from_ref(user_info, original_doc)
+        new_history = cls._build_history_from_ref(user_info, original_doc)
         delete_result = cls.delete_one(filter={"_id": original_doc.id})
         cls._historical_insert_one(new_history)
         return delete_result
