@@ -46,6 +46,7 @@ class Document(BaseDocument):
         json_encoders = {
             datetime: lambda d: d.isoformat(),
             DBRef: lambda ref: dict(ref.as_doc()),
+            Path: str,
             ObjectId: str,
         }
         smart_union = True
