@@ -17,9 +17,13 @@ def client():
         )
     )
 
-@pytest.fixture(scope="module", autouse=True)
+
+@pytest.fixture(scope="function", autouse=True)
 def db():
-    return MongoClient(os.environ["MONGODB_URI"]).get_database()
+    db = MongoClient(os.environ["MONGODB_URI"]).get_database()
+    yield db
+    db.drop_collection("cats")
+
 
 class Cat(Document):
     name: str
@@ -35,14 +39,13 @@ class Cat(Document):
         return "cats"
 
 
-def test_unique_constraints(db: Database):
-    db["cats"].drop()
+def test_unique_constraints():
     Cat.create_indexes()
     cat = Cat(name="Kitty", created_by="me")
     result = Cat.insert_one(cat)
     assert result.inserted_id is not None
     assert cat == Cat.find_one({"_id": result.inserted_id})
-    cat2 = cat = Cat(name="Kitty", created_by="other")
+    cat2 = Cat(name="Kitty", created_by="other")  # avoiding hash collision on _id
     with pytest.raises(UniqueConstraintViolation):
         Cat.insert_one(cat2)
     try:
@@ -50,3 +53,19 @@ def test_unique_constraints(db: Database):
     except UniqueConstraintViolation as e:
         assert e.collection_name == "cats"
         assert e.dup_keys == [{"name": "Kitty", "breed": "Domestic Shorthair"}]
+
+
+def test_unique_ids():
+    Cat.create_indexes()
+    cat = Cat(name="Kitty", created_by="me")
+    result = Cat.insert_one(cat)
+    assert result.inserted_id is not None
+    assert cat == Cat.find_one({"_id": result.inserted_id})
+    with pytest.raises(UniqueConstraintViolation):
+        Cat.insert_one(cat)
+    try:
+        Cat.insert_one(cat)
+    except UniqueConstraintViolation as e:
+        assert e.collection_name == "cats"
+        assert len(e.dup_keys) == 1
+        assert e.dup_keys[0]["_id"] == result.inserted_id

@@ -53,6 +53,7 @@ class Document(BaseDocument):
         smart_union = True
 
     def __init__(self, **data: Any) -> None:
+        # TODO rewrite this using root_validator(pre=True) and root_validator(pre=False)
         calculate_hash = False
         if "id" in data:
             data["_id"] = data.pop("id")
