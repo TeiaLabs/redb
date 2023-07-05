@@ -1,9 +1,10 @@
-from typing import Any, Literal, Type
+from typing import Any, Iterator, Type, TypeVar
 
 from pymongo.collection import Collection as PymongoCollection
 
 from redb.core import Document
 from redb.interface.collection import Collection, Json, OptionalJson, ReturnType
+from redb.interface.errors import DocumentNotFound
 from redb.interface.fields import CompoundIndex, PyMongoOperations
 from redb.interface.results import (
     BulkWriteResult,
@@ -15,7 +16,8 @@ from redb.interface.results import (
     UpdateManyResult,
     UpdateOneResult,
 )
-from redb.interface.errors import DocumentNotFound
+
+T = TypeVar("T")
 
 
 class MongoCollection(Collection):
@@ -60,17 +62,23 @@ class MongoCollection(Collection):
         sort: list[tuple[str, str | int]] | None = None,
         skip: int = 0,
         limit: int = 0,
-    ) -> list[ReturnType]:
-        return [
-            return_cls(**result)
-            for result in self.__collection.find(
-                filter=filter,
-                projection=fields,
-                sort=sort,
-                skip=skip,
-                limit=limit,
-            )
-        ]
+        iterate: bool = False,
+        batch_size: int | None = None,
+    ) -> list[ReturnType] | Iterator[list[ReturnType]] | Iterator[ReturnType]:
+        cursor = self.__collection.find(
+            filter=filter,
+            projection=fields,
+            sort=sort,
+            skip=skip,
+            limit=limit,
+        )
+        if iterate:
+            return iter(iterate_converted_results(cursor, return_cls))  # type: ignore
+
+        if batch_size is not None:
+            return iter(batch_iterate_converted_results(cursor, batch_size, return_cls))  # type: ignore
+
+        return [return_cls(**result) for result in cursor]
 
     def find_one(
         self,
@@ -205,3 +213,23 @@ class MongoCollection(Collection):
     ) -> DeleteManyResult:
         result = self.__collection.delete_many(filter=filter)
         return DeleteManyResult(deleted_count=result.deleted_count)
+
+
+def iterate_converted_results(iterator, clazz: Type[T]) -> T:
+    for result in iterator:
+        yield clazz(**result)  # type: ignore
+
+
+def batch_iterate_converted_results(
+    iterator, batch_size: int, clazz: Type[T]
+) -> list[T]:
+    while True:
+        output = []
+        try:
+            for _ in range(batch_size):
+                output.append(clazz(**next(iterator)))
+        except StopIteration:
+            break
+        finally:
+            if output:
+                yield output

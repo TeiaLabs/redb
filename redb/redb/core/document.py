@@ -4,6 +4,7 @@ from typing import Any, Dict, Sequence, Type, TypeAlias, TypeVar, Union, cast
 
 import pytz
 from pymongo.errors import DuplicateKeyError
+
 from redb.interface.errors import (
     CannotUpdateIdentifyingField,
     UniqueConstraintViolation,
@@ -118,6 +119,8 @@ class Document(BaseDocument):
         sort: SortColumns = None,
         skip: int = 0,
         limit: int = 0,
+        iterate: bool = False,
+        batch_size: int | None = None,
     ) -> list[T]:
         collection = Document._get_collection(cls)
         filter = _format_document_data(filter)
@@ -132,6 +135,8 @@ class Document(BaseDocument):
             sort=sort_order,
             skip=skip,
             limit=limit,
+            iterate=iterate,
+            batch_size=batch_size,
         )
 
     @classmethod
