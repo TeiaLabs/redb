@@ -4,9 +4,11 @@ from typing import Any, Dict, Sequence, Type, TypeAlias, TypeVar, Union, cast
 
 import pytz
 from pymongo.errors import DuplicateKeyError
+
 from redb.interface.errors import (
     CannotUpdateIdentifyingField,
     UniqueConstraintViolation,
+    UnsupportedOperation,
 )
 from redb.interface.fields import (
     CompoundIndex,
@@ -118,7 +120,13 @@ class Document(BaseDocument):
         sort: SortColumns = None,
         skip: int = 0,
         limit: int = 0,
+        iterate: bool = False,
+        batch_size: int | None = None,
     ) -> list[T]:
+        if iterate and batch_size is not None:
+            msg = "'iterate' cannot be used with 'batch_size'. Batched find_many is already an iterable."
+            raise UnsupportedOperation(msg)
+
         collection = Document._get_collection(cls)
         filter = _format_document_data(filter)
         formatted_fields = _format_fields(fields)
@@ -132,6 +140,8 @@ class Document(BaseDocument):
             sort=sort_order,
             skip=skip,
             limit=limit,
+            iterate=iterate,
+            batch_size=batch_size,
         )
 
     @classmethod

@@ -26,3 +26,7 @@ class UniqueConstraintViolation(REDBError):
             msg = f"Duplicate key error on: {dup_keys}"
         super().__init__(msg, *args, collection_name=collection_name)
         self.dup_keys = [dup_keys]
+
+
+class UnsupportedOperation(REDBError):
+    pass
