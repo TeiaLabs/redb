@@ -4,8 +4,8 @@ from typing import Any, ContextManager, Dict, Sequence, Type, TypeVar, overload
 
 import pytz
 from pymongo.errors import DuplicateKeyError
-from redb.behaviors import IRememberDoc
 
+from redb.behaviors import IRememberDoc
 from redb.core.document import (
     Document,
     DocumentData,
@@ -21,6 +21,7 @@ from redb.core.document import (
     _raise_if_updating_hashable,
     _validate_fields,
 )
+from redb.core.instance import RedB
 from redb.interface.collection import (
     BulkWriteResult,
     Collection,
@@ -41,18 +42,47 @@ from redb.interface.configs import (
     check_config,
 )
 from redb.interface.errors import UniqueConstraintViolation
+from redb.mongo_system import MongoClient
 
 T = TypeVar("T", bound=Document)
 
 
 class CollectionWrapper:
-    def __init__(self, collection: Collection, history_collection: Collection, collection_class: T) -> None:
+    def __init__(
+        self,
+        collection: Collection,
+        history_collection: Collection,
+        collection_class: T,
+    ) -> None:
         self.__collection = collection
         self.__history_collection = history_collection
         self.__collection_class = collection_class
 
     def _get_driver_collection(self) -> Any:
         return self.__collection._get_driver_collection()
+
+    def switch_db(self, db_name: str) -> "CollectionWrapper":
+        collection_name = self.__collection_class.collection_name()
+
+        client = self.__collection.database.client  # type: ignore
+        db = client.get_database(db_name)
+        collection = db.get_collection(collection_name)
+
+        self.__collection = collection
+
+        return self
+
+    def switch_client(self, config: MongoConfig) -> "CollectionWrapper":
+        collection_name = self.__collection_class.collection_name()
+
+        client = RedB.add_client(config)
+
+        old_db_name = self.__collection.database.name  # type: ignore
+        db = client.get_database(old_db_name)
+        collection = db.get_collection(collection_name)
+
+        self.__collection = collection
+        return self
 
     def create_indexes(self) -> None:
         indexes = self.__collection_class.get_indexes()
@@ -140,8 +170,8 @@ class CollectionWrapper:
             )
         except DuplicateKeyError as e:
             raise UniqueConstraintViolation(dup_keys=e.details["keyValue"])
-        
-    def _historical_insert_one(self,data: DocumentData) -> InsertOneResult:
+
+    def _historical_insert_one(self, data: DocumentData) -> InsertOneResult:
         if self.__history_collection is None:
             raise ValueError("Base class does not inherit from IRememberDoc")
 
@@ -251,9 +281,11 @@ class CollectionWrapper:
     ) -> UpdateOneResult:
         if self.__history_collection is None:
             raise ValueError("Base class does not inherit from IRememberDoc")
-        
+
         original_doc = self.find_one(filter=filter)
-        new_history = self.__collection_class._build_history_from_ref(user_info, original_doc)
+        new_history = self.__collection_class._build_history_from_ref(
+            user_info, original_doc
+        )
         update_result = self.update_one(
             filter={"_id": original_doc.id},
             update=update,
@@ -304,7 +336,7 @@ class CollectionWrapper:
             cls=self.__collection_class,
             filter=filter,
         )
-    
+
     def historical_delete_one(
         self,
         filter: DocumentData,
@@ -312,9 +344,11 @@ class CollectionWrapper:
     ) -> DeleteOneResult:
         if self.__history_collection is None:
             raise ValueError("Base class does not inherit from IRememberDoc")
-        
+
         original_doc = self.find_one(filter=filter)
-        new_history = self.__collection_class._build_history_from_ref(user_info, original_doc)
+        new_history = self.__collection_class._build_history_from_ref(
+            user_info, original_doc
+        )
         delete_result = self.delete_one(filter={"_id": original_doc.id})
         self._historical_insert_one(new_history)
         return delete_result
@@ -369,9 +403,11 @@ def transaction(
         if issubclass(collection, IRememberDoc):
             history_collection_name = collection.history_collection_name()
             driver_history_collection = database.get_collection(history_collection_name)
-        
+
         driver_collection = database.get_collection(collection_name)
-        collection = CollectionWrapper(driver_collection, driver_history_collection, collection)
+        collection = CollectionWrapper(
+            driver_collection, driver_history_collection, collection
+        )
 
     yield collection
 
@@ -386,9 +422,10 @@ def get_client(backend: str | None, config: CONFIG_TYPE):
         return True, JSONClient(config)
 
     elif backend == "mongo" or (backend is None and check_config(config, MongoConfig)):
-        from redb.mongo_system import MongoClient
+        from redb.core.instance import RedB
 
-        return True, MongoClient(config)
+        client = RedB.add_client(config)
+        return True, client
 
     elif backend == "migo" and (backend is None and check_config(config, MigoConfig)):
         from redb.migo_system import MigoClient

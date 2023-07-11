@@ -1,13 +1,24 @@
 from typing import Type, TypeVar
 
-from redb.core import transaction
+from redb.core import RedB
+from redb.core.transaction import CollectionWrapper, transaction
+from redb.interface.configs import MongoConfig
+from redb.interface.errors import UnsupportedOperation
+from redb.mongo_system import MongoClient
 
 T = TypeVar("T")
 
 
 class SwitcharooMixin:
+    @classmethod
+    def switch_db(cls: Type, db_name: str) -> CollectionWrapper:
+        with transaction(cls, db_name=db_name) as new_cls:
+            return new_cls
 
     @classmethod
-    def switch_db(cls: Type[T], db_name: str) -> Type[T]:
-        with transaction.transaction(cls, db_name=db_name) as new_cls:
+    def switch_client(cls: Type, config: MongoConfig) -> CollectionWrapper:
+        if RedB.get_client_name() != "mongo":
+            raise UnsupportedOperation()
+
+        with transaction(cls, backend="mongo", config=config) as new_cls:
             return new_cls
