@@ -19,11 +19,25 @@ class RedB:
     _configs: list[CONFIG_TYPE] | None = None
 
     @classmethod
-    def add_client(cls, config: MongoConfig | dict, alias: str | None = None):
+    def add_client(
+        cls, config: MongoConfig | dict | None = None, alias: str | None = None
+    ):
         if cls._clients is None:
             raise RuntimeError("Client not setup. Call setup() first.")
 
         from redb.mongo_system import MongoClient
+
+        if config is None:
+            if alias is None:
+                msg = "No config or alias informed"
+                raise ValueError(msg)
+
+            if alias not in cls._alias:
+                msg = f"Alias '{alias}' not found"
+                raise ValueError(msg)
+
+            alias_index = cls._alias[alias]
+            return cls._clients[alias_index]
 
         if isinstance(config, dict):
             database_uri = config["database_uri"]
