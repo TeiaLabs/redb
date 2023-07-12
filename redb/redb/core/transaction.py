@@ -72,14 +72,47 @@ class CollectionWrapper:
 
         return self
 
-    def switch_client(self, config: MongoConfig) -> "CollectionWrapper":
+    def switch_client(
+        self, config: MongoConfig | dict, alias: str | None = None
+    ) -> "CollectionWrapper":
         collection_name = self.__collection_class.collection_name()
 
-        client = RedB.add_client(config)
+        client = RedB.add_client(config, alias=alias)
 
         old_db_name = self.__collection.database.name  # type: ignore
-        db = client.get_database(old_db_name)
+        try:
+            db = client.get_database(old_db_name)
+        except:
+            db = client.get_default_database()
+
         collection = db.get_collection(collection_name)
+
+        self.__collection = collection
+        return self
+
+    def switch(
+        self,
+        db: str | None = None,
+        config: MongoConfig | dict | None = None,
+        alias: str | None = None,
+    ) -> "CollectionWrapper":
+        collection_name = self.__collection_class.collection_name()
+        database_name = self.__collection.database.name  # type: ignore
+
+        if config is not None:
+            client = RedB.add_client(config, alias=alias)
+        else:
+            client = self.__collection.database.client  # type: ignore
+
+        if db is not None:
+            _db = client.get_database(db)
+        else:
+            try:
+                _db = client.get_database(database_name)
+            except:
+                _db = client.get_default_database()
+
+        collection = _db.get_collection(collection_name)
 
         self.__collection = collection
         return self

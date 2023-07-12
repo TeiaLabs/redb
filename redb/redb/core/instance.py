@@ -13,24 +13,52 @@ class RedB:
     """Client singleton."""
 
     _clients = None
-    _uris = None
+    _alias: dict[str, int] = {}
+    _uris: dict[str, int] = {}
     _client_name: str | None = None
     _configs: list[CONFIG_TYPE] | None = None
 
     @classmethod
-    def add_client(cls, config: MongoConfig):
-        if cls._clients is None or cls._uris is None:
+    def add_client(cls, config: MongoConfig | dict, alias: str | None = None):
+        if cls._clients is None:
             raise RuntimeError("Client not setup. Call setup() first.")
 
         from redb.mongo_system import MongoClient
 
-        if config.database_uri in cls._uris:
-            index = cls._uris[config.database_uri]
-            return cls._clients[index]
+        if isinstance(config, dict):
+            database_uri = config["database_uri"]
+        else:
+            database_uri = config.database_uri
+
+        alias_index = None
+        if alias is not None and alias in cls._alias:
+            alias_index = cls._alias[alias]
+
+        uri_index = None
+        if database_uri in cls._uris:
+            uri_index = cls._uris[database_uri]
+
+        if (
+            alias_index is not None
+            and uri_index is not None
+            and alias_index != uri_index
+        ):
+            msg = f"Alias '{alias}' does not match already configured connection '{database_uri}'"
+            raise ValueError(msg)
+
+        if alias_index is not None:
+            return cls._clients[alias_index]
+
+        if uri_index is not None:
+            return cls._clients[uri_index]
 
         client = MongoClient(config)
+        client_index = len(cls._clients)
+
         cls._clients.append(client)  # type: ignore
-        cls._uris = {config.database_uri: len(cls._clients) - 1}
+        cls._uris[database_uri] = client_index
+        if alias is not None:
+            cls._alias[alias] = client_index
 
         return client
 
