@@ -180,16 +180,22 @@ class IRememberDoc(Document):
         allow_new_fields: bool = False,
         user_info: Any = None,
     ) -> UpdateOneResult:
+        # TODO: this desperately needs a transaction
+        assert not upsert and operator == "$set" and not allow_new_fields
+        # TODO: fix these missing behaviors or raise appropriate errors
         original_doc = super().find_one(filter=filter)
         new_history = cls._build_history_from_ref(user_info, original_doc)
-        update_result = cls.update_one(
-            filter={"_id": original_doc.id},
-            update=update,
-            upsert=upsert,
-            operator=operator,
-            allow_new_fields=allow_new_fields,
-        )
         cls._historical_insert_one(new_history)
+        original_obj = original_doc.dict()
+        original_obj.pop("_id")
+        if isinstance(update, dict):
+            new_obj = original_obj | update
+        else:
+            new_obj = original_obj | update.dict()
+        new_doc = cls(**new_obj)
+        cls.delete_one(filter=filter)
+        cls.insert_one(new_doc)
+        update_result = UpdateOneResult(matched_count=1, modified_count=1, upserted_id=None)
         return update_result
 
     @classmethod
@@ -197,13 +203,16 @@ class IRememberDoc(Document):
         cls, filter: DocumentData, replacement: DocumentData, user_info: Any = None
     ) -> ReplaceOneResult:
         original_doc = super().find_one(filter=filter)
+        print(original_doc)
         new_history = cls._build_history_from_ref(user_info, original_doc)
-        replace_result = cls.replace_one(
-            filter={"_id": original_doc.id},
-            replacement=replacement,
-        )
         cls._historical_insert_one(new_history)
-        return replace_result
+        if isinstance(replacement, dict):
+            new_obj = replacement
+        else:
+            new_obj = replacement.dict()
+        cls.delete_one(filter=filter)
+        cls(**new_obj).insert()
+        return ReplaceOneResult(matched_count=1, modified_count=1, upserted_id=None)
 
     @classmethod
     def historical_delete_one(

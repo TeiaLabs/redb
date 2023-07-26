@@ -20,7 +20,7 @@ class Cat(IRememberDoc):
 
     @classmethod
     def get_hashable_fields(cls) -> list[ClassField]:
-        return [cls.name]  # type: ignore
+        return [cls.name, cls.breed]  # type: ignore
 
     @classmethod
     def collection_name(cls) -> str:
@@ -140,6 +140,7 @@ def test_historical_update_one(db: Database, creator_email: str, user_email: str
     assert len(cats) == 1
     cat = cats[0]
     assert cat["breed"] == "American Bobtail"
+    assert cat["_id"] != fluffy_cat.id
 
 
 def test_historical_replace_one(db: Database, creator_email: str, user_email: str, fluffy_cat: Cat):
@@ -161,3 +162,4 @@ def test_historical_replace_one(db: Database, creator_email: str, user_email: st
     assert len(cats) == 1
     cat = cats[0]
     assert cat["breed"] == "American Bobtail"
+    assert cat["_id"] != fluffy_cat.id
