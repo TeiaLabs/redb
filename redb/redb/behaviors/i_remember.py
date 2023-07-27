@@ -202,16 +202,18 @@ class IRememberDoc(Document):
     def historical_replace_one(
         cls, filter: DocumentData, replacement: DocumentData, user_info: Any = None
     ) -> ReplaceOneResult:
+        # TODO: wrap in ACID transaction
         original_doc = super().find_one(filter=filter)
-        print(original_doc)
         new_history = cls._build_history_from_ref(user_info, original_doc)
         cls._historical_insert_one(new_history)
         if isinstance(replacement, dict):
             new_obj = replacement
         else:
             new_obj = replacement.dict()
+        new_obj.pop("_id", "")
         cls.delete_one(filter=filter)
-        cls(**new_obj).insert()
+        new_doc = cls(**new_obj)
+        new_doc.insert()
         return ReplaceOneResult(matched_count=1, modified_count=1, upserted_id=None)
 
     @classmethod
@@ -234,7 +236,7 @@ class IRememberDoc(Document):
     ) -> Dict:
         history_filter = {"ref_id": referenced_doc.id}
         try:
-            histories = cls.historical_find_many(filter=history_filter, fields=["version"], limit=1)
+            histories = cls.historical_find_many(filter=history_filter, fields=["version"], limit=1, sort=SortColumn(name="version", direction=Direction.DESCENDING))
             history = histories[0]
             version = history["version"] + 1  # type: ignore
         except (DocumentNotFound, IndexError):

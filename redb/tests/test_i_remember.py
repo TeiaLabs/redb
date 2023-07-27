@@ -90,6 +90,26 @@ def test_historical_delete_one(db: Database, fluffy_cat: Cat, creator_email: str
     assert hist_cat["retired_by"] == user_email
 
 
+def test_historical_version_incrementing(db: Database, fluffy_cat: Cat):
+    obj = fluffy_cat
+    obj.insert()
+    Cat.historical_delete_one({"_id": obj.id}, user_info="user1@email.com")
+    Cat(**obj.dict(exclude={"created_at"})).insert()
+    Cat.historical_delete_one({"_id": obj.id}, user_info="user2@email.com")
+    hist_cats = list(db["cats-history"].find({"name": fluffy_cat.name}, sort=[("version", -1)]))
+    assert len(hist_cats) == 2
+    hist_cat = hist_cats[0]
+    assert hist_cat["version"] == 2
+    assert hist_cat["retired_by"] == "user2@email.com"
+    Cat(**obj.dict(exclude={"created_at"})).insert()
+    Cat.historical_delete_one({"_id": obj.id}, user_info="user3@email.com")
+    hist_cats = list(db["cats-history"].find({"name": fluffy_cat.name}, sort=[("version", -1)]))
+    assert len(hist_cats) == 3
+    hist_cat = hist_cats[0]
+    assert hist_cat["version"] == 3
+    assert hist_cat["retired_by"] == "user3@email.com"
+
+
 @pytest.mark.order(after="test_historical_delete_one")
 def test_historical_find_one(user_email, pony_cat: Cat):
     pony_cat.insert()
