@@ -125,7 +125,12 @@ class RedB:
             from redb.mongo_system import MongoClient
 
             cls._clients = [MongoClient(config)]
-            cls._uris = {config.database_uri: 0}
+            if isinstance(config, dict):
+                database_uri = config["database_uri"]
+            else:
+                database_uri = config.database_uri
+
+            cls._uris = {database_uri: 0}
             cls._client_name = "mongo"
 
         elif backend == "migo" or (
