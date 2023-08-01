@@ -319,7 +319,7 @@ class CollectionWrapper:
 
         original_doc = self.find_one(filter=filter)
         new_history = self.__collection_class._build_history_from_ref(
-            user_info, original_doc
+            user_info, original_doc, filter
         )
         update_result = self.update_one(
             filter={"_id": original_doc.id},
@@ -382,7 +382,7 @@ class CollectionWrapper:
 
         original_doc = self.find_one(filter=filter)
         new_history = self.__collection_class._build_history_from_ref(
-            user_info, original_doc
+            user_info, original_doc, filter
         )
         delete_result = self.delete_one(filter={"_id": original_doc.id})
         self._historical_insert_one(new_history)

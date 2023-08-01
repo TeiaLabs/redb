@@ -184,7 +184,7 @@ class IRememberDoc(Document):
         assert not upsert and operator == "$set" and not allow_new_fields
         # TODO: fix these missing behaviors or raise appropriate errors
         original_doc = super().find_one(filter=filter)
-        new_history = cls._build_history_from_ref(user_info, original_doc)
+        new_history = cls._build_history_from_ref(user_info, original_doc, filter)
         cls._historical_insert_one(new_history)
         original_obj = original_doc.dict()
         original_obj.pop("_id")
@@ -204,7 +204,7 @@ class IRememberDoc(Document):
     ) -> ReplaceOneResult:
         # TODO: wrap in ACID transaction
         original_doc = super().find_one(filter=filter)
-        new_history = cls._build_history_from_ref(user_info, original_doc)
+        new_history = cls._build_history_from_ref(user_info, original_doc, filter)
         cls._historical_insert_one(new_history)
         if isinstance(replacement, dict):
             new_obj = replacement
@@ -223,7 +223,7 @@ class IRememberDoc(Document):
         user_info: Any = None,
     ) -> DeleteOneResult:
         original_doc = super().find_one(filter=filter)
-        new_history = cls._build_history_from_ref(user_info, original_doc)
+        new_history = cls._build_history_from_ref(user_info, original_doc, filter)
         delete_result = cls.delete_one(filter={"_id": original_doc.id})
         cls._historical_insert_one(new_history)
         return delete_result
@@ -233,10 +233,18 @@ class IRememberDoc(Document):
         cls,
         user_info: Any,
         referenced_doc: "IRememberDoc",
+        filter: dict,
     ) -> Dict:
-        history_filter = {"ref_id": referenced_doc.id}
+        history_filter = filter
+        if "_id" in filter:
+            history_filter = {"ref_id": filter["_id"]}
         try:
-            histories = cls.historical_find_many(filter=history_filter, fields=["version"], limit=1, sort=SortColumn(name="version", direction=Direction.DESCENDING))
+            histories = cls.historical_find_many(
+                filter=history_filter,
+                fields=["version"],
+                limit=1,
+                sort=SortColumn(name="version", direction=Direction.DESCENDING),
+            )
             history = histories[0]
             version = history["version"] + 1  # type: ignore
         except (DocumentNotFound, IndexError):

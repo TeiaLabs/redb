@@ -110,6 +110,22 @@ def test_historical_version_incrementing(db: Database, fluffy_cat: Cat):
     assert hist_cat["retired_by"] == "user3@email.com"
 
 
+def test_historical_version_incrementing_loop(db: Database, fluffy_cat: Cat):
+    obj = fluffy_cat
+    obj.insert()
+    for i in range(10):
+        user_info = f"user{i+1}@email.com"
+        Cat.historical_delete_one({"_id": obj.id}, user_info=user_info)
+        Cat(**obj.dict(exclude={"created_at"})).insert()
+        if i == 0:
+            continue
+        hist_cats = list(db["cats-history"].find({"name": fluffy_cat.name}, sort=[("version", -1)]))
+        assert len(hist_cats) == i + 1
+        hist_cat = hist_cats[0]
+        assert hist_cat["version"] == i + 1
+        assert hist_cat["retired_by"] == user_info
+
+
 @pytest.mark.order(after="test_historical_delete_one")
 def test_historical_find_one(user_email, pony_cat: Cat):
     pony_cat.insert()
