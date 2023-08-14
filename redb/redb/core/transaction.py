@@ -1,4 +1,5 @@
 import contextlib
+import logging
 from datetime import datetime
 from typing import Any, ContextManager, Dict, Sequence, Type, TypeVar, overload
 
@@ -61,7 +62,7 @@ class CollectionWrapper:
     def _get_driver_collection(self) -> Any:
         return self.__collection._get_driver_collection()
 
-    def switch_db(self, db_name: str) -> "CollectionWrapper":
+    def switch_db(self, setup_indexes: bool = False, db_name: str) -> "CollectionWrapper":
         collection_name = self.__collection_class.collection_name()
 
         client = self.__collection.database.client  # type: ignore
@@ -69,11 +70,17 @@ class CollectionWrapper:
         collection = db.get_collection(collection_name)
 
         self.__collection = collection
+        if setup_indexes:
+            try:
+                self.create_indexes()
+            except:
+                pass
 
         return self
 
     def switch_client(
         self,
+        setup_indexes: bool = False,
         config: MongoConfig | dict | None = None,
         alias: str | None = None,
     ) -> "CollectionWrapper":
@@ -90,10 +97,16 @@ class CollectionWrapper:
         collection = db.get_collection(collection_name)
 
         self.__collection = collection
+        if setup_indexes:
+            try:
+                self.create_indexes()
+            except:
+                pass
         return self
 
     def switch(
         self,
+        setup_indexes: bool = False,
         db: str | None = None,
         config: MongoConfig | dict | None = None,
         alias: str | None = None,
@@ -117,6 +130,11 @@ class CollectionWrapper:
         collection = _db.get_collection(collection_name)
 
         self.__collection = collection
+        if setup_indexes:
+            try:
+                self.create_indexes()
+            except:
+                pass
         return self
 
     def create_indexes(self) -> None:
@@ -422,6 +440,7 @@ def transaction(
     backend: str | None = None,
     config: CONFIG_TYPE | None = None,
     db_name: str | None = None,
+    setup_indexes: bool = False,
 ) -> Collection | CollectionWrapper:
     new_client, client = get_client(backend, config)
 
@@ -432,6 +451,8 @@ def transaction(
 
     if isinstance(collection, str):
         collection = database.get_collection(collection)
+        if setup_indexes:
+            logging.warn("Cannot setup indexes from string parameter. Pass a Document class to use it.")
     else:
         collection_name = collection.collection_name()
         driver_history_collection = None
@@ -440,9 +461,14 @@ def transaction(
             driver_history_collection = database.get_collection(history_collection_name)
 
         driver_collection = database.get_collection(collection_name)
-        collection = CollectionWrapper(
+        collection: CollectionWrapper = CollectionWrapper(
             driver_collection, driver_history_collection, collection
-        )
+        ) # type: ignore
+        if setup_indexes:
+            try:
+                collection.create_indexes()
+            except:
+                pass
 
     yield collection
 
