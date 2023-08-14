@@ -11,8 +11,12 @@ T = TypeVar("T")
 
 class SwitcharooMixin:
     @classmethod
-    def switch_db(cls: Type, db_name: str) -> CollectionWrapper:
-        with transaction(cls, db_name=db_name) as new_cls:
+    def switch_db(
+        cls: Type,
+        db_name: str,
+        setup_indexes: bool = False,
+    ) -> CollectionWrapper:
+        with transaction(cls, db_name=db_name, setup_indexes=setup_indexes) as new_cls:
             return new_cls
 
     @classmethod
@@ -26,6 +30,7 @@ class SwitcharooMixin:
     @classmethod
     def switch(
         cls: Type,
+        setup_indexes: bool = False,
         db: str | None = None,
         config: MongoConfig | dict | None = None,
         alias: str | None = None,
@@ -33,5 +38,5 @@ class SwitcharooMixin:
         if RedB.get_client_name() != "mongo" and config is not None:
             raise UnsupportedOperation("Only Mongo flavor support client switch")
 
-        with transaction(cls) as new_cls:
+        with transaction(cls, setup_indexes=setup_indexes) as new_cls:
             return new_cls.switch(db=db, config=config, alias=alias)
