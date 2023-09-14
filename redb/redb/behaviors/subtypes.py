@@ -53,6 +53,8 @@ class SubTypedDocument(Document):
 
         collection = Document._get_collection(self.__class__.__bases__[0])
         data = _format_document_data(self)
+        if data["type"] != self.__class__.__name__:
+            raise TypeError("Data type must match the class name")
         try:
             return collection.insert_one(
                 cls=self.__class__,
