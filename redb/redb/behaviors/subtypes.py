@@ -1,3 +1,4 @@
+from itertools import groupby
 from typing import Type, TypeVar
 
 from pymongo.errors import DuplicateKeyError
@@ -9,8 +10,10 @@ from ..core.document import (
     DocumentData,
     IncludeColumns,
     OptionalDocumentData,
+    SortColumns,
     _format_document_data,
     _format_fields,
+    _format_sort,
     _get_return_cls,
     _validate_fields,
 )
@@ -102,6 +105,65 @@ class SubTypedDocument(Document):
                 fields=formatted_fields,
             )
 
+        else:
+            raise DocumentNotFound(
+                "Subtype only supports one layer of inheritance no documents found"
+            )
+
+    @classmethod
+    def st_find_many(
+        cls: Type[T],
+        filter: OptionalDocumentData = None,
+        fields: IncludeColumns = None,
+        sort: SortColumns = None,
+        skip: int = 0,
+        limit: int = 0,
+    ):
+        if cls.__bases__[0] == (SubTypedDocument):
+            collection = Document._get_collection(cls)
+            filter = _format_document_data(filter)
+            formatted_fields = _format_fields(fields)
+            sort_order = _format_sort(sort)
+
+            objs = collection.find(
+                cls=cls,
+                return_cls=dict,
+                filter=filter,
+                fields=formatted_fields,
+                sort=sort_order,
+                skip=skip,
+                limit=limit,
+            )
+            sorted_objs = sorted(objs, key=lambda x: x["type"])
+            grouped = groupby(sorted_objs, lambda x: x["type"])
+            result = []
+            for key, group in grouped:
+                for subclass in cls.__subclasses__():
+                    if str(subclass.__name__) == key:
+                        re_cls = subclass
+                        return_cls = _get_return_cls(re_cls, formatted_fields)
+
+                for obj in group:
+                    result.append(return_cls(**obj))
+
+            return result
+
+        elif cls.__bases__[0].__bases__[0] == (SubTypedDocument):
+            collection = Document._get_collection(cls.__bases__[0])
+            filter = _format_document_data(filter)
+            filter["type"] = cls.__name__
+            formatted_fields = _format_fields(fields)
+            sort_order = _format_sort(sort)
+            return_cls = _get_return_cls(cls, formatted_fields)
+            return collection.find(
+                cls=cls,
+                return_cls=return_cls,
+                filter=filter,
+                fields=formatted_fields,
+                sort=sort_order,
+                skip=skip,
+                limit=limit,
+            )
         else:
             raise DocumentNotFound(
                 "Subtype only supports one layer of inheritance no documents found"
