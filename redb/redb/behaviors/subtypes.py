@@ -31,6 +31,7 @@ class SubTypedDocument(Document):
             raise TypeError("Subtype only supports one layer of inheritance")
 
         _validate_fields(cls, data)
+        data["type"] = cls.__name__
 
         collection = Document._get_collection(cls.__bases__[0])
         data = _format_document_data(data)
