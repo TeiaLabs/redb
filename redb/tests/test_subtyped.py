@@ -6,7 +6,7 @@ from redb.behaviors import SubTypedDocument
 from redb.interface.fields import ClassField
 
 
-class SepecialCat(SubTypedDocument):
+class SpecialCat(SubTypedDocument):
     name: str
     breed: str = "Siberian"
     created_by: str
@@ -17,12 +17,12 @@ class SepecialCat(SubTypedDocument):
         return [cls.name, cls.created_at]  # type: ignore
 
 
-class WildCat(SepecialCat):
+class WildCat(SpecialCat):
     type: Literal["WildCat"] = "WildCat"
     color: str
 
 
-class DomesticCat(SepecialCat):
+class DomesticCat(SpecialCat):
     type: Literal["DomesticCat"] = "DomesticCat"
     is_neutered: bool
 
@@ -37,8 +37,8 @@ def creator_email():
 
 
 @pytest.fixture(scope="function")
-def cat(creator_email) -> SepecialCat:
-    return SepecialCat(name="Fluffy", created_by=creator_email)
+def cat(creator_email) -> SpecialCat:
+    return SpecialCat(name="Fluffy", created_by=creator_email)
 
 
 @pytest.fixture(scope="function")
@@ -48,7 +48,7 @@ def wild_cat(creator_email) -> WildCat:
 
 @pytest.fixture(scope="function")
 def domestic_cat(creator_email) -> DomesticCat:
-    return DomesticCat(name="schsss", is_neutered=True, created_by=creator_email)
+    return DomesticCat(name="furrball", is_neutered=True, created_by=creator_email)
 
 
 @pytest.fixture(scope="function")
@@ -61,7 +61,7 @@ def feral_cat(creator_email) -> FeralCat:
 @pytest.fixture(scope="function", autouse=True)
 def teardown():
     yield
-    SepecialCat.delete_many({})
+    SpecialCat.delete_many({})
 
 
 @pytest.fixture(scope="module")
@@ -70,7 +70,7 @@ def user_email():
 
 
 def test_subtyped_document_insert(
-    cat: SepecialCat,
+    cat: SpecialCat,
     wild_cat: WildCat,
     domestic_cat: DomesticCat,
     feral_cat: FeralCat,
@@ -78,13 +78,65 @@ def test_subtyped_document_insert(
     wild_cat.insert()
     domestic_cat.insert()
 
-    wild_cat = SepecialCat.st_find_one({"name": wild_cat.name})
-    domestic_cat = SepecialCat.st_find_one({"name": domestic_cat.name})
+    wild_cat = SpecialCat.st_find_one({"name": wild_cat.name})
+    domestic_cat = SpecialCat.st_find_one({"name": domestic_cat.name})
 
-    assert cat.name == "Fluffy"
     assert wild_cat.name == "schsss"
-    assert domestic_cat.name == "schsss"
+    assert domestic_cat.name == "furrball"
     with pytest.raises(TypeError):
         cat.insert()
     with pytest.raises(TypeError):
         feral_cat.insert()
+
+
+def test_st_insert_one(
+    wild_cat: WildCat,
+    domestic_cat: DomesticCat,
+):
+    with pytest.raises(TypeError):
+        SubTypedDocument.st_insert_one({})
+    with pytest.raises(TypeError):
+        FeralCat.st_insert_one({})
+
+    WildCat.st_insert_one(wild_cat.dict())
+    DomesticCat.st_insert_one(domestic_cat.dict())
+
+    wild_cat = SpecialCat.st_find_one({"name": "schsss"})
+    domestic_cat = SpecialCat.st_find_one({"name": "furrball"})
+    assert wild_cat.name == "schsss"
+    assert domestic_cat.name == "furrball"
+
+
+def test_subtyped_document_find_one(
+    wild_cat: WildCat,
+    domestic_cat: DomesticCat,
+):
+    wild_cat.insert()
+    domestic_cat.insert()
+
+    wild_cat = SpecialCat.st_find_one({"name": wild_cat.name})
+    domestic_cat = SpecialCat.st_find_one({"name": domestic_cat.name})
+
+    assert wild_cat.name == "schsss"
+    assert domestic_cat.name == "furrball"
+
+
+def test_subtyped_document_find_many(
+    wild_cat: WildCat,
+    domestic_cat: DomesticCat,
+):
+    domestic_cat.insert()
+    wild_cat.insert()
+
+    cats = SpecialCat.st_find_many()
+    assert len(cats) == 2
+    assert cats[0].__class__ == DomesticCat
+    assert cats[1].__class__ == WildCat
+
+    cat = WildCat.st_find_many()
+    assert len(cat) == 1
+    assert cat[0].__class__ == WildCat
+
+    cat = DomesticCat.st_find_many()
+    assert len(cat) == 1
+    assert cat[0].__class__ == DomesticCat
