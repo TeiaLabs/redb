@@ -95,6 +95,7 @@ class SubTypedDocument(Document):
         elif cls.__bases__[0].__bases__[0] == (SubTypedDocument):
             collection = Document._get_collection(cls.__bases__[0])
             filter = _format_document_data(filter)
+            filter["type"] = cls.__name__
             formatted_fields = _format_fields(fields)
             return_cls = _get_return_cls(cls, formatted_fields)
             return collection.find_one(
