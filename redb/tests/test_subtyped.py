@@ -130,8 +130,8 @@ def test_subtyped_document_find_many(
 
     cats = SpecialCat.st_find_many()
     assert len(cats) == 2
-    assert cats[0].__class__ == DomesticCat
-    assert cats[1].__class__ == WildCat
+    assert isinstance(cats[0], DomesticCat)
+    assert isinstance(cats[1], WildCat)
 
     cat = WildCat.st_find_many()
     assert len(cat) == 1
