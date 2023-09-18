@@ -169,3 +169,22 @@ class SubTypedDocument(Document):
             raise DocumentNotFound(
                 "Subtype only supports one layer of inheritance no documents found"
             )
+
+    @classmethod
+    def st_from_dicts(cls: Type[T], dicts: list[dict]) -> list[T]:
+        instances = []
+        if cls.__bases__[0] == (SubTypedDocument):
+            subtypes = dict()
+            for subtype in cls.__subclasses__():
+                subtypes[subtype.__name__] = subtype
+
+            for document in dicts:
+                instances.append(subtypes[document["type"]](**document))
+            return instances
+
+        elif cls.__bases__[0].__bases__[0] == (SubTypedDocument):
+            raise TypeError("Method can only be called by base subtype document")
+        else:
+            raise DocumentNotFound(
+                "Subtype only supports one layer of inheritance no documents found"
+            )
