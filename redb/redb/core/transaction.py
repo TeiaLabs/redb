@@ -62,7 +62,9 @@ class CollectionWrapper:
     def _get_driver_collection(self) -> Any:
         return self.__collection._get_driver_collection()
 
-    def switch_db(self, setup_indexes: bool = False, db_name: str) -> "CollectionWrapper":
+    def switch_db(
+        self, setup_indexes: bool = False, db_name: str = ""
+    ) -> "CollectionWrapper":
         collection_name = self.__collection_class.collection_name()
 
         client = self.__collection.database.client  # type: ignore
@@ -452,7 +454,9 @@ def transaction(
     if isinstance(collection, str):
         collection = database.get_collection(collection)
         if setup_indexes:
-            logging.warn("Cannot setup indexes from string parameter. Pass a Document class to use it.")
+            logging.warn(
+                "Cannot setup indexes from string parameter. Pass a Document class to use it."
+            )
     else:
         collection_name = collection.collection_name()
         driver_history_collection = None
@@ -463,7 +467,7 @@ def transaction(
         driver_collection = database.get_collection(collection_name)
         collection: CollectionWrapper = CollectionWrapper(
             driver_collection, driver_history_collection, collection
-        ) # type: ignore
+        )  # type: ignore
         if setup_indexes:
             try:
                 collection.create_indexes()
