@@ -339,7 +339,7 @@ class CollectionWrapper:
         # TODO: this desperately needs a transaction
         assert not upsert and operator in ("$set", "$addToSet") and not allow_new_fields
         # TODO: fix these missing behaviors or raise appropriate errors
-        original_doc = super().find_one(filter=filter)
+        original_doc = self.find_one(filter=filter)
         new_history = self.__collection_class._build_history_from_ref(user_info, original_doc, filter)
         self.__collection_class._historical_insert_one(new_history)
         if operator == "$set":
