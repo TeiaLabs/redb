@@ -181,21 +181,30 @@ class IRememberDoc(Document):
         user_info: Any = None,
     ) -> UpdateOneResult:
         # TODO: this desperately needs a transaction
-        assert not upsert and operator == "$set" and not allow_new_fields
+        assert not upsert and operator in ("$set", "$addToSet") and not allow_new_fields
         # TODO: fix these missing behaviors or raise appropriate errors
         original_doc = super().find_one(filter=filter)
         new_history = cls._build_history_from_ref(user_info, original_doc, filter)
         cls._historical_insert_one(new_history)
-        original_obj = original_doc.dict()
-        original_obj.pop("_id")
-        if isinstance(update, dict):
-            new_obj = original_obj | update
+        if operator == "$set":
+            original_obj = original_doc.dict()
+            original_obj.pop("_id")
+            if isinstance(update, dict):
+                new_obj = original_obj | update
+            else:
+                new_obj = original_obj | update.dict()
+            new_doc = cls(**new_obj)
+            del_res = cls.delete_one(filter=filter)
+            ins_res = cls.insert_one(new_doc)
+            matched_count = del_res.deleted_count
+            modified_count = 1
+        elif operator == "$addToSet":
+            up_res = cls.update_one(filter=filter, update=update, operator=operator)
+            matched_count = up_res.matched_count
+            modified_count = up_res.modified_count
         else:
-            new_obj = original_obj | update.dict()
-        new_doc = cls(**new_obj)
-        cls.delete_one(filter=filter)
-        cls.insert_one(new_doc)
-        update_result = UpdateOneResult(matched_count=1, modified_count=1, upserted_id=None)
+            raise NotImplementedError
+        update_result = UpdateOneResult(matched_count=matched_count, modified_count=modified_count, upserted_id=None)
         return update_result
 
     @classmethod
