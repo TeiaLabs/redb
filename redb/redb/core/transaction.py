@@ -341,7 +341,7 @@ class CollectionWrapper:
         # TODO: fix these missing behaviors or raise appropriate errors
         original_doc = self.find_one(filter=filter)
         new_history = self.__collection_class._build_history_from_ref(user_info, original_doc, filter)
-        self.__collection_class._historical_insert_one(new_history)
+        self._historical_insert_one(new_history)
         if operator == "$set":
             original_obj = original_doc.dict()
             original_obj.pop("_id")
