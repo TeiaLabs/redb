@@ -350,12 +350,12 @@ class CollectionWrapper:
             else:
                 new_obj = original_obj | update.dict()
             new_doc = self.__collection_class(**new_obj)
-            del_res = self.__collection_class.delete_one(filter=filter)
-            ins_res = self.__collection_class.insert_one(new_doc)
+            del_res = self.delete_one(filter=filter)
+            ins_res = self.insert_one(new_doc)
             matched_count = del_res.deleted_count
             modified_count = 1
         elif operator == "$addToSet":
-            up_res = self.__collection_class.update_one(filter=filter, update=update, operator=operator)
+            up_res = self.update_one(filter=filter, update=update, operator=operator)
             matched_count = up_res.matched_count
             modified_count = up_res.modified_count
         else:
