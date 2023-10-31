@@ -336,19 +336,31 @@ class CollectionWrapper:
     ) -> UpdateOneResult:
         if self.__history_collection is None:
             raise ValueError("Base class does not inherit from IRememberDoc")
-
-        original_doc = self.find_one(filter=filter)
-        new_history = self.__collection_class._build_history_from_ref(
-            user_info, original_doc, filter
-        )
-        update_result = self.update_one(
-            filter={"_id": original_doc.id},
-            update=update,
-            upsert=upsert,
-            operator=operator,
-            allow_new_fields=allow_new_fields,
-        )
-        self._historical_insert_one(new_history)
+        # TODO: this desperately needs a transaction
+        assert not upsert and operator in ("$set", "$addToSet") and not allow_new_fields
+        # TODO: fix these missing behaviors or raise appropriate errors
+        original_doc = super().find_one(filter=filter)
+        new_history = self.__collection_class._build_history_from_ref(user_info, original_doc, filter)
+        self.__collection_class._historical_insert_one(new_history)
+        if operator == "$set":
+            original_obj = original_doc.dict()
+            original_obj.pop("_id")
+            if isinstance(update, dict):
+                new_obj = original_obj | update
+            else:
+                new_obj = original_obj | update.dict()
+            new_doc = self.__collection_class(**new_obj)
+            del_res = self.__collection_class.delete_one(filter=filter)
+            ins_res = self.__collection_class.insert_one(new_doc)
+            matched_count = del_res.deleted_count
+            modified_count = 1
+        elif operator == "$addToSet":
+            up_res = self.__collection_class.update_one(filter=filter, update=update, operator=operator)
+            matched_count = up_res.matched_count
+            modified_count = up_res.modified_count
+        else:
+            raise NotImplementedError
+        update_result = UpdateOneResult(matched_count=matched_count, modified_count=modified_count, upserted_id=None)
         return update_result
 
     def update_many(

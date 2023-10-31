@@ -85,10 +85,8 @@ def test_add_to_set(db: Database, creator_email: str, user_email: str, fluffy_ca
         operator="$addToSet",
         user_info=user_email,
     )
-    print(up_result)
     assert up_result.modified_count == 1
     hist_cats = list(db["cats-history"].find({"name": fluffy_cat.name}))
-    print(hist_cats)
     assert len(hist_cats) == 1
     hist_cat = hist_cats[0]
     assert hist_cat["version"] == 1
@@ -96,7 +94,6 @@ def test_add_to_set(db: Database, creator_email: str, user_email: str, fluffy_ca
     assert hist_cat["retired_by"] == user_email
     assert len(hist_cat["friends"]) == 0
     cats = list(db["cats"].find({"name": fluffy_cat.name}))
-    print(cats)
     assert len(cats) == 1
     cat = cats[0]
     assert "Pony" in cat["friends"]
@@ -114,7 +111,6 @@ def test_add_each_to_set(db: Database, creator_email: str, user_email: str, fluf
     )
     assert up_result.modified_count == 1
     hist_cats = list(db["cats-history"].find({"name": fluffy_cat.name}))
-    print(hist_cats)
     assert len(hist_cats) == 1
     hist_cat = hist_cats[0]
     assert hist_cat["version"] == 1
@@ -122,7 +118,6 @@ def test_add_each_to_set(db: Database, creator_email: str, user_email: str, fluf
     assert hist_cat["retired_by"] == user_email
     assert len(hist_cat["friends"]) == 0
     cats = list(db["cats"].find({"name": fluffy_cat.name}))
-    print(cats)
     assert len(cats) == 1
     cat = cats[0]
     assert all(friend in cat["friends"] for friend in friends)
